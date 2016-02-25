@@ -10,11 +10,11 @@ func addAgentSessionMigrations(mg *migrator.Migrator) {
 	agentSessionV1 := migrator.Table{
 		Name: "agent_session",
 		Columns: []*migrator.Column{
-			{Name: "id", Type: migrator.DB_BigInt, IsPrimaryKey: true, IsAutoIncrement: true},
+			{Name: "id", Type: migrator.DB_NVarchar, IsPrimaryKey: true},
 			{Name: "agent_id", Type: migrator.DB_BigInt, Nullable: false},
 			{Name: "version", Type: migrator.DB_BigInt, Nullable: false},
 			{Name: "server", Type: migrator.DB_NVarchar, Length: 255},
-			{Name: "ip", Type: migrator.DB_NVarchar, Length: 255},
+			{Name: "remote_ip", Type: migrator.DB_NVarchar, Length: 255},
 			{Name: "created", Type: migrator.DB_DateTime},
 		},
 		Indices: []*migrator.Index{

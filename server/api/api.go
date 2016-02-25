@@ -13,7 +13,7 @@ var log = logging.MustGetLogger("default")
 func InitRoutes(m *macaron.Macaron) {
 	bind := binding.Bind
 
-	m.Get("/socket/:agent", socket)
+	m.Get("/socket/:agent/:ver", socket)
 	m.Get("/", index)
 	m.Group("/api", func() {
 		m.Group("/agents", func() {

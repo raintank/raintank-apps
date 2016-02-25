@@ -132,6 +132,7 @@ func (s *Session) socketWriter(done chan struct{}) {
 	defer s.Conn.Close()
 	defer close(done)
 	for msg := range s.writeMessageChan {
+		log.Debugf("socket %s sending message", s.Id)
 		err := s.Conn.WriteMessage(msg.MessageType, msg.Body)
 		if err != nil {
 			log.Errorf("write:", err)

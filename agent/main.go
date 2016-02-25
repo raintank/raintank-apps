@@ -16,6 +16,8 @@ import (
 	"github.com/rakyll/globalconf"
 )
 
+const Version int = 1
+
 var log = logging.MustGetLogger("default")
 
 var (
@@ -65,7 +67,7 @@ func main() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
-	controllerUrl := url.URL{Scheme: "ws", Host: *addr, Path: fmt.Sprintf("/socket/%s", *nodeName)}
+	controllerUrl := url.URL{Scheme: "ws", Host: *addr, Path: fmt.Sprintf("/socket/%s/%d", *nodeName, Version)}
 	conn, err := connect(controllerUrl)
 	if err != nil {
 		log.Fatalf("unable to connect to server on url: %s", controllerUrl.String())
