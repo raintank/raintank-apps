@@ -14,4 +14,5 @@ func AddMigrations(mg *Migrator) {
 	addAgentMetricMigrations(mg)
 	addAgentTagMigrations(mg)
 	addMetricMigrations(mg)
+	addAgentSessionMigrations(mg)
 }

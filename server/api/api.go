@@ -5,7 +5,7 @@ import (
 	"github.com/macaron-contrib/binding"
 	"github.com/op/go-logging"
 
-	"github.com/raintank/raintank-apps/pkg/model"
+	"github.com/raintank/raintank-apps/server/model"
 )
 
 var log = logging.MustGetLogger("default")

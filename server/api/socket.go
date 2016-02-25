@@ -11,19 +11,19 @@ import (
 	"github.com/raintank/raintank-apps/pkg/message"
 	"github.com/raintank/raintank-apps/pkg/session"
 
-	"github.com/raintank/raintank-apps/pkg/model"
+	"github.com/raintank/raintank-apps/server/model"
 	"github.com/raintank/raintank-apps/server/sqlstore"
 )
 
 var upgrader = websocket.Upgrader{} // use default options
 
-func authRequest(agentName string) (*model.AgentDTO, error) {
+func connectedAgent(agentName string, owner string) (*model.AgentDTO, error) {
 	if agentName == "" {
 		return nil, errors.New("agent name not specified.")
 	}
 	q := model.GetAgentsQuery{
 		Name:  agentName,
-		Owner: "admin",
+		Owner: owner,
 	}
 	agents, err := sqlstore.GetAgents(&q)
 	if err != nil {
@@ -37,24 +37,29 @@ func authRequest(agentName string) (*model.AgentDTO, error) {
 
 func socket(ctx *macaron.Context) {
 	agentName := ctx.Params(":agent")
-	agent, err := authRequest(agentName)
+	//TODO: add auth
+	owner := "admin"
+	agent, err := connectedAgent(agentName, owner)
 	if err != nil {
 		ctx.JSON(400, err.Error())
 		return
 	}
-	log.Debugf("agent %s connected.", agent.Name)
 
 	c, err := upgrader.Upgrade(ctx.Resp, ctx.Req.Request, nil)
-
 	if err != nil {
 		log.Errorf("upgrade:", err)
 		return
 	}
+
+	log.Debugf("agent %s connected.", agent.Name)
 	sess := session.NewSession(c, 10)
-	log.Infof("session %s has connected", sess.Id)
+	var agentSession *model.AgentSession
 	done := make(chan struct{})
 	if err = sess.On("disconnect", func() {
 		log.Debugf("session %s has disconnected", sess.Id)
+		if agentSession != nil {
+			sqlstore.DeleteAgentSession(agentSession)
+		}
 		close(done)
 	}); err != nil {
 		log.Errorf("failed to bind disconnect event. %s", err.Error())

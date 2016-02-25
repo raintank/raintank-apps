@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/raintank/raintank-apps/pkg/model"
+	"github.com/raintank/raintank-apps/server/model"
 )
 
 type agentWithTag struct {

@@ -2,7 +2,7 @@ package api
 
 import (
 	"github.com/Unknwon/macaron"
-	"github.com/raintank/raintank-apps/pkg/model"
+	"github.com/raintank/raintank-apps/server/model"
 	"github.com/raintank/raintank-apps/server/sqlstore"
 )
 
