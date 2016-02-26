@@ -39,3 +39,22 @@ func deleteAgentSession(sess *session, id string) error {
 	sess.Complete()
 	return nil
 }
+
+func DeleteAgentSessionsByServer(server string) error {
+	sess, err := newSession(true, "agent_session")
+	if err != nil {
+		return err
+	}
+	return deleteAgentSessionsByServer(sess, server)
+}
+
+func deleteAgentSessionsByServer(sess *session, server string) error {
+	defer sess.Cleanup()
+	var rawSql = "DELETE FROM agent_session WHERE server=?"
+	_, err := sess.Exec(rawSql, server)
+	if err != nil {
+		return err
+	}
+	sess.Complete()
+	return nil
+}
