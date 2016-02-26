@@ -6,6 +6,26 @@ import (
 	"github.com/raintank/raintank-apps/server/model"
 )
 
+func GetMetrics(query *model.GetMetricsQuery) ([]*model.Metric, error) {
+	sess, err := newSession(false, "metric")
+	if err != nil {
+		return nil, err
+	}
+	return getMetrics(sess, query)
+}
+
+func getMetrics(sess *session, query *model.GetMetricsQuery) ([]*model.Metric, error) {
+	metrics := make([]*model.Metric, 0)
+	if query.Namespace != "" {
+		sess.Where("namespace like ?", query.Namespace)
+	}
+	err := sess.Find(&metrics)
+	if err != nil {
+		return nil, err
+	}
+	return metrics, nil
+}
+
 func GetMetricById(id string) (*model.Metric, error) {
 	sess, err := newSession(false, "metric")
 	if err != nil {

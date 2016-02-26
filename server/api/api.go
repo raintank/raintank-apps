@@ -23,6 +23,8 @@ func InitRoutes(m *macaron.Macaron) {
 				Put(bind(model.AgentDTO{}), UpdateAgent)
 			m.Get("/:id", GetAgentById)
 		})
+
+		m.Get("/metrics", bind(model.GetMetricsQuery{}), GetMetrics)
 	})
 }
 
