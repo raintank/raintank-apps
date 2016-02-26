@@ -29,8 +29,8 @@ func InitRoutes(m *macaron.Macaron) {
 		m.Group("/tasks", func() {
 			m.Combo("/").
 				Get(bind(model.GetTasksQuery{}), GetTasks).
-				Post(bind(model.Task{}), AddTask).
-				Put(bind(model.Task{}), UpdateTask)
+				Post(bind(model.TaskDTO{}), AddTask).
+				Put(bind(model.TaskDTO{}), UpdateTask)
 			m.Get("/:id", GetTaskById)
 		})
 	})

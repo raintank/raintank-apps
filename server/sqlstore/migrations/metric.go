@@ -11,7 +11,7 @@ func addMetricMigrations(mg *migrator.Migrator) {
 		Name: "metric",
 		Columns: []*migrator.Column{
 			{Name: "id", Type: migrator.DB_NVarchar, Length: 255, IsPrimaryKey: true},
-			{Name: "namespace", Type: migrator.DB_NVarchar, Length: 2048},
+			{Name: "namespace", Type: migrator.DB_NVarchar, Length: 255},
 			{Name: "policy", Type: migrator.DB_Text},
 			{Name: "version", Type: migrator.DB_BigInt},
 			{Name: "created", Type: migrator.DB_DateTime},

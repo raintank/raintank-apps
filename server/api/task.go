@@ -24,7 +24,7 @@ func GetTaskById(ctx *macaron.Context) {
 
 func GetTasks(ctx *macaron.Context, query model.GetTasksQuery) {
 	query.Owner = "admin"
-	tasks, err := sqlstore.GetTasks(query)
+	tasks, err := sqlstore.GetTasks(&query)
 	if err != nil {
 		log.Error(err)
 		ctx.JSON(500, err)
@@ -33,7 +33,7 @@ func GetTasks(ctx *macaron.Context, query model.GetTasksQuery) {
 	ctx.JSON(200, tasks)
 }
 
-func AddTask(ctx *macaron.Context, task model.Task) {
+func AddTask(ctx *macaron.Context, task model.TaskDTO) {
 	task.Owner = "admin"
 	err := sqlstore.AddTask(&task)
 	if err != nil {
@@ -44,7 +44,7 @@ func AddTask(ctx *macaron.Context, task model.Task) {
 	ctx.JSON(200, task)
 }
 
-func UpdateTask(ctx *macaron.Context, task model.Task) {
+func UpdateTask(ctx *macaron.Context, task model.TaskDTO) {
 	task.Owner = "admin"
 	err := sqlstore.UpdateTask(&task)
 	if err != nil {

@@ -15,4 +15,6 @@ func AddMigrations(mg *Migrator) {
 	addAgentTagMigrations(mg)
 	addMetricMigrations(mg)
 	addAgentSessionMigrations(mg)
+	addTaskMigrations(mg)
+	addTaskMetricMigrations(mg)
 }
