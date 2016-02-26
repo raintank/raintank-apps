@@ -117,10 +117,10 @@ func getAgentById(sess *session, id int64, owner string) (*model.AgentDTO, error
 	return a.ToAgentDTO()[0], nil
 }
 
-func UpdateAgent(a *model.AgentDTO) (*model.AgentDTO, error) {
+func UpdateAgent(a *model.AgentDTO) error {
 	sess, err := newSession(true, "agent")
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer sess.Cleanup()
 
@@ -128,20 +128,28 @@ func UpdateAgent(a *model.AgentDTO) (*model.AgentDTO, error) {
 	if a.Id != 0 {
 		existing, err := getAgentById(sess, a.Id, a.Owner)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if existing != nil {
 			// Update existing Agent.
-			agent, err := updateAgent(sess, a, existing)
+			err := updateAgent(sess, a, existing)
 			if err != nil {
-				return nil, err
+				return err
 			}
 			sess.Complete()
-			return agent, err
+			return err
 		}
 	}
 
 	/*--------- create new Agent -------------*/
+	if err = addAgent(sess, a); err != nil {
+		return err
+	}
+	sess.Complete()
+	return nil
+}
+
+func addAgent(sess *session, a *model.AgentDTO) error {
 	agent := &model.Agent{
 		Name:     a.Name,
 		Password: a.Password,
@@ -156,9 +164,12 @@ func UpdateAgent(a *model.AgentDTO) (*model.AgentDTO, error) {
 	sess.UseBool("enabled")
 	agent.UpdateSlug()
 	if _, err := sess.Insert(agent); err != nil {
-		return nil, err
+		return err
 	}
 	a.Id = agent.Id
+	a.Created = agent.Created
+	a.Updated = agent.Updated
+	a.Slug = agent.Slug
 
 	agentTags := make([]model.AgentTag, 0, len(a.Tags))
 	for _, tag := range a.Tags {
@@ -172,14 +183,13 @@ func UpdateAgent(a *model.AgentDTO) (*model.AgentDTO, error) {
 	if len(agentTags) > 0 {
 		sess.Table("agent_tag")
 		if _, err := sess.Insert(&agentTags); err != nil {
-			return nil, err
+			return err
 		}
 	}
-	sess.Complete()
-	return a, nil
+	return nil
 }
 
-func updateAgent(sess *session, a *model.AgentDTO, existing *model.AgentDTO) (*model.AgentDTO, error) {
+func updateAgent(sess *session, a *model.AgentDTO, existing *model.AgentDTO) error {
 	// If the Owner is different, the only changes that can be made is to Tags.
 	if a.Owner == existing.Owner {
 		agent := &model.Agent{
@@ -196,8 +206,10 @@ func updateAgent(sess *session, a *model.AgentDTO, existing *model.AgentDTO) (*m
 		sess.UseBool("enabled")
 		agent.UpdateSlug()
 		if _, err := sess.Id(agent.Id).Update(agent); err != nil {
-			return nil, err
+			return err
 		}
+		a.Updated = agent.Updated
+		a.Slug = agent.Slug
 	}
 
 	tagMap := make(map[string]bool)
@@ -242,7 +254,7 @@ func updateAgent(sess *session, a *model.AgentDTO, existing *model.AgentDTO) (*m
 		}
 		rawSql := fmt.Sprintf("DELETE FROM agent_tag WHERE agent_id=? AND owner=? AND tag IN (%s)", strings.Join(p, ","))
 		if _, err := sess.Exec(rawSql, rawParams...); err != nil {
-			return nil, err
+			return err
 		}
 	}
 	if len(tagsToAdd) > 0 {
@@ -257,9 +269,9 @@ func updateAgent(sess *session, a *model.AgentDTO, existing *model.AgentDTO) (*m
 		}
 		sess.Table("agent_tag")
 		if _, err := sess.Insert(&newAgentTags); err != nil {
-			return nil, err
+			return err
 		}
 	}
 
-	return a, nil
+	return nil
 }

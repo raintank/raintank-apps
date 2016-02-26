@@ -44,6 +44,7 @@ type AgentMetric struct {
 type AgentDTO struct {
 	Id       int64     `json:"id"`
 	Name     string    `json:"name"`
+	Slug     string    `json:"slug"`
 	Password string    `json:"password"`
 	Enabled  bool      `json:"enabled"`
 	Owner    string    `json:"-"`

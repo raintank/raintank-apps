@@ -31,23 +31,23 @@ func GetAgentById(ctx *macaron.Context) {
 func AddAgent(ctx *macaron.Context, agent model.AgentDTO) {
 	//need to add suport for middelware context with AUTH/
 	agent.Owner = "admin"
-	a, err := sqlstore.UpdateAgent(&agent)
+	err := sqlstore.UpdateAgent(&agent)
 	if err != nil {
 		log.Error(err)
 		ctx.JSON(500, err)
 		return
 	}
-	ctx.JSON(200, a)
+	ctx.JSON(200, agent)
 }
 
 func UpdateAgent(ctx *macaron.Context, agent model.AgentDTO) {
 	//need to add suport for middelware context with AUTH/
 	agent.Owner = "admin"
-	a, err := sqlstore.UpdateAgent(&agent)
+	err := sqlstore.UpdateAgent(&agent)
 	if err != nil {
 		log.Error(err)
 		ctx.JSON(500, err)
 		return
 	}
-	ctx.JSON(200, a)
+	ctx.JSON(200, agent)
 }

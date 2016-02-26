@@ -79,7 +79,7 @@ func (a *AgentSession) saveDbSession() error {
 		Server:   host,
 		Created:  time.Now(),
 	}
-	dbSess, err := sqlstore.AddAgentSession(dbSess)
+	err := sqlstore.AddAgentSession(dbSess)
 	if err != nil {
 		return err
 	}
