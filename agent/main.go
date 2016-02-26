@@ -70,7 +70,7 @@ func main() {
 	controllerUrl := url.URL{Scheme: "ws", Host: *addr, Path: fmt.Sprintf("/socket/%s/%d", *nodeName, Version)}
 	conn, err := connect(controllerUrl)
 	if err != nil {
-		log.Fatalf("unable to connect to server on url: %s", controllerUrl.String())
+		log.Fatalf("unable to connect to server on url %s: %s", controllerUrl.String(), err)
 	}
 
 	//create new session, allow 1000 events to be queued in the writeQueue before Emit() blocks.
