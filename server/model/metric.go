@@ -5,13 +5,15 @@ import (
 	"crypto/md5"
 	"encoding/binary"
 	"fmt"
+	"time"
 
 	"github.com/intelsdi-x/snap/mgmt/rest/rbody"
 )
 
 type Metric struct {
 	rbody.Metric
-	Id string
+	Id      string
+	Created time.Time
 }
 
 func (m *Metric) SetId() {
