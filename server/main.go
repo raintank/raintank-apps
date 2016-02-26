@@ -49,6 +49,12 @@ func main() {
 	// initialize DB
 	sqlstore.NewEngine(*dbPath)
 
+	// delete any stale agentSessions.
+	hostname, _ := os.Hostname()
+	if err := sqlstore.DeleteAgentSessionsByServer(hostname); err != nil {
+		panic(err)
+	}
+
 	m := macaron.Classic()
 	m.Use(macaron.Logger())
 	m.Use(macaron.Renderer())
