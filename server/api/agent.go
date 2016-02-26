@@ -25,6 +25,10 @@ func GetAgentById(ctx *macaron.Context) {
 		ctx.JSON(500, err)
 		return
 	}
+	if agent == nil {
+		ctx.JSON(404, "agent not found")
+		return
+	}
 	ctx.JSON(200, agent)
 }
 

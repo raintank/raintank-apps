@@ -25,6 +25,14 @@ func InitRoutes(m *macaron.Macaron) {
 		})
 
 		m.Get("/metrics", bind(model.GetMetricsQuery{}), GetMetrics)
+
+		m.Group("/tasks", func() {
+			m.Combo("/").
+				Get(bind(model.GetTasksQuery{}), GetTasks).
+				Post(bind(model.Task{}), AddTask).
+				Put(bind(model.Task{}), UpdateTask)
+			m.Get("/:id", GetTaskById)
+		})
 	})
 }
 
