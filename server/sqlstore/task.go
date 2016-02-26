@@ -71,7 +71,7 @@ func getTasks(sess *session, query *model.GetTasksQuery) ([]*model.TaskDTO, erro
 	}
 
 	if query.Metric != "" {
-		sess.Join("INNER", []string{"task_metric", "tm"}, "task.id = at.tm.task_id").
+		sess.Join("INNER", []string{"task_metric", "tm"}, "task.id = tm.task_id").
 			Where("tm.namespace=?", query.Metric)
 		if query.MetricVersion == 0 {
 			// get the latest version.
