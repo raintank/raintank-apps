@@ -90,7 +90,7 @@ func getAgents(sess *session, query *model.GetAgentsQuery) ([]*model.AgentDTO, e
 		"agent.owner",
 		"agent_tag.tag",
 	)
-	err := sess.Join("INNER", "agent_tag", "agent.id = agent_tag.agent_id").Find(&a)
+	err := sess.Join("LEFT", "agent_tag", "agent.id = agent_tag.agent_id").Find(&a)
 	if err != nil {
 		return nil, err
 	}
