@@ -112,6 +112,17 @@ func (a *AgentSession) HandleCatalog() interface{} {
 			return
 		}
 		log.Debugf("Received catalog for session %s: %s", a.SocketSession.Id, body)
+		for _, m := range catalog {
+			metric := &model.Metric{
+				Namespace: m.Namespace,
+				Version:   m.Version,
+				Policy:    m.Policy,
+			}
+			err := sqlstore.AddMetric(metric)
+			if err != nil {
+				log.Errorf("failed to update metric in DB. %s", err)
+			}
+		}
 	}
 }
 
