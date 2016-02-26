@@ -38,6 +38,7 @@ func socket(ctx *macaron.Context) {
 	owner := "admin"
 	agent, err := connectedAgent(agentName, owner)
 	if err != nil {
+		log.Debugf("agent cant connect. %s", err)
 		ctx.JSON(400, err.Error())
 		return
 	}
