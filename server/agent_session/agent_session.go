@@ -118,7 +118,7 @@ func (a *AgentSession) HandleCatalog() interface{} {
 				Owner:     a.Agent.Owner,
 				Public:    a.Agent.Public,
 				Namespace: m.Namespace,
-				Version:   m.Version,
+				Version:   int64(m.Version),
 				Policy:    m.Policy,
 			}
 			err := sqlstore.AddMetric(metric)

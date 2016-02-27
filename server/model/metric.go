@@ -14,7 +14,7 @@ type Metric struct {
 	Owner     string
 	Public    bool
 	Namespace string
-	Version   int
+	Version   int64
 	Policy    []rbody.PolicyTable
 	Created   time.Time
 }

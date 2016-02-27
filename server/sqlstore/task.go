@@ -1,6 +1,7 @@
 package sqlstore
 
 import (
+	"fmt"
 	"strconv"
 	"time"
 
@@ -157,6 +158,28 @@ func addTask(sess *session, t *model.TaskDTO) error {
 	metrics := make([]*model.TaskMetric, 0, len(t.Metrics))
 	for namespace, ver := range t.Metrics {
 		//TODO: validate each Metric.
+		mQuery := &model.GetMetricsQuery{
+			Namespace: namespace,
+			Owner:     t.Owner,
+		}
+		if ver != 0 {
+			mQuery.Version = ver
+		}
+		matches, err := getMetrics(sess, mQuery)
+		if err != nil {
+			return err
+		}
+		if len(matches) == 0 {
+			return fmt.Errorf("no matching metric found.")
+		}
+		//Use the latest version available.
+		if len(matches) > 1 {
+			for _, m := range matches {
+				if m.Version > ver {
+					ver = m.Version
+				}
+			}
+		}
 		metrics = append(metrics, &model.TaskMetric{
 			TaskId:    t.Id,
 			Namespace: namespace,
