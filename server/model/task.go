@@ -71,7 +71,7 @@ func (t *TaskRoute) UnmarshalJSON(body []byte) error {
 	}
 	firstPass := delay{}
 	err := json.Unmarshal(body, &firstPass)
-	defer log.Debugf("taskroute unmarshal status: %s", err)
+
 	if err != nil {
 		return err
 	}

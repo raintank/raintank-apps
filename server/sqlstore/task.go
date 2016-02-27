@@ -200,6 +200,7 @@ func addTask(sess *session, t *model.TaskDTO) error {
 		idx := model.RouteByIdIndex{
 			TaskId:  t.Id,
 			AgentId: t.Route.Config["id"].(int64),
+			Created: time.Now(),
 		}
 		if _, err := sess.Insert(&idx); err != nil {
 			return err
@@ -208,8 +209,9 @@ func addTask(sess *session, t *model.TaskDTO) error {
 		tagRoutes := make([]*model.RouteByTagIndex, len(t.Route.Config["tags"].([]string)))
 		for i, tag := range t.Route.Config["tags"].([]string) {
 			tagRoutes[i] = &model.RouteByTagIndex{
-				TaskId: t.Id,
-				Tag:    tag,
+				TaskId:  t.Id,
+				Tag:     tag,
+				Created: time.Now(),
 			}
 		}
 		if _, err := sess.Insert(&tagRoutes); err != nil {
@@ -221,6 +223,7 @@ func addTask(sess *session, t *model.TaskDTO) error {
 			idxs[i] = &model.RouteByIdIndex{
 				TaskId:  t.Id,
 				AgentId: id,
+				Created: time.Now(),
 			}
 		}
 		if _, err := sess.Insert(&idxs); err != nil {
