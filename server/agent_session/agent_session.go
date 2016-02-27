@@ -112,19 +112,19 @@ func (a *AgentSession) HandleCatalog() interface{} {
 			return
 		}
 		log.Debugf("Received catalog for session %s: %s", a.SocketSession.Id, body)
-
-		for _, m := range catalog {
-			metric := &model.Metric{
+		metrics := make([]*model.Metric, len(catalog))
+		for i, m := range catalog {
+			metrics[i] = &model.Metric{
 				Owner:     a.Agent.Owner,
 				Public:    a.Agent.Public,
 				Namespace: m.Namespace,
 				Version:   int64(m.Version),
 				Policy:    m.Policy,
 			}
-			err := sqlstore.AddMetric(metric)
-			if err != nil && err != model.MetricAlreadyExists {
-				log.Errorf("failed to update metric in DB. %s", err)
-			}
+		}
+		err := sqlstore.AddMissingMetrics(metrics)
+		if err != nil {
+			log.Errorf("failed to update metrics in DB. %s", err)
 		}
 	}
 }
