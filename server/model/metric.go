@@ -3,10 +3,15 @@ package model
 import (
 	"bytes"
 	"crypto/md5"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/intelsdi-x/snap/mgmt/rest/rbody"
+)
+
+var (
+	MetricAlreadyExists = errors.New("Metric already exists.")
 )
 
 type Metric struct {

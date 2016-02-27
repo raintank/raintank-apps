@@ -122,7 +122,7 @@ func (a *AgentSession) HandleCatalog() interface{} {
 				Policy:    m.Policy,
 			}
 			err := sqlstore.AddMetric(metric)
-			if err != nil {
+			if err != nil && err != model.MetricAlreadyExists {
 				log.Errorf("failed to update metric in DB. %s", err)
 			}
 		}

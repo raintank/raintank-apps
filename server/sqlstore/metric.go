@@ -52,7 +52,6 @@ func getMetricById(sess *session, id string, owner string) (*model.Metric, error
 }
 
 func AddMetric(m *model.Metric) error {
-	m.SetId()
 	sess, err := newSession(true, "metric")
 	if err != nil {
 		return err
@@ -66,9 +65,63 @@ func AddMetric(m *model.Metric) error {
 }
 
 func addMetric(sess *session, m *model.Metric) error {
+	m.SetId()
+	existing := &model.Metric{}
+	exists, err := sess.Id(m.Id).Get(existing)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return model.MetricAlreadyExists
+	}
 	m.Created = time.Now()
 	if _, err := sess.Insert(m); err != nil {
 		return err
+	}
+	return nil
+}
+
+func AddMissingMetrics(m []*model.Metric) error {
+	sess, err := newSession(true, "metric")
+	if err != nil {
+		return err
+	}
+	defer sess.Cleanup()
+	if err = addMissingMetrics(sess, m); err != nil {
+		return err
+	}
+	sess.Complete()
+	return nil
+}
+
+func addMissingMetrics(sess *session, metrics []*model.Metric) error {
+	existing := make([]*model.Metric, 0)
+	ids := make([]string, len(metrics))
+	for i, m := range metrics {
+		m.SetId()
+		ids[i] = m.Id
+	}
+	sess.In("id", ids)
+	err := sess.Find(&existing)
+	if err != nil {
+		return err
+	}
+	existingMap := make(map[string]struct{})
+	for _, m := range existing {
+		existingMap[m.Id] = struct{}{}
+	}
+
+	toAdd := make([]*model.Metric, 0)
+	for _, m := range metrics {
+		if _, ok := existingMap[m.Id]; !ok {
+			m.Created = time.Now()
+			toAdd = append(toAdd, m)
+		}
+	}
+	if len(toAdd) > 0 {
+		if _, err := sess.Insert(&metrics); err != nil {
+			return err
+		}
 	}
 	return nil
 }
