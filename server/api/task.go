@@ -40,7 +40,17 @@ func AddTask(ctx *macaron.Context, task model.TaskDTO) {
 		//TDOD: lookup least loded agent.
 		task.Route.Config = map[string]interface{}{"id": int64(1)}
 	}
-	err := sqlstore.AddTask(&task)
+	ok, err := task.Route.Validate()
+	if err != nil {
+		log.Error(err)
+		ctx.JSON(500, err)
+		return
+	}
+	if !ok {
+		ctx.JSON(400, "invalid route config")
+		return
+	}
+	err = sqlstore.AddTask(&task)
 	if err != nil {
 		log.Error(err)
 		ctx.JSON(500, err)

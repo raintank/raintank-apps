@@ -3,6 +3,7 @@ package sqlstore
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/raintank/raintank-apps/server/model"
@@ -111,7 +112,7 @@ func GetTaskById(id int64, owner string) (*model.TaskDTO, error) {
 
 func getTaskById(sess *session, id int64, owner string) (*model.TaskDTO, error) {
 	var t taskWithMetrics
-	err := sess.Where("task.id=? AND owner=?", id, owner).Join("INNER", "task_metric", "task.id = task_metric.task_id").Find(&t)
+	err := sess.Where("task.id=? AND owner=?", id, owner).Join("LEFT", "task_metric", "task.id = task_metric.task_id").Find(&t)
 	if err != nil {
 		return nil, err
 	}
@@ -206,11 +207,11 @@ func addTask(sess *session, t *model.TaskDTO) error {
 			return err
 		}
 	case model.RouteByTags:
-		tagRoutes := make([]*model.RouteByTagIndex, len(t.Route.Config["tags"].([]string)))
-		for i, tag := range t.Route.Config["tags"].([]string) {
+		tagRoutes := make([]*model.RouteByTagIndex, len(t.Route.Config["tags"].([]interface{})))
+		for i, tag := range t.Route.Config["tags"].([]interface{}) {
 			tagRoutes[i] = &model.RouteByTagIndex{
 				TaskId:  t.Id,
-				Tag:     tag,
+				Tag:     tag.(string),
 				Created: time.Now(),
 			}
 		}
@@ -218,11 +219,11 @@ func addTask(sess *session, t *model.TaskDTO) error {
 			return err
 		}
 	case model.RouteByIds:
-		idxs := make([]*model.RouteByIdIndex, len(t.Route.Config["ids"].([]int64)))
-		for i, id := range t.Route.Config["ids"].([]int64) {
+		idxs := make([]*model.RouteByIdIndex, len(t.Route.Config["ids"].([]interface{})))
+		for i, id := range t.Route.Config["ids"].([]interface{}) {
 			idxs[i] = &model.RouteByIdIndex{
 				TaskId:  t.Id,
-				AgentId: id,
+				AgentId: id.(int64),
 				Created: time.Now(),
 			}
 		}
@@ -242,7 +243,8 @@ func UpdateTask(t *model.TaskDTO) error {
 		return err
 	}
 	defer sess.Cleanup()
-	if err = updateTask(sess, t); err != nil {
+	err = updateTask(sess, t)
+	if err != nil {
 		return err
 	}
 	sess.Complete()
@@ -251,4 +253,56 @@ func UpdateTask(t *model.TaskDTO) error {
 
 func updateTask(sess *session, t *model.TaskDTO) error {
 	return nil
+}
+
+func GetAgentTasks(agent *model.AgentDTO) ([]*model.TaskDTO, error) {
+	sess, err := newSession(true, "task")
+	if err != nil {
+		return nil, err
+	}
+	defer sess.Cleanup()
+	tasks, err := getAgentTasks(sess, agent)
+	if err != nil {
+		return nil, err
+	}
+	sess.Complete()
+	return tasks, nil
+}
+
+func getAgentTasks(sess *session, agent *model.AgentDTO) ([]*model.TaskDTO, error) {
+	tasks := make([]*model.TaskDTO, 0)
+	// Get taskIds (we could do this with an INNER join on a subquery, but xorm makes that hard to do.)
+	type taskIdRow struct {
+		TaskId int64
+	}
+	taskIds := make([]*taskIdRow, 0)
+	rawQuery := "SELECT task_id FROM route_by_id_index where agent_id = ?"
+	rawParams := make([]interface{}, 0)
+	rawParams = append(rawParams, agent.Id)
+	if len(agent.Tags) > 0 {
+		p := make([]string, len(agent.Tags))
+		for i, t := range agent.Tags {
+			p[i] = "?"
+			rawParams = append(rawParams, t)
+		}
+		rawQuery = fmt.Sprintf("%s UNION SELECT task_id FROM route_by_tag_index where tag IN (%s)", rawQuery, strings.Join(p, ","))
+	}
+	err := sess.Sql(rawQuery, rawParams...).Find(&taskIds)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(taskIds) == 0 {
+		return tasks, nil
+	}
+	tid := make([]int64, len(taskIds))
+	for i, t := range taskIds {
+		tid[i] = t.TaskId
+	}
+	sess.Table("task")
+	sess.Join("LEFT", "task_metric", "task.id = task_metric.id")
+	sess.In("task.id", tid)
+
+	err = sess.Find(&tasks)
+	return tasks, err
 }

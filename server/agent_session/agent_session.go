@@ -60,6 +60,8 @@ func (a *AgentSession) Start() error {
 
 	// run background tasks for this session.
 	go a.sendHeartbeat()
+	go a.sendTaskUpdates()
+	a.sendTaskUpdate()
 	return nil
 }
 
@@ -140,8 +142,40 @@ func (a *AgentSession) sendHeartbeat() {
 			e := &message.Event{Event: "heartbeat", Payload: []byte(t.String())}
 			err := a.SocketSession.Emit(e)
 			if err != nil {
-				log.Error("failed to emit heartbeat event.")
+				log.Error("failed to emit heartbeat event. %s", err)
 			}
 		}
+	}
+}
+
+func (a *AgentSession) sendTaskUpdates() {
+	ticker := time.NewTicker(time.Second * 10)
+	for {
+		select {
+		case <-a.Done:
+			log.Debug("session ended stopping taskUpdates.")
+			return
+		case <-ticker.C:
+			a.sendTaskUpdate()
+		}
+	}
+}
+
+func (a *AgentSession) sendTaskUpdate() {
+	log.Debugf("sending TaskUpdate to %s", a.SocketSession.Id)
+	tasks, err := sqlstore.GetAgentTasks(a.Agent)
+	if err != nil {
+		log.Errorf("failed to get task list. %s", err)
+		return
+	}
+	body, err := json.Marshal(&tasks)
+	if err != nil {
+		log.Errorf("failed to Marshal task list to json. %s", err)
+		return
+	}
+	e := &message.Event{Event: "taskUpdate", Payload: body}
+	err = a.SocketSession.Emit(e)
+	if err != nil {
+		log.Error("failed to emit taskUpdate event. %s", err)
 	}
 }

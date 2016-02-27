@@ -13,6 +13,7 @@ import (
 	"github.com/op/go-logging"
 	"github.com/raintank/raintank-apps/pkg/message"
 	"github.com/raintank/raintank-apps/pkg/session"
+	"github.com/raintank/raintank-apps/server/model"
 	"github.com/rakyll/globalconf"
 )
 
@@ -89,6 +90,9 @@ func main() {
 	sess.On("heartbeat", func(body []byte) {
 		log.Debugf("recieved heartbeat event. %s", body)
 	})
+
+	sess.On("taskUpdate", HandleTaskUpdate())
+
 	go sess.Start()
 	//send our MetricCatalog
 	body, err := json.Marshal(catalog)
@@ -108,6 +112,18 @@ func main() {
 	close(shutdownStart)
 	sess.Close()
 	return
+}
+
+func HandleTaskUpdate() interface{} {
+	return func(data []byte) {
+		tasks := make([]*model.TaskDTO, 0)
+		err := json.Unmarshal(data, &tasks)
+		if err != nil {
+			log.Errorf("failed to decode taskUpdate payload. %s", err)
+			return
+		}
+		log.Debugf("Got Tasks. %s", data)
+	}
 }
 
 func SendCatalog(sess *session.Session, shutdownStart chan struct{}) {

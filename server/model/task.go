@@ -96,7 +96,7 @@ func (t *TaskRoute) UnmarshalJSON(body []byte) error {
 	return err
 }
 
-func (r *TaskRoute) Vaidate() (bool, error) {
+func (r *TaskRoute) Validate() (bool, error) {
 	switch r.Type {
 	case RouteAny:
 		if len(r.Config) != 1 {
