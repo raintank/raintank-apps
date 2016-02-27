@@ -112,8 +112,11 @@ func (a *AgentSession) HandleCatalog() interface{} {
 			return
 		}
 		log.Debugf("Received catalog for session %s: %s", a.SocketSession.Id, body)
+
 		for _, m := range catalog {
 			metric := &model.Metric{
+				Owner:     a.Agent.Owner,
+				Public:    a.Agent.Public,
 				Namespace: m.Namespace,
 				Version:   m.Version,
 				Policy:    m.Policy,

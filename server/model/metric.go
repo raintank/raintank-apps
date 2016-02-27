@@ -3,7 +3,6 @@ package model
 import (
 	"bytes"
 	"crypto/md5"
-	"encoding/binary"
 	"fmt"
 	"time"
 
@@ -12,6 +11,8 @@ import (
 
 type Metric struct {
 	Id        string
+	Owner     string
+	Public    bool
 	Namespace string
 	Version   int
 	Policy    []rbody.PolicyTable
@@ -20,11 +21,12 @@ type Metric struct {
 
 func (m *Metric) SetId() {
 	var buffer bytes.Buffer
-	buffer.WriteString(m.Namespace)
-	binary.Write(&buffer, binary.LittleEndian, m.Version)
+	buffer.WriteString(fmt.Sprintf("%t:%s:%s:%d", m.Public, m.Owner, m.Namespace, m.Version))
 	m.Id = fmt.Sprintf("%x", md5.Sum(buffer.Bytes()))
 }
 
 type GetMetricsQuery struct {
 	Namespace string `json:"namespace"`
+	Version   int64  `json:"version"`
+	Owner     string `json:"-"`
 }

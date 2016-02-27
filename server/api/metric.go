@@ -7,6 +7,7 @@ import (
 )
 
 func GetMetrics(ctx *macaron.Context, query model.GetMetricsQuery) {
+	query.Owner = "admin"
 	metrics, err := sqlstore.GetMetrics(&query)
 	if err != nil {
 		log.Error(err)

@@ -16,8 +16,12 @@ func GetMetrics(query *model.GetMetricsQuery) ([]*model.Metric, error) {
 
 func getMetrics(sess *session, query *model.GetMetricsQuery) ([]*model.Metric, error) {
 	metrics := make([]*model.Metric, 0)
+	sess.Where("(public=1 OR owner = ?)", query.Owner)
 	if query.Namespace != "" {
-		sess.Where("namespace like ?", query.Namespace)
+		sess.And("namespace like ?", query.Namespace)
+	}
+	if query.Version != 0 {
+		sess.And("version = ?", query.Version)
 	}
 	err := sess.Find(&metrics)
 	if err != nil {
@@ -26,18 +30,18 @@ func getMetrics(sess *session, query *model.GetMetricsQuery) ([]*model.Metric, e
 	return metrics, nil
 }
 
-func GetMetricById(id string) (*model.Metric, error) {
+func GetMetricById(id string, owner string) (*model.Metric, error) {
 	sess, err := newSession(false, "metric")
 	if err != nil {
 		return nil, err
 	}
 
-	return getMetricById(sess, id)
+	return getMetricById(sess, id, owner)
 }
 
-func getMetricById(sess *session, id string) (*model.Metric, error) {
+func getMetricById(sess *session, id string, owner string) (*model.Metric, error) {
 	m := &model.Metric{}
-	exists, err := sess.Id(id).Get(m)
+	exists, err := sess.Where("(public=1 OR owner = ?) AND id=?", owner, id).Get(m)
 	if err != nil {
 		return nil, err
 	}
@@ -62,15 +66,6 @@ func AddMetric(m *model.Metric) error {
 }
 
 func addMetric(sess *session, m *model.Metric) error {
-	existing, err := getMetricById(sess, m.Id)
-	if err != nil {
-		return err
-	}
-	// no existing metric, creeate a new one.
-	if existing != nil {
-		m.Created = existing.Created
-		return nil
-	}
 	m.Created = time.Now()
 	if _, err := sess.Insert(m); err != nil {
 		return err
