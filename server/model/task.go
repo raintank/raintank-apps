@@ -80,6 +80,7 @@ func (t *TaskRoute) UnmarshalJSON(body []byte) error {
 	t.Type = firstPass.Type
 	switch firstPass.Type {
 	case RouteAny:
+		config = make(map[string]int64)
 	case RouteByTags:
 		config = make(map[string][]string)
 	case RouteByIds:
@@ -98,7 +99,10 @@ func (t *TaskRoute) UnmarshalJSON(body []byte) error {
 func (r *TaskRoute) Vaidate() (bool, error) {
 	switch r.Type {
 	case RouteAny:
-		if len(r.Config) != 0 {
+		if len(r.Config) != 1 {
+			return false, InvalidRouteConfig
+		}
+		if _, ok := r.Config["id"]; !ok {
 			return false, InvalidRouteConfig
 		}
 	case RouteByTags:

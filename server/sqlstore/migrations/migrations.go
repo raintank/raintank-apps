@@ -17,4 +17,7 @@ func AddMigrations(mg *Migrator) {
 	addAgentSessionMigrations(mg)
 	addTaskMigrations(mg)
 	addTaskMetricMigrations(mg)
+
+	addRouteByIdIndexMigrations(mg)
+	addRouteByTagIndexMigrations(mg)
 }

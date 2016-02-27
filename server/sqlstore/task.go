@@ -76,7 +76,7 @@ func getTasks(sess *session, query *model.GetTasksQuery) ([]*model.TaskDTO, erro
 			Where("tm.namespace=?", query.Metric)
 		if query.MetricVersion == 0 {
 			// get the latest version.
-			sess.And("tm.version = (SELECT MAX(version) FROM metric WHERE namespace=? group by version)", query.Metric)
+			sess.And("tm.version = (SELECT MAX(version) FROM metric WHERE namespace=? AND (owner=? or public=1) group by version)", query.Metric, query.Owner)
 		} else {
 			sess.And("tm.version=?", query.MetricVersion)
 		}
@@ -193,6 +193,43 @@ func addTask(sess *session, t *model.TaskDTO) error {
 			return err
 		}
 	}
+
+	// add routeIndexes
+	switch t.Route.Type {
+	case model.RouteAny:
+		idx := model.RouteByIdIndex{
+			TaskId:  t.Id,
+			AgentId: t.Route.Config["id"].(int64),
+		}
+		if _, err := sess.Insert(&idx); err != nil {
+			return err
+		}
+	case model.RouteByTags:
+		tagRoutes := make([]*model.RouteByTagIndex, len(t.Route.Config["tags"].([]string)))
+		for i, tag := range t.Route.Config["tags"].([]string) {
+			tagRoutes[i] = &model.RouteByTagIndex{
+				TaskId: t.Id,
+				Tag:    tag,
+			}
+		}
+		if _, err := sess.Insert(&tagRoutes); err != nil {
+			return err
+		}
+	case model.RouteByIds:
+		idxs := make([]*model.RouteByIdIndex, len(t.Route.Config["ids"].([]int64)))
+		for i, id := range t.Route.Config["ids"].([]int64) {
+			idxs[i] = &model.RouteByIdIndex{
+				TaskId:  t.Id,
+				AgentId: id,
+			}
+		}
+		if _, err := sess.Insert(&idxs); err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("unknown routeType")
+	}
+
 	return nil
 }
 

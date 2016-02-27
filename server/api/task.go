@@ -35,6 +35,11 @@ func GetTasks(ctx *macaron.Context, query model.GetTasksQuery) {
 
 func AddTask(ctx *macaron.Context, task model.TaskDTO) {
 	task.Owner = "admin"
+	if task.Route.Type == model.RouteAny {
+		// need to schedule the task to an agent.
+		//TDOD: lookup least loded agent.
+		task.Route.Config = map[string]interface{}{"id": int64(1)}
+	}
 	err := sqlstore.AddTask(&task)
 	if err != nil {
 		log.Error(err)
