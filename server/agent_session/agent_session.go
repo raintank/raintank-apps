@@ -65,6 +65,12 @@ func (a *AgentSession) Start() error {
 	return nil
 }
 
+func (a *AgentSession) Close() {
+	a.SocketSession.Close()
+	a.cleanup()
+	close(a.Done)
+}
+
 func (a *AgentSession) handleError(err error) {
 	a.SocketSession.Close()
 	close(a.Done)

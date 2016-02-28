@@ -9,8 +9,10 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
+	"os/signal"
 
 	"github.com/Unknwon/macaron"
 	"github.com/op/go-logging"
@@ -61,6 +63,25 @@ func main() {
 
 	api.InitRoutes(m)
 
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, os.Interrupt)
+
 	log.Info("starting up")
-	log.Fatal(http.ListenAndServe(*addr, m))
+	// define our own listner so we can call Close on it
+	l, err := net.Listen("tcp", *addr)
+	if err != nil {
+		log.Fatal(err)
+	}
+	done := make(chan struct{})
+	go handleShutdown(done, interrupt, l)
+	log.Info(http.Serve(l, m))
+	<-done
+}
+
+func handleShutdown(done chan struct{}, interrupt chan os.Signal, l net.Listener) {
+	<-interrupt
+	log.Info("shutdown started.")
+	l.Close()
+	api.ActiveSockets.CloseAll()
+	close(done)
 }

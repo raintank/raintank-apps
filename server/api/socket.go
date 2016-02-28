@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"sync"
 
 	"github.com/Unknwon/macaron"
 	"github.com/gorilla/websocket"
@@ -12,6 +13,37 @@ import (
 )
 
 var upgrader = websocket.Upgrader{} // use default options
+
+type socketList struct {
+	sync.RWMutex
+	Sockets map[string]*agent_session.AgentSession
+}
+
+func (s *socketList) CloseAll() {
+	s.Lock()
+	for _, sock := range s.Sockets {
+		sock.Close()
+	}
+	s.Unlock()
+}
+
+func (s *socketList) NewSocket(a *agent_session.AgentSession) {
+	s.Lock()
+	s.Sockets[a.SocketSession.Id] = a
+	s.Unlock()
+}
+
+func newSocketList() *socketList {
+	return &socketList{
+		Sockets: make(map[string]*agent_session.AgentSession),
+	}
+}
+
+var ActiveSockets *socketList
+
+func init() {
+	ActiveSockets = newSocketList()
+}
 
 func connectedAgent(agentName string, owner string) (*model.AgentDTO, error) {
 	if agentName == "" {
@@ -52,6 +84,7 @@ func socket(ctx *macaron.Context) {
 	log.Debugf("agent %s connected.", agent.Name)
 
 	sess := agent_session.NewSession(agent, agentVer, c)
+	ActiveSockets.NewSocket(sess)
 	sess.Start()
 	//block until connection closes.
 	<-sess.Done
