@@ -67,6 +67,7 @@ func main() {
 	}
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
+	shutdownStart := make(chan struct{})
 
 	controllerUrl := url.URL{Scheme: "ws", Host: *addr, Path: fmt.Sprintf("/socket/%s/%d", *nodeName, Version)}
 	conn, err := connect(controllerUrl)
@@ -78,13 +79,23 @@ func main() {
 	sess := session.NewSession(conn, 1000)
 	sess.On("disconnect", func() {
 		// on disconnect, reconnect.
-		conn, err := connect(controllerUrl)
-		for err != nil {
-			time.Sleep(2 * time.Second)
-			conn, err = connect(controllerUrl)
+		ticker := time.NewTicker(time.Second)
+		connected := false
+		for !connected {
+			select {
+			case <-shutdownStart:
+				ticker.Stop()
+				return
+			case <-ticker.C:
+				conn, err := connect(controllerUrl)
+				if err == nil {
+					sess.Conn = conn
+					connected = true
+					go sess.Start()
+				}
+			}
 		}
-		sess.Conn = conn
-		go sess.Start()
+		ticker.Stop()
 	})
 
 	sess.On("heartbeat", func(body []byte) {
@@ -103,7 +114,6 @@ func main() {
 	sess.Emit(e)
 
 	//periodically send an Updated Catalog.
-	shutdownStart := make(chan struct{})
 	go SendCatalog(sess, shutdownStart)
 
 	//wait for interupt Signal.

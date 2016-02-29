@@ -22,6 +22,8 @@ type AgentSession struct {
 	dbSession     *model.AgentSession
 	SocketSession *session.Session
 	Done          chan struct{}
+	Shutdown      chan struct{}
+	closing       bool
 }
 
 func NewSession(agent *model.AgentDTO, agentVer int64, conn *websocket.Conn) *AgentSession {
@@ -29,6 +31,7 @@ func NewSession(agent *model.AgentDTO, agentVer int64, conn *websocket.Conn) *Ag
 		Agent:         agent,
 		AgentVersion:  agentVer,
 		Done:          make(chan struct{}),
+		Shutdown:      make(chan struct{}),
 		SocketSession: session.NewSession(conn, 10),
 	}
 	return a
@@ -37,21 +40,21 @@ func NewSession(agent *model.AgentDTO, agentVer int64, conn *websocket.Conn) *Ag
 func (a *AgentSession) Start() error {
 	if err := a.saveDbSession(); err != nil {
 		log.Errorf("unable to add agentSession to DB. %s", err.Error())
-		a.handleError(err)
+		a.close()
 		return err
 	}
 
 	log.Debug("setting handler for disconnect event.")
 	if err := a.SocketSession.On("disconnect", a.OnDisconnect()); err != nil {
 		log.Errorf("failed to bind disconnect event. %s", err.Error())
-		a.handleError(err)
+		a.close()
 		return err
 	}
 
 	log.Debug("setting handler for catalog event.")
 	if err := a.SocketSession.On("catalog", a.HandleCatalog()); err != nil {
 		log.Errorf("failed to bind catalog event handler. %s", err.Error())
-		a.handleError(err)
+		a.close()
 		return err
 	}
 
@@ -66,15 +69,17 @@ func (a *AgentSession) Start() error {
 }
 
 func (a *AgentSession) Close() {
-	a.SocketSession.Close()
-	a.cleanup()
-	close(a.Done)
+	a.close()
 }
 
-func (a *AgentSession) handleError(err error) {
-	a.SocketSession.Close()
-	close(a.Done)
-	a.cleanup()
+func (a *AgentSession) close() {
+	if !a.closing {
+		a.closing = true
+		close(a.Shutdown)
+		a.SocketSession.Close()
+		a.cleanup()
+		close(a.Done)
+	}
 }
 
 func (a *AgentSession) saveDbSession() error {
@@ -105,10 +110,7 @@ func (a *AgentSession) cleanup() {
 func (a *AgentSession) OnDisconnect() interface{} {
 	return func() {
 		log.Debugf("session %s has disconnected", a.SocketSession.Id)
-
-		//TODO: delete AgentSession from DB.
-		close(a.Done)
-		a.cleanup()
+		a.close()
 	}
 }
 
@@ -141,7 +143,7 @@ func (a *AgentSession) sendHeartbeat() {
 	ticker := time.NewTicker(time.Second * 2)
 	for {
 		select {
-		case <-a.Done:
+		case <-a.Shutdown:
 			log.Debug("session ended stopping heartbeat.")
 			return
 		case t := <-ticker.C:
@@ -158,7 +160,7 @@ func (a *AgentSession) sendTaskUpdates() {
 	ticker := time.NewTicker(time.Second * 10)
 	for {
 		select {
-		case <-a.Done:
+		case <-a.Shutdown:
 			log.Debug("session ended stopping taskUpdates.")
 			return
 		case <-ticker.C:

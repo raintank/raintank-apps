@@ -80,27 +80,29 @@ func (s *Session) Start() {
 }
 
 func (s *Session) Close() {
+	s.Lock()
 	s.closing = true
+	s.Unlock()
 	s.writeMessageChan <- &message.Message{websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")}
 	close(s.writeMessageChan)
 	log.Info("waiting for socketWriter to finish sending all messages.")
 	select {
 	case <-s.wDone:
 	case <-time.After(time.Second * 2):
-		log.Warningf("socketWriter taking too long. Closing connectio now. %d messages in queue will be lost.", len(s.writeMessageChan))
+		log.Warningf("socketWriter taking too long. Closing connectio now. %d messages in queue will be lost.", len(s.writeMessageChan)+1)
 	}
 	s.Conn.Close()
 }
 
 func (s *Session) disconnected() {
 	//dont emit a disconnect event if Close() was called.
+	s.Lock()
 	if !s.closing {
-		s.Lock()
 		if h, ok := s.EventHandlers["disconnect"]; ok {
 			h.Call([]byte{})
 		}
-		s.Unlock()
 	}
+	s.Unlock()
 }
 
 func (s *Session) socketReader(done chan struct{}) {
@@ -109,7 +111,7 @@ func (s *Session) socketReader(done chan struct{}) {
 	for {
 		mtype, body, err := s.Conn.ReadMessage()
 		if err != nil {
-			log.Errorf("read:", err)
+			log.Errorf("read: %s", err)
 			return
 		}
 		msg := &message.Message{mtype, body}
@@ -131,13 +133,24 @@ func (s *Session) socketReader(done chan struct{}) {
 func (s *Session) socketWriter(done chan struct{}) {
 	defer s.Conn.Close()
 	defer close(done)
+
 	for msg := range s.writeMessageChan {
 		log.Debugf("socket %s sending message", s.Id)
 		err := s.Conn.WriteMessage(msg.MessageType, msg.Body)
-		if err != nil {
-			log.Errorf("write:", err)
-			s.writeMessageChan <- msg
-			return
+		retryDelay := time.Millisecond * 25
+		for err != nil {
+			s.Lock()
+			closing := s.closing
+			s.Unlock()
+			if closing {
+				return
+			}
+			log.Errorf("write: %s", err)
+			if retryDelay < time.Second {
+				retryDelay = retryDelay * 2
+			}
+			time.Sleep(retryDelay)
+			err = s.Conn.WriteMessage(msg.MessageType, msg.Body)
 		}
 	}
 	log.Debug("writeMessageChan closed.")
