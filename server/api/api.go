@@ -32,6 +32,7 @@ func InitRoutes(m *macaron.Macaron) {
 				Post(bind(model.TaskDTO{}), AddTask).
 				Put(bind(model.TaskDTO{}), UpdateTask)
 			m.Get("/:id", GetTaskById)
+			m.Delete("/:id", DeleteTask)
 		})
 	})
 }

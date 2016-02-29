@@ -306,3 +306,41 @@ func getAgentTasks(sess *session, agent *model.AgentDTO) ([]*model.TaskDTO, erro
 	err = sess.Find(&tasks)
 	return tasks, err
 }
+
+func DeleteTask(id int64, owner string) error {
+	sess, err := newSession(true, "task")
+	if err != nil {
+		return err
+	}
+	defer sess.Cleanup()
+	err = deleteTask(sess, id, owner)
+	if err != nil {
+		return err
+	}
+	sess.Complete()
+	return nil
+}
+
+func deleteTask(sess *session, id int64, owner string) error {
+	existing, err := getTaskById(sess, id, owner)
+	if err != nil {
+		return err
+	}
+	if existing == nil {
+		return nil
+	}
+	deletes := []string{
+		"DELETE FROM task WHERE id = ?",
+		"DELETE FROM task_metric WHERE task_id = ?",
+		"DELETE from route_by_id_index where task_id = ?",
+		"DELETE from route_by_tag_index where task_id = ?",
+	}
+
+	for _, sql := range deletes {
+		_, err := sess.Exec(sql, id)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}

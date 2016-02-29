@@ -69,3 +69,15 @@ func UpdateTask(ctx *macaron.Context, task model.TaskDTO) {
 	}
 	ctx.JSON(200, task)
 }
+
+func DeleteTask(ctx *macaron.Context) {
+	id := ctx.ParamsInt64(":id")
+	owner := "admin"
+	err := sqlstore.DeleteTask(id, owner)
+	if err != nil {
+		log.Error(err)
+		ctx.JSON(500, err)
+		return
+	}
+	ctx.JSON(200, "ok")
+}
