@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -30,6 +31,19 @@ var (
 	snapUrlStr = flag.String("snap-url", "http://localhost:8181/", "url of SNAP server.")
 	nodeName   = flag.String("name", "", "agent name")
 )
+
+type TaskCache struct {
+	sync.RWMutex
+	Tasks map[int64]*model.TaskDTO
+}
+
+func (t *TaskCache) AddTask(task *model.TaskDTO) {
+	t.Lock()
+	t.Tasks[task.Id] = task
+	t.Unlock()
+}
+
+var GlobalTaskCache *TaskCache
 
 func connect(u url.URL) (*websocket.Conn, error) {
 	log.Infof("connecting to %s", u.String())
@@ -68,6 +82,8 @@ func main() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 	shutdownStart := make(chan struct{})
+
+	GlobalTaskCache = &TaskCache{Tasks: make(map[int64]*model.TaskDTO, 0)}
 
 	controllerUrl := url.URL{Scheme: "ws", Host: *addr, Path: fmt.Sprintf("/socket/%s/%d", *nodeName, Version)}
 	conn, err := connect(controllerUrl)
@@ -133,6 +149,9 @@ func HandleTaskUpdate() interface{} {
 			return
 		}
 		log.Debugf("Got Tasks. %s", data)
+		for _, t := range tasks {
+			GlobalTaskCache.AddTask(t)
+		}
 	}
 }
 
