@@ -75,24 +75,42 @@ func (t *TaskRoute) UnmarshalJSON(body []byte) error {
 	if err != nil {
 		return err
 	}
-	var config interface{}
+	config := make(map[string]interface{})
 
 	t.Type = firstPass.Type
 	switch firstPass.Type {
 	case RouteAny:
-		config = make(map[string]int64)
+		c := make(map[string]int64)
+		err = json.Unmarshal(firstPass.Config, &c)
+		if err != nil {
+			return err
+		}
+		for k, v := range c {
+			config[k] = v
+		}
 	case RouteByTags:
-		config = make(map[string][]string)
+		c := make(map[string][]string)
+		err = json.Unmarshal(firstPass.Config, &c)
+		if err != nil {
+			return err
+		}
+		for k, v := range c {
+			config[k] = v
+		}
 	case RouteByIds:
-		config = make(map[string][]int64)
+		c := make(map[string][]int64)
+		err = json.Unmarshal(firstPass.Config, &c)
+		if err != nil {
+			return err
+		}
+		for k, v := range c {
+			config[k] = v
+		}
 	default:
 		return errors.New("unknown route type")
 	}
-	err = json.Unmarshal(firstPass.Config, &config)
-	if err != nil {
-		return err
-	}
-	t.Config = config.(map[string]interface{})
+
+	t.Config = config
 	return err
 }
 

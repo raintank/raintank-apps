@@ -275,3 +275,49 @@ func updateAgent(sess *session, a *model.AgentDTO, existing *model.AgentDTO) err
 
 	return nil
 }
+
+type AgentId struct {
+	Id int64
+}
+
+func GetAgentsForTask(task *model.TaskDTO) ([]*AgentId, error) {
+	sess, err := newSession(true, "agent")
+	if err != nil {
+		return nil, err
+	}
+	defer sess.Cleanup()
+	agents, err := getAgentsForTask(sess, task)
+	if err != nil {
+		return nil, err
+	}
+	sess.Complete()
+	return agents, nil
+}
+
+func getAgentsForTask(sess *session, t *model.TaskDTO) ([]*AgentId, error) {
+	agents := make([]*AgentId, 0)
+	switch t.Route.Type {
+	case model.RouteAny:
+		agents = append(agents, &AgentId{Id: t.Route.Config["id"].(int64)})
+		return agents, nil
+	case model.RouteByTags:
+		tags := make([]string, len(t.Route.Config["tags"].([]interface{})))
+		for i, tag := range t.Route.Config["tags"].([]interface{}) {
+			tags[i] = tag.(string)
+		}
+		sess.Join("LEFT", "agent_tag", "agent.id = agent_tag.agent_id")
+		sess.Where("agent_tag.owner = ?", t.Owner)
+		sess.In("agent_tag.tag", tags)
+		sess.Cols("agent.id")
+		err := sess.Find(&agents)
+		return agents, err
+	case model.RouteByIds:
+		agents := make([]*AgentId, len(t.Route.Config["ids"].([]interface{})))
+		for i, id := range t.Route.Config["ids"].([]interface{}) {
+			agents[i] = &AgentId{Id: id.(int64)}
+		}
+		return agents, nil
+	default:
+		return nil, fmt.Errorf("unknown routeType")
+	}
+}

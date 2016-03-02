@@ -157,7 +157,7 @@ func (a *AgentSession) sendHeartbeat() {
 }
 
 func (a *AgentSession) sendTaskUpdates() {
-	ticker := time.NewTicker(time.Second * 10)
+	ticker := time.NewTicker(time.Second * 60)
 	for {
 		select {
 		case <-a.Shutdown:

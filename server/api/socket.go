@@ -1,12 +1,14 @@
 package api
 
 import (
+	"encoding/json"
 	"errors"
 	"sync"
 
 	"github.com/Unknwon/macaron"
 	"github.com/gorilla/websocket"
 
+	"github.com/raintank/raintank-apps/pkg/message"
 	"github.com/raintank/raintank-apps/server/agent_session"
 	"github.com/raintank/raintank-apps/server/model"
 	"github.com/raintank/raintank-apps/server/sqlstore"
@@ -16,7 +18,7 @@ var upgrader = websocket.Upgrader{} // use default options
 
 type socketList struct {
 	sync.RWMutex
-	Sockets map[string]*agent_session.AgentSession
+	Sockets map[int64]*agent_session.AgentSession
 }
 
 func (s *socketList) CloseAll() {
@@ -27,15 +29,44 @@ func (s *socketList) CloseAll() {
 	s.Unlock()
 }
 
+func (s *socketList) EmitTask(task *model.TaskDTO, event string) error {
+	agents, err := sqlstore.GetAgentsForTask(task)
+	if err != nil {
+		return err
+	}
+	body, err := json.Marshal(task)
+	if err != nil {
+		return err
+	}
+	e := &message.Event{
+		Event:   event,
+		Payload: body,
+	}
+	s.Lock()
+	for _, agent := range agents {
+		if as, ok := s.Sockets[agent.Id]; ok {
+			log.Debugf("sending %s event to agent %d", event, agent.Id)
+			as.SocketSession.Emit(e)
+		}
+	}
+	s.Unlock()
+	return nil
+}
+
 func (s *socketList) NewSocket(a *agent_session.AgentSession) {
 	s.Lock()
-	s.Sockets[a.SocketSession.Id] = a
+	existing, ok := s.Sockets[a.Agent.Id]
+	if ok {
+		log.Debugf("new connection for agent %d - %s, closing existing session", a.Agent.Id, a.Agent.Name)
+		existing.Close()
+	}
+	s.Sockets[a.Agent.Id] = a
 	s.Unlock()
 }
 
 func newSocketList() *socketList {
 	return &socketList{
-		Sockets: make(map[string]*agent_session.AgentSession),
+		Sockets: make(map[int64]*agent_session.AgentSession),
 	}
 }
 

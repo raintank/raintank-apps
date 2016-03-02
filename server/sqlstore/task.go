@@ -158,7 +158,7 @@ func addTask(sess *session, t *model.TaskDTO) error {
 	// handle metrics.
 	metrics := make([]*model.TaskMetric, 0, len(t.Metrics))
 	for namespace, ver := range t.Metrics {
-		//TODO: validate each Metric.
+		//validate metrics
 		mQuery := &model.GetMetricsQuery{
 			Namespace: namespace,
 			Owner:     t.Owner,
@@ -270,7 +270,8 @@ func GetAgentTasks(agent *model.AgentDTO) ([]*model.TaskDTO, error) {
 }
 
 func getAgentTasks(sess *session, agent *model.AgentDTO) ([]*model.TaskDTO, error) {
-	tasks := make([]*model.TaskDTO, 0)
+	var tasks taskWithMetrics
+
 	// Get taskIds (we could do this with an INNER join on a subquery, but xorm makes that hard to do.)
 	type taskIdRow struct {
 		TaskId int64
@@ -293,41 +294,41 @@ func getAgentTasks(sess *session, agent *model.AgentDTO) ([]*model.TaskDTO, erro
 	}
 
 	if len(taskIds) == 0 {
-		return tasks, nil
+		return nil, nil
 	}
 	tid := make([]int64, len(taskIds))
 	for i, t := range taskIds {
 		tid[i] = t.TaskId
 	}
 	sess.Table("task")
-	sess.Join("LEFT", "task_metric", "task.id = task_metric.id")
+	sess.Join("LEFT", "task_metric", "task.id = task_metric.task_id")
 	sess.In("task.id", tid)
 
 	err = sess.Find(&tasks)
-	return tasks, err
+	return tasks.ToTaskDTO(), err
 }
 
-func DeleteTask(id int64, owner string) error {
+func DeleteTask(id int64, owner string) (*model.TaskDTO, error) {
 	sess, err := newSession(true, "task")
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer sess.Cleanup()
-	err = deleteTask(sess, id, owner)
+	existing, err := deleteTask(sess, id, owner)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	sess.Complete()
-	return nil
+	return existing, nil
 }
 
-func deleteTask(sess *session, id int64, owner string) error {
+func deleteTask(sess *session, id int64, owner string) (*model.TaskDTO, error) {
 	existing, err := getTaskById(sess, id, owner)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if existing == nil {
-		return nil
+		return nil, nil
 	}
 	deletes := []string{
 		"DELETE FROM task WHERE id = ?",
@@ -339,8 +340,8 @@ func deleteTask(sess *session, id int64, owner string) error {
 	for _, sql := range deletes {
 		_, err := sess.Exec(sql, id)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
-	return nil
+	return existing, nil
 }

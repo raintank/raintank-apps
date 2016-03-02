@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/intelsdi-x/snap/mgmt/rest/rbody"
 	"github.com/op/go-logging"
 	"github.com/raintank/raintank-apps/pkg/message"
 	"github.com/raintank/raintank-apps/pkg/session"
@@ -28,19 +29,72 @@ var (
 	confFile    = flag.String("config", "/etc/raintank/collector.ini", "configuration file path")
 
 	addr       = flag.String("addr", "localhost:8081", "http service address")
-	snapUrlStr = flag.String("snap-url", "http://localhost:8181/", "url of SNAP server.")
+	snapUrlStr = flag.String("snap-url", "http://localhost:8181", "url of SNAP server.")
 	nodeName   = flag.String("name", "", "agent name")
 )
 
 type TaskCache struct {
 	sync.RWMutex
-	Tasks map[int64]*model.TaskDTO
+	Tasks     map[int64]*model.TaskDTO
+	SnapTasks map[string]*rbody.ScheduledTask
 }
 
-func (t *TaskCache) AddTask(task *model.TaskDTO) {
+func (t *TaskCache) AddTask(task *model.TaskDTO) error {
 	t.Lock()
+	defer t.Unlock()
+	snapTaskName := fmt.Sprintf("raintank-apps:%d", task.Id)
+	snapTask, ok := t.SnapTasks[snapTaskName]
+	if !ok {
+		log.Debugf("New task recieved %s", snapTaskName)
+		snapTask, err := CreateSnapTask(task, snapTaskName)
+		if err != nil {
+			return err
+		}
+		t.SnapTasks[snapTaskName] = snapTask
+	} else {
+		log.Debugf("task %s already in the cache.", snapTaskName)
+		if task.Updated.After(time.Unix(snapTask.CreationTimestamp, 0)) {
+			log.Debugf("%s needs to be updated", snapTaskName)
+			// need to update task.
+			if err := RemoveSnapTask(snapTask); err != nil {
+				return err
+			}
+			snapTask, err := CreateSnapTask(task, snapTaskName)
+			if err != nil {
+				return err
+			}
+			t.SnapTasks[snapTaskName] = snapTask
+		}
+	}
 	t.Tasks[task.Id] = task
+	return nil
+}
+
+func (t *TaskCache) RemoveTask(task *model.TaskDTO) error {
+	t.Lock()
+	defer t.Unlock()
+	snapTaskName := fmt.Sprintf("raintank-apps:%d", task.Id)
+	snapTask, ok := t.SnapTasks[snapTaskName]
+	if !ok {
+		log.Debugf("task to remove not in cache. %s", snapTaskName)
+	} else {
+		if err := RemoveSnapTask(snapTask); err != nil {
+			return err
+		}
+		delete(t.SnapTasks, snapTaskName)
+	}
+	delete(t.Tasks, task.Id)
+	return nil
+}
+
+func (t *TaskCache) IndexSnapTasks(tasks []*rbody.ScheduledTask) error {
+	t.Lock()
+	t.SnapTasks = make(map[string]*rbody.ScheduledTask)
+	for _, task := range tasks {
+		t.SnapTasks[task.Name] = task
+	}
 	t.Unlock()
+	return nil
 }
 
 var GlobalTaskCache *TaskCache
@@ -83,7 +137,10 @@ func main() {
 	signal.Notify(interrupt, os.Interrupt)
 	shutdownStart := make(chan struct{})
 
-	GlobalTaskCache = &TaskCache{Tasks: make(map[int64]*model.TaskDTO, 0)}
+	GlobalTaskCache = &TaskCache{
+		Tasks:     make(map[int64]*model.TaskDTO),
+		SnapTasks: make(map[string]*rbody.ScheduledTask),
+	}
 
 	controllerUrl := url.URL{Scheme: "ws", Host: *addr, Path: fmt.Sprintf("/socket/%s/%d", *nodeName, Version)}
 	conn, err := connect(controllerUrl)
@@ -119,6 +176,8 @@ func main() {
 	})
 
 	sess.On("taskUpdate", HandleTaskUpdate())
+	sess.On("taskAdd", HandleTaskAdd())
+	sess.On("taskRemove", HandleTaskRemove())
 
 	go sess.Start()
 	//send our MetricCatalog
@@ -148,9 +207,60 @@ func HandleTaskUpdate() interface{} {
 			log.Errorf("failed to decode taskUpdate payload. %s", err)
 			return
 		}
-		log.Debugf("Got Tasks. %s", data)
+		log.Debugf("TaskList. %s", data)
 		for _, t := range tasks {
-			GlobalTaskCache.AddTask(t)
+			if err := GlobalTaskCache.AddTask(t); err != nil {
+				log.Errorf("failed to add task to cache. %s", err)
+			}
+		}
+	}
+}
+
+func HandleTaskAdd() interface{} {
+	return func(data []byte) {
+		task := model.TaskDTO{}
+		err := json.Unmarshal(data, &task)
+		if err != nil {
+			log.Errorf("failed to decode taskAdd payload. %s", err)
+			return
+		}
+		log.Debugf("Adding Task. %s", data)
+		if err := GlobalTaskCache.AddTask(&task); err != nil {
+			log.Errorf("failed to add task to cache. %s", err)
+		}
+	}
+}
+
+func HandleTaskRemove() interface{} {
+	return func(data []byte) {
+		task := model.TaskDTO{}
+		err := json.Unmarshal(data, &task)
+		if err != nil {
+			log.Errorf("failed to decode taskAdd payload. %s", err)
+			return
+		}
+		log.Debugf("Removing Task. %s", data)
+		if err := GlobalTaskCache.RemoveTask(&task); err != nil {
+			log.Errorf("failed to remove task from cache. %s", err)
+		}
+	}
+}
+
+func IndexTasks(sess *session.Session, shutdownStart chan struct{}) {
+	ticker := time.NewTicker(time.Minute * 5)
+	for {
+		select {
+		case <-shutdownStart:
+			return
+		case <-ticker.C:
+			taskList, err := GetSnapTasks()
+			if err != nil {
+				log.Error(err)
+				continue
+			}
+			if err := GlobalTaskCache.IndexSnapTasks(taskList); err != nil {
+				log.Errorf("failed to add task to cache. %s", err)
+			}
 		}
 	}
 }
@@ -174,7 +284,6 @@ func SendCatalog(sess *session.Session, shutdownStart chan struct{}) {
 			}
 			e := &message.Event{Event: "catalog", Payload: body}
 			sess.Emit(e)
-
 		}
 	}
 }
