@@ -12,13 +12,6 @@ import (
 
 var SnapClient *client.Client
 
-var DefaultPublisher = &wmap.PublishWorkflowMapNode{
-	Name: "file",
-	Config: map[string]interface{}{
-		"file": "/tmp/gitstats.out",
-	},
-}
-
 func InitSnapClient(u *url.URL) {
 	SnapClient = client.New(u.String(), "v1", false)
 }
@@ -60,17 +53,37 @@ func CreateSnapTask(t *model.TaskDTO, name string) (*rbody.ScheduledTask, error)
 			return nil, err
 		}
 	}
+	token := ""
 	for ns, conf := range t.Config {
 		for key, value := range conf {
 			wf.CollectNode.AddConfigItem(ns, key, value)
+			if key == "token" {
+				token = value.(string)
+			}
 		}
 	}
-
-	if err := wf.CollectNode.Add(DefaultPublisher); err != nil {
+	publisher := getPublisher(
+		1, //TODO: replace with actual orgId
+		t.Interval,
+		token,
+	)
+	if err := wf.CollectNode.Add(publisher); err != nil {
 		return nil, err
 	}
 
 	resp := SnapClient.CreateTask(s, wf, name, "10s", true)
 	newTask := rbody.ScheduledTask(*resp.AddScheduledTask)
 	return &newTask, resp.Err
+}
+
+func getPublisher(orgId, interval int64, token string) *wmap.PublishWorkflowMapNode {
+	return &wmap.PublishWorkflowMapNode{
+		Name: "rt-hostedtsdb",
+		Config: map[string]interface{}{
+			"interval": interval,
+			"url":      "http://localhost:8081",
+			"orgId":    orgId,
+			"token":    token,
+		},
+	}
 }
