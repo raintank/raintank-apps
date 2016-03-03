@@ -35,6 +35,7 @@ func InitRoutes(m *macaron.Macaron) {
 			m.Delete("/:id", DeleteTask)
 		})
 	})
+	m.Post("/metrics", ReceiveMetrics)
 }
 
 func index(ctx *macaron.Context) {
