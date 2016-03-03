@@ -139,8 +139,8 @@ func Meta() *plugin.PluginMeta {
 		Name,
 		Version,
 		Type,
-		[]string{plugin.SnapJSONContentType},
-		[]string{plugin.SnapJSONContentType},
+		[]string{plugin.SnapGOBContentType},
+		[]string{plugin.SnapGOBContentType},
 		plugin.Unsecure(true),
 		plugin.ConcurrencyCount(1000),
 	)
