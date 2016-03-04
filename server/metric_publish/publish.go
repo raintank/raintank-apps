@@ -48,6 +48,7 @@ func Init(metrics met.Backend, topic string, addr string, enabled bool) {
 
 func Publish(metrics []*schema.MetricData) error {
 	if globalProducer == nil {
+		log.Debugf("droping %d metrics as publishing is disbaled", len(metrics))
 		return nil
 	}
 	if len(metrics) == 0 {
