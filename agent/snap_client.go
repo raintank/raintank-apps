@@ -81,9 +81,7 @@ func getPublisher(orgId, interval int64, token string) *wmap.PublishWorkflowMapN
 		Name: "rt-hostedtsdb",
 		Config: map[string]interface{}{
 			"interval": interval,
-			"url":      "http://localhost:8081",
 			"orgId":    orgId,
-			"token":    token,
 		},
 	}
 }
