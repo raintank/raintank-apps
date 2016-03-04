@@ -5,7 +5,9 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"log"
+	"net/http"
 	"net/url"
 	"strings"
 	"sync"
@@ -15,6 +17,7 @@ import (
 	"github.com/intelsdi-x/snap/control/plugin/cpolicy"
 	"github.com/intelsdi-x/snap/core/ctypes"
 
+	"github.com/raintank/raintank-metric/msg"
 	"github.com/raintank/raintank-metric/schema"
 )
 
@@ -25,6 +28,11 @@ const (
 	maxMetricsPerPayload = 3000
 )
 
+var (
+	RemoteUrl *url.URL
+	Token     string
+)
+
 type HostedtsdbPublisher struct {
 }
 
@@ -32,87 +40,66 @@ func NewHostedtsdbPublisher() *HostedtsdbPublisher {
 	return &HostedtsdbPublisher{}
 }
 
-type Queue struct {
+type WriteQueue struct {
 	sync.Mutex
-	RemoteUrl *url.URL
-	Token     string
 	Metrics   []*schema.MetricData
+	QueueFull chan struct{}
 }
 
-func (q *Queue) Add(metrics []*schema.MetricData) {
+func (q *WriteQueue) Add(metrics []*schema.MetricData) {
 	q.Lock()
 	q.Metrics = append(q.Metrics, metrics...)
-	flush := false
 	if len(q.Metrics) > maxMetricsPerPayload {
-		flush = true
+		q.QueueFull <- struct{}{}
 	}
 	q.Unlock()
-	if flush {
-		q.Flush()
-	}
 }
 
-func (q *Queue) Flush() {
+func (q *WriteQueue) Flush() {
 	q.Lock()
+	if len(q.Metrics) == 0 {
+		q.Unlock()
+		return
+	}
 	metrics := make([]*schema.MetricData, len(q.Metrics))
 	copy(metrics, q.Metrics)
 	q.Metrics = q.Metrics[:0]
 	q.Unlock()
 	// Write the metrics to our HTTP server.
 	log.Printf("writing %d metrics to API", len(metrics))
+	id := time.Now().UnixNano()
+	body, err := msg.CreateMsg(metrics, id, msg.FormatMetricDataArrayMsgp)
+	if err != nil {
+		log.Printf("Error: unable to convert metrics to MetricDataArrayMsgp. %s", err)
+		return
+	}
+	sent := false
+	for !sent {
+		if err = PostData(RemoteUrl, Token, body); err != nil {
+			log.Printf("Error: %s", err)
+			time.Sleep(time.Second)
+		} else {
+			sent = true
+		}
+	}
 }
 
-type WriteQueue struct {
-	sync.Mutex
-	Queues    map[string]*Queue
-	QueueFull chan string
-}
-
-func (w *WriteQueue) Run() {
+func (q *WriteQueue) Run() {
 	ticker := time.NewTicker(time.Second)
 	for {
 		select {
 		case <-ticker.C:
-			w.FlushAll()
-		case key := <-w.QueueFull:
-			w.Lock()
-			if q, ok := w.Queues[key]; ok {
-				go q.Flush()
-			}
-			w.Unlock()
+			q.Flush()
+		case <-q.QueueFull:
+			q.Flush()
 		}
 	}
-}
-
-func (w *WriteQueue) FlushAll() {
-	w.Lock()
-	for _, q := range w.Queues {
-		go q.Flush()
-	}
-	w.Unlock()
-}
-
-func (w *WriteQueue) Add(metrics []*schema.MetricData, url *url.URL, token string) {
-	qKey := fmt.Sprintf("%s:%s", token, url.String())
-	var q *Queue
-	var ok bool
-	w.Lock()
-	if q, ok = w.Queues[qKey]; !ok {
-		q = &Queue{
-			RemoteUrl: url,
-			Token:     token,
-			Metrics:   make([]*schema.MetricData, 0),
-		}
-		w.Queues[qKey] = q
-	}
-	w.Unlock()
-	q.Add(metrics)
 }
 
 func NewWriteQueue() *WriteQueue {
 	return &WriteQueue{
-		Queues:    make(map[string]*Queue),
-		QueueFull: make(chan string, 10),
+		Metrics:   make([]*schema.MetricData, 0),
+		QueueFull: make(chan struct{}),
 	}
 }
 
@@ -155,12 +142,22 @@ func (f *HostedtsdbPublisher) Publish(contentType string, content []byte, config
 	}
 
 	log.Printf("publishing %v metrics to %v", len(metrics), config)
-	remoteUrl, err := url.Parse(config["url"].(ctypes.ConfigValueStr).Value)
-	if err != nil {
-		return err
+
+	// set the RemoteURL and Token when the first metrics is recieved.
+	var err error
+	if RemoteUrl == nil {
+		RemoteUrl, err = url.Parse(config["url"].(ctypes.ConfigValueStr).Value)
+		if err != nil {
+			return err
+		}
 	}
-	token := config["token"].(ctypes.ConfigValueStr).Value
+	if Token == "" {
+		Token = config["token"].(ctypes.ConfigValueStr).Value
+	}
+	//-----------------
+
 	interval := config["interval"].(ctypes.ConfigValueInt).Value
+	orgId := config["orgId"].(ctypes.ConfigValueInt).Value
 
 	metricsArray := make([]*schema.MetricData, len(metrics))
 	for i, m := range metrics {
@@ -210,7 +207,7 @@ func (f *HostedtsdbPublisher) Publish(contentType string, content []byte, config
 		}
 
 		metricsArray[i] = &schema.MetricData{
-			OrgId:      1,
+			OrgId:      orgId,
 			Name:       strings.Join(m.Namespace(), "."),
 			Interval:   interval,
 			Value:      value,
@@ -220,7 +217,7 @@ func (f *HostedtsdbPublisher) Publish(contentType string, content []byte, config
 			Tags:       tags,
 		}
 	}
-	writeQueue.Add(metricsArray, remoteUrl, token)
+	writeQueue.Add(metricsArray)
 
 	return nil
 }
@@ -256,4 +253,21 @@ func handleErr(e error) {
 	if e != nil {
 		panic(e)
 	}
+}
+
+func PostData(remoteUrl *url.URL, token string, body []byte) error {
+	req, err := http.NewRequest("POST", remoteUrl.String(), bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "rt-metric-binary")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	respBody, _ := ioutil.ReadAll(resp.Body)
+	resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("Posting data failed. %d - %s", resp.StatusCode, string(respBody))
+	}
+	return nil
 }
