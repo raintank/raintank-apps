@@ -26,6 +26,7 @@ func receiveMetricsJson(ctx *macaron.Context) {
 }
 
 func receiveMetricsBinary(ctx *macaron.Context) {
+	defer ctx.Req.Request.Body.Close()
 	if ctx.Req.Request.Body != nil {
 		body, err := ioutil.ReadAll(ctx.Req.Request.Body)
 		if err != nil {
