@@ -1,0 +1,18 @@
+{
+    "flags": {
+        "log-level": 1,
+        "plugin-trust": 0,
+        "auto-discover": "plugin/"
+    },    
+    "plugins": {
+        "publisher": {
+            "rt-hostedtsdb": {
+                "all": {
+                    "url": "http://localhost:8081/",
+                    "token": "secret_token"
+                }
+            }
+        }
+    }
+}
+
