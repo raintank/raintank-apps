@@ -3,12 +3,11 @@ package api
 import (
 	"io/ioutil"
 
-	"github.com/Unknwon/macaron"
 	"github.com/raintank/raintank-apps/server/metric_publish"
 	msg "github.com/raintank/raintank-metric/msg"
 )
 
-func ReceiveMetrics(ctx *macaron.Context) {
+func ReceiveMetrics(ctx *Context) {
 	contentType := ctx.Req.Header.Get("Content-Type")
 	switch contentType {
 	case "rt-metric-binary":
@@ -20,12 +19,13 @@ func ReceiveMetrics(ctx *macaron.Context) {
 	}
 }
 
-func receiveMetricsJson(ctx *macaron.Context) {
+func receiveMetricsJson(ctx *Context) {
 	//TODO
 	ctx.JSON(200, "ok")
 }
 
-func receiveMetricsBinary(ctx *macaron.Context) {
+func receiveMetricsBinary(ctx *Context) {
+	owner := ctx.Owner
 	defer ctx.Req.Request.Body.Close()
 	if ctx.Req.Request.Body != nil {
 		body, err := ioutil.ReadAll(ctx.Req.Request.Body)
@@ -48,7 +48,7 @@ func receiveMetricsBinary(ctx *macaron.Context) {
 		//if !ctx.IsAdmin {
 		for _, m := range ms.Metrics {
 			//TODO: get orgId from context.
-			m.OrgId = 1
+			m.OrgId = int(owner)
 			m.SetId()
 		}
 		//}

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/Unknwon/macaron"
 	"github.com/gorilla/websocket"
 
 	"github.com/raintank/raintank-apps/pkg/message"
@@ -76,7 +75,7 @@ func init() {
 	ActiveSockets = newSocketList()
 }
 
-func connectedAgent(agentName string, owner string) (*model.AgentDTO, error) {
+func connectedAgent(agentName string, owner int64) (*model.AgentDTO, error) {
 	if agentName == "" {
 		return nil, errors.New("agent name not specified.")
 	}
@@ -94,11 +93,11 @@ func connectedAgent(agentName string, owner string) (*model.AgentDTO, error) {
 	return agents[0], nil
 }
 
-func socket(ctx *macaron.Context) {
+func socket(ctx *Context) {
 	agentName := ctx.Params(":agent")
 	agentVer := ctx.ParamsInt64(":ver")
 	//TODO: add auth
-	owner := "admin"
+	owner := ctx.Owner
 	agent, err := connectedAgent(agentName, owner)
 	if err != nil {
 		log.Debugf("agent cant connect. %s", err)

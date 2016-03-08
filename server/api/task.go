@@ -1,14 +1,13 @@
 package api
 
 import (
-	"github.com/Unknwon/macaron"
 	"github.com/raintank/raintank-apps/server/model"
 	"github.com/raintank/raintank-apps/server/sqlstore"
 )
 
-func GetTaskById(ctx *macaron.Context) {
+func GetTaskById(ctx *Context) {
 	id := ctx.ParamsInt64(":id")
-	owner := "admin"
+	owner := ctx.Owner
 	task, err := sqlstore.GetTaskById(id, owner)
 	if err != nil {
 		log.Error(err)
@@ -22,8 +21,8 @@ func GetTaskById(ctx *macaron.Context) {
 	ctx.JSON(200, task)
 }
 
-func GetTasks(ctx *macaron.Context, query model.GetTasksQuery) {
-	query.Owner = "admin"
+func GetTasks(ctx *Context, query model.GetTasksQuery) {
+	query.Owner = ctx.Owner
 	tasks, err := sqlstore.GetTasks(&query)
 	if err != nil {
 		log.Error(err)
@@ -33,8 +32,8 @@ func GetTasks(ctx *macaron.Context, query model.GetTasksQuery) {
 	ctx.JSON(200, tasks)
 }
 
-func AddTask(ctx *macaron.Context, task model.TaskDTO) {
-	task.Owner = "admin"
+func AddTask(ctx *Context, task model.TaskDTO) {
+	task.Owner = ctx.Owner
 	if task.Route.Type == model.RouteAny {
 		// need to schedule the task to an agent.
 		//TDOD: lookup least loded agent.
@@ -60,8 +59,8 @@ func AddTask(ctx *macaron.Context, task model.TaskDTO) {
 	ctx.JSON(200, task)
 }
 
-func UpdateTask(ctx *macaron.Context, task model.TaskDTO) {
-	task.Owner = "admin"
+func UpdateTask(ctx *Context, task model.TaskDTO) {
+	task.Owner = ctx.Owner
 	err := sqlstore.UpdateTask(&task)
 	if err != nil {
 		log.Error(err)
@@ -71,9 +70,9 @@ func UpdateTask(ctx *macaron.Context, task model.TaskDTO) {
 	ctx.JSON(200, task)
 }
 
-func DeleteTask(ctx *macaron.Context) {
+func DeleteTask(ctx *Context) {
 	id := ctx.ParamsInt64(":id")
-	owner := "admin"
+	owner := ctx.Owner
 	existing, err := sqlstore.DeleteTask(id, owner)
 	if err != nil {
 		log.Error(err)

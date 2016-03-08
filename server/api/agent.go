@@ -1,12 +1,12 @@
 package api
 
 import (
-	"github.com/Unknwon/macaron"
 	"github.com/raintank/raintank-apps/server/model"
 	"github.com/raintank/raintank-apps/server/sqlstore"
 )
 
-func GetAgents(ctx *macaron.Context, query model.GetAgentsQuery) {
+func GetAgents(ctx *Context, query model.GetAgentsQuery) {
+	query.Owner = ctx.Owner
 	agents, err := sqlstore.GetAgents(&query)
 	if err != nil {
 		log.Error(err)
@@ -16,9 +16,9 @@ func GetAgents(ctx *macaron.Context, query model.GetAgentsQuery) {
 	ctx.JSON(200, agents)
 }
 
-func GetAgentById(ctx *macaron.Context) {
+func GetAgentById(ctx *Context) {
 	id := ctx.ParamsInt64(":id")
-	owner := "admin"
+	owner := ctx.Owner
 	agent, err := sqlstore.GetAgentById(id, owner)
 	if err != nil {
 		log.Error(err)
@@ -32,9 +32,9 @@ func GetAgentById(ctx *macaron.Context) {
 	ctx.JSON(200, agent)
 }
 
-func AddAgent(ctx *macaron.Context, agent model.AgentDTO) {
+func AddAgent(ctx *Context, agent model.AgentDTO) {
 	//need to add suport for middelware context with AUTH/
-	agent.Owner = "admin"
+	agent.Owner = ctx.Owner
 	err := sqlstore.UpdateAgent(&agent)
 	if err != nil {
 		log.Error(err)
@@ -44,9 +44,9 @@ func AddAgent(ctx *macaron.Context, agent model.AgentDTO) {
 	ctx.JSON(200, agent)
 }
 
-func UpdateAgent(ctx *macaron.Context, agent model.AgentDTO) {
+func UpdateAgent(ctx *Context, agent model.AgentDTO) {
 	//need to add suport for middelware context with AUTH/
-	agent.Owner = "admin"
+	agent.Owner = ctx.Owner
 	err := sqlstore.UpdateAgent(&agent)
 	if err != nil {
 		log.Error(err)

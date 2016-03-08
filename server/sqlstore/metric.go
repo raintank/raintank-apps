@@ -30,7 +30,7 @@ func getMetrics(sess *session, query *model.GetMetricsQuery) ([]*model.Metric, e
 	return metrics, nil
 }
 
-func GetMetricById(id string, owner string) (*model.Metric, error) {
+func GetMetricById(id string, owner int64) (*model.Metric, error) {
 	sess, err := newSession(false, "metric")
 	if err != nil {
 		return nil, err
@@ -39,7 +39,7 @@ func GetMetricById(id string, owner string) (*model.Metric, error) {
 	return getMetricById(sess, id, owner)
 }
 
-func getMetricById(sess *session, id string, owner string) (*model.Metric, error) {
+func getMetricById(sess *session, id string, owner int64) (*model.Metric, error) {
 	m := &model.Metric{}
 	exists, err := sess.Where("(public=1 OR owner = ?) AND id=?", owner, id).Get(m)
 	if err != nil {

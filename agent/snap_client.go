@@ -13,7 +13,7 @@ import (
 var SnapClient *client.Client
 
 func InitSnapClient(u *url.URL) {
-	SnapClient = client.New(u.String(), "v1", false)
+	SnapClient, _ = client.New(u.String(), "v1", false)
 }
 
 func GetSnapMetrics() ([]*rbody.Metric, error) {
@@ -72,7 +72,11 @@ func CreateSnapTask(t *model.TaskDTO, name string) (*rbody.ScheduledTask, error)
 	}
 
 	resp := SnapClient.CreateTask(s, wf, name, "10s", true)
-	newTask := rbody.ScheduledTask(*resp.AddScheduledTask)
+	log.Debugf("%v", resp)
+	var newTask rbody.ScheduledTask
+	if resp.Err == nil {
+		newTask = rbody.ScheduledTask(*resp.AddScheduledTask)
+	}
 	return &newTask, resp.Err
 }
 

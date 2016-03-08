@@ -16,7 +16,7 @@ var (
 
 type Metric struct {
 	Id        string
-	Owner     string
+	Owner     int64
 	Public    bool
 	Namespace string
 	Version   int64
@@ -26,12 +26,12 @@ type Metric struct {
 
 func (m *Metric) SetId() {
 	var buffer bytes.Buffer
-	buffer.WriteString(fmt.Sprintf("%t:%s:%s:%d", m.Public, m.Owner, m.Namespace, m.Version))
+	buffer.WriteString(fmt.Sprintf("%t:%d:%s:%d", m.Public, m.Owner, m.Namespace, m.Version))
 	m.Id = fmt.Sprintf("%x", md5.Sum(buffer.Bytes()))
 }
 
 type GetMetricsQuery struct {
 	Namespace string `json:"namespace"`
 	Version   int64  `json:"version"`
-	Owner     string `json:"-"`
+	Owner     int64  `json:"-"`
 }

@@ -12,7 +12,7 @@ func addAgentTagMigrations(mg *migrator.Migrator) {
 		Columns: []*migrator.Column{
 			{Name: "id", Type: migrator.DB_BigInt, IsPrimaryKey: true, IsAutoIncrement: true},
 			{Name: "agent_id", Type: migrator.DB_BigInt, Nullable: false},
-			{Name: "owner", Type: migrator.DB_NVarchar, Length: 255},
+			{Name: "owner", Type: migrator.DB_BigInt, Nullable: false},
 			{Name: "tag", Type: migrator.DB_NVarchar, Length: 255},
 			{Name: "created", Type: migrator.DB_DateTime},
 		},

@@ -9,7 +9,7 @@ import (
 type Task struct {
 	Id       int64
 	Name     string
-	Owner    string
+	Owner    int64
 	Config   map[string]map[string]interface{}
 	Interval int64
 	Route    *TaskRoute
@@ -29,7 +29,7 @@ type TaskMetric struct {
 type TaskDTO struct {
 	Id       int64                             `json:"id"`
 	Name     string                            `json:"name"`
-	Owner    string                            `json:"-"`
+	Owner    int64                             `json:"-"`
 	Config   map[string]map[string]interface{} `json:"config"`
 	Interval int64                             `json:"interval"`
 	Route    *TaskRoute                        `json:"route"`
@@ -146,6 +146,6 @@ func (r *TaskRoute) Validate() (bool, error) {
 type GetTasksQuery struct {
 	Metric        string `json:"metric"`
 	MetricVersion int64  `json:"metric_version"`
-	Owner         string `json:"-"`
+	Owner         int64  `json:"-"`
 	Enabled       string `json:"enabled"`
 }

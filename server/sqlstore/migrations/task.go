@@ -14,7 +14,7 @@ func addTaskMigrations(mg *migrator.Migrator) {
 			{Name: "name", Type: migrator.DB_NVarchar, Length: 255},
 			{Name: "config", Type: migrator.DB_NVarchar, Length: 255},
 			{Name: "interval", Type: migrator.DB_BigInt},
-			{Name: "owner", Type: migrator.DB_NVarchar, Length: 255},
+			{Name: "owner", Type: migrator.DB_BigInt, Nullable: false},
 			{Name: "enabled", Type: migrator.DB_Text},
 			{Name: "route", Type: migrator.DB_Bool},
 			{Name: "created", Type: migrator.DB_DateTime},

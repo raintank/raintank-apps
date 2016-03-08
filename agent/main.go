@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
 	"os/signal"
@@ -28,11 +29,14 @@ var (
 	addr       = flag.String("addr", "localhost:8081", "addres of raintank-apps server")
 	snapUrlStr = flag.String("snap-url", "http://localhost:8181", "url of SNAP server.")
 	nodeName   = flag.String("name", "", "agent name")
+	apiKey     = flag.String("api-key", "not_very_secret_key", "Api Key")
 )
 
 func connect(u url.URL) (*websocket.Conn, error) {
 	log.Infof("connecting to %s", u.String())
-	conn, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
+	header := make(http.Header)
+	header.Set("Authorization", fmt.Sprintf("Bearer %s", *apiKey))
+	conn, _, err := websocket.DefaultDialer.Dial(u.String(), header)
 	return conn, err
 }
 

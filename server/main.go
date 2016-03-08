@@ -41,6 +41,8 @@ var (
 	statsEnabled = flag.Bool("stats-enabled", false, "enable statsd metrics")
 	statsdAddr   = flag.String("statsd-addr", "localhost:8125", "statsd address")
 	statsdType   = flag.String("statsd-type", "standard", "statsd type: standard or datadog")
+
+	adminKey = flag.String("admin-key", "not_very_secret_key", "Admin Secret Key")
 )
 
 func main() {
@@ -81,7 +83,7 @@ func main() {
 	m.Use(macaron.Logger())
 	m.Use(macaron.Renderer())
 
-	api.InitRoutes(m)
+	api.InitRoutes(m, *adminKey)
 
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)

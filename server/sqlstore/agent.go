@@ -97,7 +97,7 @@ func getAgents(sess *session, query *model.GetAgentsQuery) ([]*model.AgentDTO, e
 	return a.ToAgentDTO(), nil
 }
 
-func GetAgentById(id int64, owner string) (*model.AgentDTO, error) {
+func GetAgentById(id int64, owner int64) (*model.AgentDTO, error) {
 	sess, err := newSession(false, "agent")
 	if err != nil {
 		return nil, err
@@ -105,7 +105,7 @@ func GetAgentById(id int64, owner string) (*model.AgentDTO, error) {
 	return getAgentById(sess, id, owner)
 }
 
-func getAgentById(sess *session, id int64, owner string) (*model.AgentDTO, error) {
+func getAgentById(sess *session, id int64, owner int64) (*model.AgentDTO, error) {
 	var a agentWithTags
 	err := sess.Where("agent.id=?", id).Join("INNER", "agent_tag", "agent.id = agent_tag.agent_id").Find(&a)
 	if err != nil {

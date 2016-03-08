@@ -61,7 +61,7 @@ func GetTasks(query *model.GetTasksQuery) ([]*model.TaskDTO, error) {
 
 func getTasks(sess *session, query *model.GetTasksQuery) ([]*model.TaskDTO, error) {
 	var t taskWithMetrics
-	if query.Owner != "" {
+	if query.Owner != 0 {
 		sess.Where("task.owner = ?", query.Owner)
 	}
 	if query.Enabled != "" {
@@ -102,7 +102,7 @@ func getTasks(sess *session, query *model.GetTasksQuery) ([]*model.TaskDTO, erro
 	return t.ToTaskDTO(), nil
 }
 
-func GetTaskById(id int64, owner string) (*model.TaskDTO, error) {
+func GetTaskById(id int64, owner int64) (*model.TaskDTO, error) {
 	sess, err := newSession(false, "task")
 	if err != nil {
 		return nil, err
@@ -110,7 +110,7 @@ func GetTaskById(id int64, owner string) (*model.TaskDTO, error) {
 	return getTaskById(sess, id, owner)
 }
 
-func getTaskById(sess *session, id int64, owner string) (*model.TaskDTO, error) {
+func getTaskById(sess *session, id int64, owner int64) (*model.TaskDTO, error) {
 	var t taskWithMetrics
 	err := sess.Where("task.id=? AND owner=?", id, owner).Join("LEFT", "task_metric", "task.id = task_metric.task_id").Find(&t)
 	if err != nil {
@@ -308,7 +308,7 @@ func getAgentTasks(sess *session, agent *model.AgentDTO) ([]*model.TaskDTO, erro
 	return tasks.ToTaskDTO(), err
 }
 
-func DeleteTask(id int64, owner string) (*model.TaskDTO, error) {
+func DeleteTask(id int64, owner int64) (*model.TaskDTO, error) {
 	sess, err := newSession(true, "task")
 	if err != nil {
 		return nil, err
@@ -322,7 +322,7 @@ func DeleteTask(id int64, owner string) (*model.TaskDTO, error) {
 	return existing, nil
 }
 
-func deleteTask(sess *session, id int64, owner string) (*model.TaskDTO, error) {
+func deleteTask(sess *session, id int64, owner int64) (*model.TaskDTO, error) {
 	existing, err := getTaskById(sess, id, owner)
 	if err != nil {
 		return nil, err

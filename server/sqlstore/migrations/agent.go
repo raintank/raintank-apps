@@ -14,7 +14,7 @@ func addAgentMigrations(mg *migrator.Migrator) {
 			{Name: "name", Type: migrator.DB_NVarchar, Length: 255},
 			{Name: "slug", Type: migrator.DB_NVarchar, Length: 255},
 			{Name: "password", Type: migrator.DB_NVarchar, Length: 255},
-			{Name: "owner", Type: migrator.DB_NVarchar, Length: 255},
+			{Name: "owner", Type: migrator.DB_BigInt, Nullable: false},
 			{Name: "enabled", Type: migrator.DB_Bool},
 			{Name: "public", Type: migrator.DB_Bool},
 			{Name: "created", Type: migrator.DB_DateTime},

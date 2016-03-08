@@ -12,7 +12,7 @@ type Agent struct {
 	Slug     string
 	Password string
 	Enabled  bool
-	Owner    string
+	Owner    int64
 	Public   bool
 	Created  time.Time
 	Updated  time.Time
@@ -27,7 +27,7 @@ func (agent *Agent) UpdateSlug() {
 
 type AgentTag struct {
 	Id      int64
-	Owner   string
+	Owner   int64
 	AgentId int64
 	Tag     string
 	Created time.Time
@@ -35,7 +35,7 @@ type AgentTag struct {
 
 type AgentMetric struct {
 	Id       int64
-	Owner    string
+	Owner    int64
 	AgentId  int64
 	MetricId string
 }
@@ -47,7 +47,7 @@ type AgentDTO struct {
 	Slug     string    `json:"slug"`
 	Password string    `json:"password"`
 	Enabled  bool      `json:"enabled"`
-	Owner    string    `json:"-"`
+	Owner    int64     `json:"-"`
 	Public   bool      `json:"public"`
 	Tags     []string  `json:"tags"`
 	Created  time.Time `json:"created"`
@@ -59,5 +59,5 @@ type GetAgentsQuery struct {
 	Enabled string `json:"enabled"`
 	Public  string `json:"public"`
 	Tag     string `json:"tag"`
-	Owner   string `json:"-"`
+	Owner   int64  `json:"-"`
 }

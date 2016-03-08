@@ -10,10 +10,11 @@ import (
 
 var log = logging.MustGetLogger("default")
 
-func InitRoutes(m *macaron.Macaron) {
+func InitRoutes(m *macaron.Macaron, adminKey string) {
+	m.Use(GetContextHandler())
+	m.Use(Auth(adminKey))
 	bind := binding.Bind
 
-	m.Get("/socket/:agent/:ver", socket)
 	m.Get("/", index)
 	m.Group("/api", func() {
 		m.Group("/agents", func() {
@@ -35,6 +36,8 @@ func InitRoutes(m *macaron.Macaron) {
 			m.Delete("/:id", DeleteTask)
 		})
 	})
+
+	m.Get("/socket/:agent/:ver", socket)
 	m.Post("/metrics", ReceiveMetrics)
 }
 
