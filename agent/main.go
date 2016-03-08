@@ -26,9 +26,10 @@ var (
 	logLevel    = flag.Int("log-level", 4, "log level. 5=DEBUG|4=INFO|3=NOTICE|2=WARNING|1=ERROR|0=CRITICAL")
 	confFile    = flag.String("config", "/etc/raintank/collector.ini", "configuration file path")
 
-	addr       = flag.String("addr", "localhost:8081", "addres of raintank-apps server")
+	serverAddr = flag.String("server-addr", "localhost:8081", "addres of raintank-apps server")
+	tsdbAddr   = flag.String("tsdb-addr", "http://localhost:8081/metrics", "addres of raintank-apps server")
 	snapUrlStr = flag.String("snap-url", "http://localhost:8181", "url of SNAP server.")
-	nodeName   = flag.String("name", "", "agent name")
+	nodeName   = flag.String("name", "", "agent-name")
 	apiKey     = flag.String("api-key", "not_very_secret_key", "Api Key")
 )
 
@@ -68,11 +69,15 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	err = SetSnapGlobalConfig()
+	if err != nil {
+		log.Fatal(err)
+	}
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 	shutdownStart := make(chan struct{})
 
-	controllerUrl := url.URL{Scheme: "ws", Host: *addr, Path: fmt.Sprintf("/socket/%s/%d", *nodeName, Version)}
+	controllerUrl := url.URL{Scheme: "ws", Host: *serverAddr, Path: fmt.Sprintf("/socket/%s/%d", *nodeName, Version)}
 	conn, err := connect(controllerUrl)
 	if err != nil {
 		log.Fatalf("unable to connect to server on url %s: %s", controllerUrl.String(), err)

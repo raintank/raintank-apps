@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 
+	"github.com/intelsdi-x/snap/core/ctypes"
 	"github.com/intelsdi-x/snap/mgmt/rest/client"
 	"github.com/intelsdi-x/snap/mgmt/rest/rbody"
 	"github.com/intelsdi-x/snap/scheduler/wmap"
@@ -88,4 +89,35 @@ func getPublisher(orgId, interval int64, token string) *wmap.PublishWorkflowMapN
 			"orgId":    orgId,
 		},
 	}
+}
+
+func SetSnapGlobalConfig() error {
+	agentName := ctypes.ConfigValueStr{
+		Value: *nodeName,
+	}
+	resp := SnapClient.SetPluginConfig("", "", "", "raintank_agent_name", agentName)
+	if resp.Err != nil {
+		return resp.Err
+	}
+
+	url, err := url.Parse(*tsdbAddr)
+	if err != nil {
+		return err
+	}
+	tsdbUrl := ctypes.ConfigValueStr{
+		Value: url.String(),
+	}
+	resp = SnapClient.SetPluginConfig("", "", "", "raintank_tsdb_url", tsdbUrl)
+	if resp.Err != nil {
+		return resp.Err
+	}
+
+	key := ctypes.ConfigValueStr{
+		Value: *apiKey,
+	}
+	resp = SnapClient.SetPluginConfig("", "", "", "raintank_api_key", key)
+	if resp.Err != nil {
+		return resp.Err
+	}
+	return nil
 }
