@@ -258,6 +258,7 @@ func handleErr(e error) {
 func PostData(remoteUrl *url.URL, token string, body []byte) error {
 	req, err := http.NewRequest("POST", remoteUrl.String(), bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "rt-metric-binary")
+	req.Header.Set("Authorization", "Bearer "+token)
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
