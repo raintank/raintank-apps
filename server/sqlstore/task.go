@@ -207,11 +207,11 @@ func addTask(sess *session, t *model.TaskDTO) error {
 			return err
 		}
 	case model.RouteByTags:
-		tagRoutes := make([]*model.RouteByTagIndex, len(t.Route.Config["tags"].([]interface{})))
-		for i, tag := range t.Route.Config["tags"].([]interface{}) {
+		tagRoutes := make([]*model.RouteByTagIndex, len(t.Route.Config["tags"].([]string)))
+		for i, tag := range t.Route.Config["tags"].([]string) {
 			tagRoutes[i] = &model.RouteByTagIndex{
 				TaskId:  t.Id,
-				Tag:     tag.(string),
+				Tag:     tag,
 				Created: time.Now(),
 			}
 		}
@@ -219,11 +219,11 @@ func addTask(sess *session, t *model.TaskDTO) error {
 			return err
 		}
 	case model.RouteByIds:
-		idxs := make([]*model.RouteByIdIndex, len(t.Route.Config["ids"].([]interface{})))
-		for i, id := range t.Route.Config["ids"].([]interface{}) {
+		idxs := make([]*model.RouteByIdIndex, len(t.Route.Config["ids"].([]int64)))
+		for i, id := range t.Route.Config["ids"].([]int64) {
 			idxs[i] = &model.RouteByIdIndex{
 				TaskId:  t.Id,
-				AgentId: id.(int64),
+				AgentId: id,
 				Created: time.Now(),
 			}
 		}

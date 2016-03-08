@@ -293,9 +293,9 @@ func getAgentsForTask(sess *session, t *model.TaskDTO) ([]*AgentId, error) {
 		agents = append(agents, &AgentId{Id: t.Route.Config["id"].(int64)})
 		return agents, nil
 	case model.RouteByTags:
-		tags := make([]string, len(t.Route.Config["tags"].([]interface{})))
-		for i, tag := range t.Route.Config["tags"].([]interface{}) {
-			tags[i] = tag.(string)
+		tags := make([]string, len(t.Route.Config["tags"].([]string)))
+		for i, tag := range t.Route.Config["tags"].([]string) {
+			tags[i] = tag
 		}
 		sess.Join("LEFT", "agent_tag", "agent.id = agent_tag.agent_id")
 		sess.Where("agent_tag.owner = ?", t.Owner)
@@ -304,9 +304,9 @@ func getAgentsForTask(sess *session, t *model.TaskDTO) ([]*AgentId, error) {
 		err := sess.Find(&agents)
 		return agents, err
 	case model.RouteByIds:
-		agents := make([]*AgentId, len(t.Route.Config["ids"].([]interface{})))
-		for i, id := range t.Route.Config["ids"].([]interface{}) {
-			agents[i] = &AgentId{Id: id.(int64)}
+		agents := make([]*AgentId, len(t.Route.Config["ids"].([]int64)))
+		for i, id := range t.Route.Config["ids"].([]int64) {
+			agents[i] = &AgentId{Id: id}
 		}
 		return agents, nil
 	default:
