@@ -146,13 +146,13 @@ func (f *HostedtsdbPublisher) Publish(contentType string, content []byte, config
 	// set the RemoteURL and Token when the first metrics is recieved.
 	var err error
 	if RemoteUrl == nil {
-		RemoteUrl, err = url.Parse(config["url"].(ctypes.ConfigValueStr).Value)
+		RemoteUrl, err = url.Parse(config["raintank_tsdb_url"].(ctypes.ConfigValueStr).Value)
 		if err != nil {
 			return err
 		}
 	}
 	if Token == "" {
-		Token = config["token"].(ctypes.ConfigValueStr).Value
+		Token = config["raintank_api_key"].(ctypes.ConfigValueStr).Value
 	}
 	//-----------------
 
@@ -235,8 +235,8 @@ func Meta() *plugin.PluginMeta {
 
 func (f *HostedtsdbPublisher) GetConfigPolicy() (*cpolicy.ConfigPolicy, error) {
 	c := cpolicy.New()
-	rule, _ := cpolicy.NewStringRule("url", true)
-	rule2, _ := cpolicy.NewStringRule("token", true)
+	rule, _ := cpolicy.NewStringRule("raintank_tsdb_url", true)
+	rule2, _ := cpolicy.NewStringRule("raintank_api_key", true)
 	rule3, _ := cpolicy.NewIntegerRule("interval", true)
 	rule4, _ := cpolicy.NewIntegerRule("orgId", true)
 
