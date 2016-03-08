@@ -12,8 +12,6 @@ func addAgentMigrations(mg *migrator.Migrator) {
 		Columns: []*migrator.Column{
 			{Name: "id", Type: migrator.DB_BigInt, IsPrimaryKey: true, IsAutoIncrement: true},
 			{Name: "name", Type: migrator.DB_NVarchar, Length: 255},
-			{Name: "slug", Type: migrator.DB_NVarchar, Length: 255},
-			{Name: "password", Type: migrator.DB_NVarchar, Length: 255},
 			{Name: "owner", Type: migrator.DB_BigInt, Nullable: false},
 			{Name: "enabled", Type: migrator.DB_Bool},
 			{Name: "public", Type: migrator.DB_Bool},

@@ -26,15 +26,14 @@ func (rows agentWithTags) ToAgentDTO() []*model.AgentDTO {
 		a, ok := agentsById[r.Id]
 		if !ok {
 			agentsById[r.Id] = &model.AgentDTO{
-				Id:       r.Id,
-				Name:     r.Name,
-				Password: r.Password,
-				Enabled:  r.Enabled,
-				Owner:    r.Owner,
-				Public:   r.Public,
-				Created:  r.Created,
-				Updated:  r.Updated,
-				Tags:     []string{r.Tag},
+				Id:      r.Id,
+				Name:    r.Name,
+				Enabled: r.Enabled,
+				Owner:   r.Owner,
+				Public:  r.Public,
+				Created: r.Created,
+				Updated: r.Updated,
+				Tags:    []string{r.Tag},
 			}
 		} else {
 			a.Tags = append(a.Tags, r.Tag)
@@ -82,7 +81,6 @@ func getAgents(sess *session, query *model.GetAgentsQuery) ([]*model.AgentDTO, e
 	sess.Cols(
 		"agent.id",
 		"agent.name",
-		"agent.password",
 		"agent.enabled",
 		"agent.public",
 		"agent.created",
@@ -151,25 +149,22 @@ func UpdateAgent(a *model.AgentDTO) error {
 
 func addAgent(sess *session, a *model.AgentDTO) error {
 	agent := &model.Agent{
-		Name:     a.Name,
-		Password: a.Password,
-		Enabled:  a.Enabled,
-		Owner:    a.Owner,
-		Public:   a.Public,
-		Created:  time.Now(),
-		Updated:  time.Now(),
+		Name:    a.Name,
+		Enabled: a.Enabled,
+		Owner:   a.Owner,
+		Public:  a.Public,
+		Created: time.Now(),
+		Updated: time.Now(),
 	}
 
 	sess.UseBool("public")
 	sess.UseBool("enabled")
-	agent.UpdateSlug()
 	if _, err := sess.Insert(agent); err != nil {
 		return err
 	}
 	a.Id = agent.Id
 	a.Created = agent.Created
 	a.Updated = agent.Updated
-	a.Slug = agent.Slug
 
 	agentTags := make([]model.AgentTag, 0, len(a.Tags))
 	for _, tag := range a.Tags {
@@ -193,23 +188,20 @@ func updateAgent(sess *session, a *model.AgentDTO, existing *model.AgentDTO) err
 	// If the Owner is different, the only changes that can be made is to Tags.
 	if a.Owner == existing.Owner {
 		agent := &model.Agent{
-			Id:       a.Id,
-			Name:     a.Name,
-			Password: a.Password,
-			Enabled:  a.Enabled,
-			Owner:    a.Owner,
-			Public:   a.Public,
-			Created:  a.Created,
-			Updated:  time.Now(),
+			Id:      a.Id,
+			Name:    a.Name,
+			Enabled: a.Enabled,
+			Owner:   a.Owner,
+			Public:  a.Public,
+			Created: a.Created,
+			Updated: time.Now(),
 		}
 		sess.UseBool("public")
 		sess.UseBool("enabled")
-		agent.UpdateSlug()
 		if _, err := sess.Id(agent.Id).Update(agent); err != nil {
 			return err
 		}
 		a.Updated = agent.Updated
-		a.Slug = agent.Slug
 	}
 
 	tagMap := make(map[string]bool)
