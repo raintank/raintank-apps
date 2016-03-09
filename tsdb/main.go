@@ -13,6 +13,7 @@ import (
 	"github.com/op/go-logging"
 	"github.com/raintank/met/helper"
 	"github.com/raintank/raintank-apps/tsdb/api"
+	"github.com/raintank/raintank-apps/tsdb/graphite"
 	"github.com/raintank/raintank-apps/tsdb/metric_publish"
 	"github.com/rakyll/globalconf"
 )
@@ -33,6 +34,8 @@ var (
 	statsEnabled = flag.Bool("stats-enabled", false, "enable statsd metrics")
 	statsdAddr   = flag.String("statsd-addr", "localhost:8125", "statsd address")
 	statsdType   = flag.String("statsd-type", "standard", "statsd type: standard or datadog")
+
+	graphiteUrl = flag.String("graphite-url", "http://localhost:8080", "graphite-api address")
 
 	adminKey = flag.String("admin-key", "not_very_secret_key", "Admin Secret Key")
 )
@@ -68,6 +71,10 @@ func main() {
 
 	api.InitRoutes(m, *adminKey)
 
+	if err := graphite.Init(*graphiteUrl); err != nil {
+		log.Fatal(err)
+	}
+
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
@@ -87,6 +94,5 @@ func handleShutdown(done chan struct{}, interrupt chan os.Signal, l net.Listener
 	<-interrupt
 	log.Info("shutdown started.")
 	l.Close()
-	api.ActiveSockets.CloseAll()
 	close(done)
 }
