@@ -6,7 +6,7 @@ import (
 	"path"
 
 	"github.com/go-xorm/xorm"
-	"github.com/grafana/grafana/pkg/apps-server/sqlstore/migrator"
+	"github.com/grafana/grafana/pkg/services/sqlstore/migrator"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/op/go-logging"
 	"github.com/raintank/raintank-apps/apps-server/sqlstore/migrations"

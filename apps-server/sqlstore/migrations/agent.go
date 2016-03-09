@@ -3,7 +3,7 @@ package migrations
 import (
 	"fmt"
 
-	"github.com/grafana/grafana/pkg/apps-server/sqlstore/migrator"
+	"github.com/grafana/grafana/pkg/services/sqlstore/migrator"
 )
 
 func addAgentMigrations(mg *migrator.Migrator) {

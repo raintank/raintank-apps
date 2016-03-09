@@ -4,13 +4,19 @@ import (
 	"github.com/Unknwon/macaron"
 	"github.com/macaron-contrib/binding"
 	"github.com/op/go-logging"
+	"github.com/raintank/met"
 
 	"github.com/raintank/raintank-apps/apps-server/model"
 )
 
 var log = logging.MustGetLogger("default")
 
-func InitRoutes(m *macaron.Macaron, adminKey string) {
+var (
+	taskCreate met.Count
+	taskDelete met.Count
+)
+
+func Init(m *macaron.Macaron, adminKey string, metrics met.Backend) {
 	m.Use(GetContextHandler())
 	m.Use(Auth(adminKey))
 	bind := binding.Bind
@@ -38,6 +44,9 @@ func InitRoutes(m *macaron.Macaron, adminKey string) {
 	})
 
 	m.Get("/socket/:agent/:ver", socket)
+
+	taskCreate = metrics.NewCount("api.tasks_create")
+	taskDelete = metrics.NewCount("api.tasks_delete")
 }
 
 func index(ctx *macaron.Context) {

@@ -12,9 +12,8 @@ import (
 	"github.com/Unknwon/macaron"
 	"github.com/op/go-logging"
 	"github.com/raintank/met/helper"
-	"github.com/raintank/raintank-apps/server/api"
-	"github.com/raintank/raintank-apps/server/metric_publish"
-	"github.com/raintank/raintank-apps/server/sqlstore"
+	"github.com/raintank/raintank-apps/apps-server/api"
+	"github.com/raintank/raintank-apps/apps-server/sqlstore"
 	"github.com/rakyll/globalconf"
 )
 
@@ -70,7 +69,7 @@ func main() {
 	m.Use(macaron.Logger())
 	m.Use(macaron.Renderer())
 
-	api.InitRoutes(m, *adminKey)
+	api.Init(m, *adminKey, stats)
 
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)

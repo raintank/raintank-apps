@@ -56,6 +56,7 @@ func AddTask(ctx *Context, task model.TaskDTO) {
 		return
 	}
 	ActiveSockets.EmitTask(&task, "taskAdd")
+	taskCreate.Inc(1)
 	ctx.JSON(200, task)
 }
 
@@ -81,6 +82,7 @@ func DeleteTask(ctx *Context) {
 	}
 	if existing != nil {
 		ActiveSockets.EmitTask(existing, "taskRemove")
+		taskDelete.Inc(1)
 	}
 
 	ctx.JSON(200, "ok")
