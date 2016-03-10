@@ -1,6 +1,7 @@
 #!/bin/sh
+
 BASE=$(dirname $0)
-BINDIR=$(readlink -e "$BASE/../bin")
+BINDIR=${1:-$(readlink -e "$BASE/../bin")}
 SNAPDIR=$GOPATH/src/github.com/intelsdi-x/snap
 
 mkdir -p $BINDIR
