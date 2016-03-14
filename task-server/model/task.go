@@ -144,8 +144,12 @@ func (r *TaskRoute) Validate() (bool, error) {
 }
 
 type GetTasksQuery struct {
+	Name          string `jsone:"name"`
 	Metric        string `json:"metric"`
-	MetricVersion int64  `json:"metric_version"`
+	MetricVersion int64  `json:"metricVersion"`
 	Owner         int64  `json:"-"`
 	Enabled       string `json:"enabled"`
+	OrderBy       string `json:"orderBy"`
+	Limit         int    `json:"limit"`
+	Page          int    `json:"page"`
 }

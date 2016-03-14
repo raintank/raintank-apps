@@ -72,6 +72,10 @@ func getTasks(sess *session, query *model.GetTasksQuery) ([]*model.TaskDTO, erro
 		sess.Where("task.enabled=?", enabled)
 	}
 
+	if query.Name != "" {
+		sess.And("task.name like ?", query.Name)
+	}
+
 	if query.Metric != "" {
 		sess.Join("INNER", []string{"task_metric", "tm"}, "task.id = tm.task_id").
 			Where("tm.namespace=?", query.Metric)
@@ -82,6 +86,17 @@ func getTasks(sess *session, query *model.GetTasksQuery) ([]*model.TaskDTO, erro
 			sess.And("tm.version=?", query.MetricVersion)
 		}
 	}
+	if query.OrderBy == "" {
+		query.OrderBy = "name"
+	}
+	if query.Limit == 0 {
+		query.Limit = 50
+	}
+	if query.Page == 0 {
+		query.Page = 1
+	}
+	sess.Asc(query.OrderBy).Limit(query.Limit, (query.Page-1)*query.Limit)
+
 	sess.Cols(
 		"task.id",
 		"task.name",
