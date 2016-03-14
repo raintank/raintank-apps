@@ -26,7 +26,7 @@ func Init(m *macaron.Macaron, adminKey string, metrics met.Backend) {
 		m.Group("/agents", func() {
 			m.Combo("/").
 				Get(bind(model.GetAgentsQuery{}), GetAgents).
-				Post(bind(model.AgentDTO{}), AddAgent).
+				Post(AgentQuota(), bind(model.AgentDTO{}), AddAgent).
 				Put(bind(model.AgentDTO{}), UpdateAgent)
 			m.Get("/:id", GetAgentById)
 		})
@@ -36,7 +36,7 @@ func Init(m *macaron.Macaron, adminKey string, metrics met.Backend) {
 		m.Group("/tasks", func() {
 			m.Combo("/").
 				Get(bind(model.GetTasksQuery{}), GetTasks).
-				Post(bind(model.TaskDTO{}), AddTask).
+				Post(bind(model.TaskDTO{}), TaskQuota(), AddTask).
 				Put(bind(model.TaskDTO{}), UpdateTask)
 			m.Get("/:id", GetTaskById)
 			m.Delete("/:id", DeleteTask)
