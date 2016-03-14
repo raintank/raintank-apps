@@ -23,11 +23,11 @@ var (
 	publishDuration   met.Timer
 )
 
-func Init(metrics met.Backend, topic string, addr string, enabled bool) {
+func Init(metrics met.Backend, t string, addr string, enabled bool) {
 	if !enabled {
 		return
 	}
-
+	topic = t
 	cfg := nsq.NewConfig()
 	cfg.UserAgent = fmt.Sprintf("raintank-apps-server")
 	var err error
