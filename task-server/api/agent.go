@@ -37,6 +37,7 @@ func AddAgent(ctx *Context, agent model.AgentDTO) {
 		ctx.JSON(400, "invalde agent Name. must match /^[0-9a-Z_-]+$/")
 		return
 	}
+	agent.Id = 0
 	//need to add suport for middelware context with AUTH/
 	agent.Owner = ctx.Owner
 	err := sqlstore.UpdateAgent(&agent)
@@ -51,6 +52,10 @@ func AddAgent(ctx *Context, agent model.AgentDTO) {
 func UpdateAgent(ctx *Context, agent model.AgentDTO) {
 	if !agent.ValidName() {
 		ctx.JSON(400, "invalde agent Name. must match /^[0-9a-Z_-]+$/")
+		return
+	}
+	if agent.Id == 0 {
+		ctx.JSON(400, "agent ID not set.")
 		return
 	}
 	//need to add suport for middelware context with AUTH/
