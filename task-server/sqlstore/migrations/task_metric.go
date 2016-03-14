@@ -17,7 +17,7 @@ func addTaskMetricMigrations(mg *migrator.Migrator) {
 			{Name: "created", Type: migrator.DB_DateTime},
 		},
 		Indices: []*migrator.Index{
-			{Cols: []string{"task_id", "namespace", "version"}},
+			{Cols: []string{"task_id", "namespace", "version"}, Type: migrator.UniqueIndex},
 		},
 	}
 	mg.AddMigration("create task_metric table v1", migrator.NewAddTableMigration(taskMetricV1))

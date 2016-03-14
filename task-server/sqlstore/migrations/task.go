@@ -21,7 +21,7 @@ func addTaskMigrations(mg *migrator.Migrator) {
 			{Name: "updated", Type: migrator.DB_DateTime},
 		},
 		Indices: []*migrator.Index{
-			{Cols: []string{"owner", "name"}},
+			{Cols: []string{"owner", "name"}, Type: migrator.UniqueIndex},
 		},
 	}
 	mg.AddMigration("create task table v1", migrator.NewAddTableMigration(taskV1))

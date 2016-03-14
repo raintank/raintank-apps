@@ -20,6 +20,7 @@ func addAgentMigrations(mg *migrator.Migrator) {
 		},
 		Indices: []*migrator.Index{
 			{Cols: []string{"owner", "public"}},
+			{Cols: []string{"name", "owner"}, Type: migrator.UniqueIndex},
 		},
 	}
 	mg.AddMigration("create agent table v1", migrator.NewAddTableMigration(agentV1))

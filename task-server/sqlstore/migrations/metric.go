@@ -19,7 +19,7 @@ func addMetricMigrations(mg *migrator.Migrator) {
 			{Name: "created", Type: migrator.DB_DateTime},
 		},
 		Indices: []*migrator.Index{
-			{Cols: []string{"owner", "public", "namespace", "version"}},
+			{Cols: []string{"owner", "public", "namespace", "version"}, Type: migrator.UniqueIndex},
 		},
 	}
 	mg.AddMigration("create metric table v1", migrator.NewAddTableMigration(metricV1))

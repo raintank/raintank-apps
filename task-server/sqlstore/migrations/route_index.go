@@ -16,7 +16,7 @@ func addRouteByIdIndexMigrations(mg *migrator.Migrator) {
 			{Name: "created", Type: migrator.DB_DateTime},
 		},
 		Indices: []*migrator.Index{
-			{Cols: []string{"task_id", "agent_id"}},
+			{Cols: []string{"task_id", "agent_id"}, Type: migrator.UniqueIndex},
 		},
 	}
 	mg.AddMigration("create route_by_id_index table v1", migrator.NewAddTableMigration(routeIndexV1))
