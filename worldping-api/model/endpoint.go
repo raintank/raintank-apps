@@ -41,14 +41,14 @@ type EndpointTag struct {
 // ---------------
 // DTOs
 type EndpointDTO struct {
-	Id      int64       `json:"id"`
-	Owner   int64       `json:"owner"`
-	Name    string      `json:"name" binding:"Required"`
-	Slug    string      `json:"slug"`
-	Checks  []*CheckDTO `json:"checks"`
-	Tags    []string    `json:"tags"`
-	Created time.Time   `json:"created"`
-	Updated time.Time   `json:"updated"`
+	Id      int64     `json:"id"`
+	Owner   int64     `json:"owner"`
+	Name    string    `json:"name" binding:"Required"`
+	Slug    string    `json:"slug"`
+	Checks  []*Check  `json:"checks"`
+	Tags    []string  `json:"tags"`
+	Created time.Time `json:"created"`
+	Updated time.Time `json:"updated"`
 }
 
 type CheckType string
@@ -61,39 +61,9 @@ const (
 )
 
 type Check struct {
-	Id             int64
-	Owner          int64
-	Type           CheckType
-	EndpointId     int64
-	Frequency      int64
-	Enabled        bool
-	State          CheckEvalResult
-	StateChange    time.Time
-	StateCheck     time.Time
-	Settings       map[string]interface{}
-	HealthSettings *CheckHealthSettings
-	Created        time.Time
-	Updated        time.Time
-}
-
-func (c *Check) ToCheckDTO() *CheckDTO {
-	return &CheckDTO{
-		Id:             c.Id,
-		Type:           c.Type,
-		Frequency:      c.Frequency,
-		Enabled:        c.Enabled,
-		State:          c.State,
-		StateCheck:     c.StateCheck,
-		StateChange:    c.StateChange,
-		Settings:       c.Settings,
-		HealthSettings: c.HealthSettings,
-		Created:        c.Created,
-		Updated:        c.Updated,
-	}
-}
-
-type CheckDTO struct {
 	Id             int64                  `json:"id"`
+	Owner          int64                  `json:"-"`
+	EndpointId     int64                  `json:"-"`
 	Type           CheckType              `json:"type" binding:"Required,In(http,https,dns,ping)"`
 	Frequency      int64                  `json:"frequency" binding:"Required,Range(10,300)"`
 	Enabled        bool                   `json:"enabled"`
@@ -104,27 +74,10 @@ type CheckDTO struct {
 	HealthSettings *CheckHealthSettings   `json:"healthSettings"`
 	Created        time.Time              `json:"created"`
 	Updated        time.Time              `json:"updated"`
+	TaskId         int64                  `json:"-"`
 }
 
-func (c *CheckDTO) ToCheck(owner, endpointId int64) *Check {
-	return &Check{
-		Id:             c.Id,
-		Owner:          owner,
-		EndpointId:     endpointId,
-		Type:           c.Type,
-		Frequency:      c.Frequency,
-		Enabled:        c.Enabled,
-		State:          c.State,
-		StateCheck:     c.StateCheck,
-		StateChange:    c.StateChange,
-		Settings:       c.Settings,
-		HealthSettings: c.HealthSettings,
-		Created:        c.Created,
-		Updated:        c.Updated,
-	}
-}
-
-func (c *CheckDTO) IsValid() bool {
+func (c *Check) IsValid() bool {
 	if !(c.Type == HTTP_CHECK || c.Type == HTTPS_CHECK || c.Type == DNS_CHECK || c.Type == PING_CHECK) {
 		return false
 	}
