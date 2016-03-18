@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/raintank/raintank-apps/worldping-api/model"
@@ -24,13 +23,15 @@ func (endpointRows) TableName() string {
 
 func (rows endpointRows) ToDTO() []*model.EndpointDTO {
 	endpointsById := make(map[int64]*model.EndpointDTO)
-	endpointChecksById := make(map[int64]map[int64]*model.CheckDTO)
+	endpointChecksById := make(map[int64]map[int64]*model.Check)
 	endpointTagsById := make(map[int64]map[string]struct{})
 	for _, r := range rows {
 		_, ok := endpointsById[r.Endpoint.Id]
 
-		check := &model.CheckDTO{
+		check := &model.Check{
 			Id:             r.Check.Id,
+			Owner:          r.Check.Owner,
+			EndpointId:     r.Check.EndpointId,
 			Type:           r.Check.Type,
 			Frequency:      r.Check.Frequency,
 			Enabled:        r.Check.Enabled,
@@ -41,6 +42,7 @@ func (rows endpointRows) ToDTO() []*model.EndpointDTO {
 			HealthSettings: r.Check.HealthSettings,
 			Created:        r.Check.Created,
 			Updated:        r.Check.Updated,
+			TaskId:         r.Check.TaskId,
 		}
 		if !ok {
 			endpointsById[r.Endpoint.Id] = &model.EndpointDTO{
@@ -48,12 +50,12 @@ func (rows endpointRows) ToDTO() []*model.EndpointDTO {
 				Owner:   r.Endpoint.Owner,
 				Name:    r.Endpoint.Name,
 				Slug:    r.Endpoint.Slug,
-				Checks:  make([]*model.CheckDTO, 0),
+				Checks:  make([]*model.Check, 0),
 				Tags:    make([]string, 0),
 				Created: r.Endpoint.Created,
 				Updated: r.Endpoint.Updated,
 			}
-			endpointChecksById[r.Endpoint.Id] = make(map[int64]*model.CheckDTO)
+			endpointChecksById[r.Endpoint.Id] = make(map[int64]*model.Check)
 			endpointTagsById[r.Endpoint.Id] = make(map[string]struct{})
 			if check.Id != 0 {
 				endpointChecksById[r.Endpoint.Id][check.Id] = check
@@ -200,22 +202,12 @@ func addEndpoint(sess *session, e *model.EndpointDTO) error {
 		}
 	}
 
-	checks := make([]*model.Check, len(e.Checks))
-	for i, c := range e.Checks {
-		checks[i] = c.ToCheck(e.Owner, e.Id)
-		checks[i].State = -1
-		checks[i].StateChange = time.Now()
-		checks[i].Updated = time.Now()
-		checks[i].Created = time.Now()
-	}
-	if len(checks) > 0 {
-		sess.Table("check")
-		//perform each insert on its own so that the ID field gets assigned.
-		for i, c := range checks {
-			if _, err := sess.Insert(c); err != nil {
-				return err
-			}
-			e.Checks[i] = c.ToCheckDTO()
+	//perform each insert on its own so that the ID field gets assigned and task created
+	for _, c := range e.Checks {
+		c.Owner = e.Owner
+		c.EndpointId = e.Id
+		if err := addCheck(sess, c); err != nil {
+			return err
 		}
 	}
 
@@ -294,15 +286,10 @@ func updateEndpoint(sess *session, e *model.EndpointDTO) error {
 		i += 1
 	}
 	if len(tagsToDelete) > 0 {
-		rawParams := make([]interface{}, 0)
-		rawParams = append(rawParams, e.Id, e.Owner)
-		p := make([]string, len(tagsToDelete))
-		for i, t := range tagsToDelete {
-			p[i] = "?"
-			rawParams = append(rawParams, t)
-		}
-		rawSql := fmt.Sprintf("DELETE FROM endpoint_tag WHERE endpoint_id=? AND owner=? AND tag IN (%s)", strings.Join(p, ","))
-		if _, err := sess.Exec(rawSql, rawParams...); err != nil {
+		sess.Table("endpoint_tag")
+		sess.Where("endpoint_id=? AND owner=?", e.Id, e.Owner)
+		sess.In("tag", tagsToDelete)
+		if _, err := sess.Delete(nil); err != nil {
 			return err
 		}
 	}
@@ -323,27 +310,23 @@ func updateEndpoint(sess *session, e *model.EndpointDTO) error {
 	}
 
 	/***** Update Checks **********/
-	updatedChecks := make([]*model.CheckDTO, 0, len(e.Checks))
 
 	checkUpdates := make([]*model.Check, 0)
 	checkAdds := make([]*model.Check, 0)
-	checkDeletes := make([]*model.CheckDTO, 0)
+	checkDeletes := make([]*model.Check, 0)
 
-	checkMap := make(map[model.CheckType]*model.CheckDTO)
+	checkMap := make(map[model.CheckType]*model.Check)
 	seenChecks := make(map[model.CheckType]bool)
 	for _, c := range existing.Checks {
 		checkMap[c.Type] = c
 	}
 	for _, c := range e.Checks {
+		c.EndpointId = e.Id
+		c.Owner = e.Owner
 		seenChecks[c.Type] = true
 		ec, ok := checkMap[c.Type]
 		if !ok {
-			check := c.ToCheck(e.Owner, e.Id)
-			check.State = -1
-			check.StateCheck = time.Now()
-			check.Created = time.Now()
-			check.Updated = time.Now()
-			checkAdds = append(checkAdds, check)
+			checkAdds = append(checkAdds, c)
 		} else if c.Id == ec.Id {
 			cjson, err := json.Marshal(c)
 			if err != nil {
@@ -351,62 +334,37 @@ func updateEndpoint(sess *session, e *model.EndpointDTO) error {
 			}
 			ecjson, err := json.Marshal(ec)
 			if !bytes.Equal(ecjson, cjson) {
-				check := c.ToCheck(e.Owner, e.Id)
-				check.Updated = time.Now()
-				check.Created = ec.Created
-				checkUpdates = append(checkAdds, check)
-			} else {
-				updatedChecks = append(updatedChecks, c)
+				c.Created = ec.Created
+				c.TaskId = ec.TaskId
+				checkUpdates = append(checkAdds, c)
 			}
 		} else {
-			checkDeletes = append(checkDeletes, ec)
-			check := c.ToCheck(e.Owner, e.Id)
-			check.State = -1
-			check.StateCheck = time.Now()
-			check.Created = time.Now()
-			check.Updated = time.Now()
-			checkAdds = append(checkAdds, check)
+			return fmt.Errorf("Invalid check definition.")
 		}
-
-		for t, ec := range checkMap {
-			if _, ok := seenChecks[t]; !ok {
-				checkDeletes = append(checkDeletes, ec)
-			}
+	}
+	for t, ec := range checkMap {
+		if _, ok := seenChecks[t]; !ok {
+			checkDeletes = append(checkDeletes, ec)
 		}
 	}
 
-	if len(checkDeletes) > 0 {
-		ids := make([]int64, len(checkDeletes))
-		for i, c := range checkDeletes {
-			ids[i] = c.Id
-		}
-		sess.Table("check")
-		sess.In("id", ids)
-		if _, err := sess.Delete(nil); err != nil {
+	for _, c := range checkDeletes {
+		if err := deleteCheck(sess, c); err != nil {
 			return err
 		}
 	}
-	if len(checkAdds) > 0 {
-		sess.Table("check")
-		sess.UseBool("enabled")
-		for _, c := range checkAdds {
-			if _, err := sess.Insert(c); err != nil {
-				return err
-			}
-			updatedChecks = append(updatedChecks, c.ToCheckDTO())
+
+	for _, c := range checkAdds {
+		if err := addCheck(sess, c); err != nil {
+			return err
 		}
 	}
-	if len(checkUpdates) > 0 {
-		sess.Table("check")
-		for _, c := range checkUpdates {
-			sess.UseBool("enabled")
-			if _, err := sess.Id(c.Id).Update(c); err != nil {
-				return err
-			}
-			updatedChecks = append(updatedChecks, c.ToCheckDTO())
+
+	for _, c := range checkUpdates {
+		if err := updateCheck(sess, c); err != nil {
+			return err
 		}
 	}
-	e.Checks = updatedChecks
 
 	return nil
 }
@@ -443,10 +401,42 @@ func deleteEndpoint(sess *session, id, owner int64) error {
 	if _, err := sess.Exec(rawSql, id, owner); err != nil {
 		return err
 	}
-
-	rawSql = "DELETE FROM `check` WHERE endpoint_id=? and owner=?"
-	if _, err := sess.Exec(rawSql, id, owner); err != nil {
+	checks := make([]*model.Check, 0)
+	sess.Table("check")
+	sess.Where("endpoint_id=?", id)
+	if err := sess.Find(&checks); err != nil {
 		return err
 	}
+
+	for _, c := range checks {
+		if err := deleteCheck(sess, c); err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+func addCheck(sess *session, c *model.Check) error {
+	c.State = -1
+	c.StateCheck = time.Now()
+	c.Created = time.Now()
+	c.Updated = time.Now()
+	sess.Table("check")
+	sess.UseBool("enabled")
+	_, err := sess.Insert(c)
+	return err
+}
+
+func updateCheck(sess *session, c *model.Check) error {
+	c.Updated = time.Now()
+	sess.Table("check")
+	sess.UseBool("enabled")
+	_, err := sess.Id(c.Id).Update(c)
+	return err
+}
+
+func deleteCheck(sess *session, c *model.Check) error {
+	sess.Table("check")
+	_, err := sess.Delete(c)
+	return err
 }
