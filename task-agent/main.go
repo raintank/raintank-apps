@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"path"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -26,14 +27,14 @@ var (
 	logLevel    = flag.Int("log-level", 4, "log level. 5=DEBUG|4=INFO|3=NOTICE|2=WARNING|1=ERROR|0=CRITICAL")
 	confFile    = flag.String("config", "/etc/raintank/collector.ini", "configuration file path")
 
-	serverAddr = flag.String("server-addr", "localhost:80", "addres of raintank-apps server")
+	serverAddr = flag.String("server-addr", "ws://localhost:80/api/v1/", "addres of raintank-apps server")
 	tsdbAddr   = flag.String("tsdb-addr", "http://localhost:80/metrics", "addres of raintank-apps server")
 	snapUrlStr = flag.String("snap-url", "http://localhost:8181", "url of SNAP server.")
 	nodeName   = flag.String("name", "", "agent-name")
 	apiKey     = flag.String("api-key", "not_very_secret_key", "Api Key")
 )
 
-func connect(u url.URL) (*websocket.Conn, error) {
+func connect(u *url.URL) (*websocket.Conn, error) {
 	log.Infof("connecting to %s", u.String())
 	header := make(http.Header)
 	header.Set("Authorization", fmt.Sprintf("Bearer %s", *apiKey))
@@ -77,7 +78,16 @@ func main() {
 	signal.Notify(interrupt, os.Interrupt)
 	shutdownStart := make(chan struct{})
 
-	controllerUrl := url.URL{Scheme: "ws", Host: *serverAddr, Path: fmt.Sprintf("/socket/%s/%d", *nodeName, Version)}
+	controllerUrl, err := url.Parse(*serverAddr)
+	if err != nil {
+		log.Fatal(err)
+	}
+	controllerUrl.Path = path.Clean(controllerUrl.Path + fmt.Sprintf("/socket/%s/%d", *nodeName, Version))
+
+	if controllerUrl.Scheme != "ws" && controllerUrl.Scheme != "wss" {
+		log.Fatal("invalid server address.  scheme must be ws or wss. was %s", controllerUrl.Scheme)
+	}
+
 	conn, err := connect(controllerUrl)
 	if err != nil {
 		log.Fatalf("unable to connect to server on url %s: %s", controllerUrl.String(), err)

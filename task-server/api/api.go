@@ -22,7 +22,7 @@ func Init(m *macaron.Macaron, adminKey string, metrics met.Backend) {
 	bind := binding.Bind
 
 	m.Get("/", index)
-	m.Group("/api", func() {
+	m.Group("/api/v1", func() {
 		m.Group("/agents", func() {
 			m.Combo("/").
 				Get(bind(model.GetAgentsQuery{}), GetAgents).
@@ -41,9 +41,8 @@ func Init(m *macaron.Macaron, adminKey string, metrics met.Backend) {
 			m.Get("/:id", GetTaskById)
 			m.Delete("/:id", DeleteTask)
 		})
+		m.Get("/socket/:agent/:ver", socket)
 	})
-
-	m.Get("/socket/:agent/:ver", socket)
 
 	taskCreate = metrics.NewCount("api.tasks_create")
 	taskDelete = metrics.NewCount("api.tasks_delete")
