@@ -30,8 +30,10 @@ func (m *Metric) SetId() {
 	m.Id = fmt.Sprintf("%x", md5.Sum(buffer.Bytes()))
 }
 
+// "url" tag is used by github.com/google/go-querystring/query
+// "form" tag is used by is ued by github.com/go-macaron/binding
 type GetMetricsQuery struct {
-	Namespace string `json:"namespace"`
-	Version   int64  `json:"version"`
-	Owner     int64  `json:"-"`
+	Namespace string `form:"namespace" url:"namespace,omitempty"`
+	Version   int64  `form:"version" url:"version, omitempty"`
+	Owner     int64  `form:"-" url:"-"`
 }

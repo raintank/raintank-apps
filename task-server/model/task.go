@@ -143,13 +143,15 @@ func (r *TaskRoute) Validate() (bool, error) {
 	return true, nil
 }
 
+// "url" tag is used by github.com/google/go-querystring/query
+// "form" tag is used by is ued by github.com/go-macaron/binding
 type GetTasksQuery struct {
-	Name          string `jsone:"name"`
-	Metric        string `json:"metric"`
-	MetricVersion int64  `json:"metricVersion"`
-	Owner         int64  `json:"-"`
-	Enabled       string `json:"enabled"`
-	OrderBy       string `json:"orderBy"`
-	Limit         int    `json:"limit"`
-	Page          int    `json:"page"`
+	Name          string `form:"name" url:"name,omitempty"`
+	Metric        string `form:"metric" url:"metric,omitempty"`
+	MetricVersion int64  `form:"metricVersion" url:"metricVersion,omitempty"`
+	Owner         int64  `form:"-" url:"-"`
+	Enabled       string `form:"enabled" url:"enabled,omitempty"`
+	OrderBy       string `form:"orderBy" url:"orderBy,omitempty"`
+	Limit         int    `form:"limit" url:"limit,omitempty"`
+	Page          int    `form:"page" url:"page,omitempty"`
 }
