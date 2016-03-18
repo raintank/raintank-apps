@@ -9,7 +9,6 @@ import (
 	"os/signal"
 	"strings"
 
-	"github.com/Unknwon/macaron"
 	"github.com/op/go-logging"
 	"github.com/raintank/met/helper"
 	"github.com/raintank/raintank-apps/task-server/api"
@@ -65,11 +64,7 @@ func main() {
 		panic(err)
 	}
 
-	m := macaron.Classic()
-	m.Use(macaron.Logger())
-	m.Use(macaron.Renderer())
-
-	api.Init(m, *adminKey, stats)
+	m := api.NewApi(*adminKey, stats)
 
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)

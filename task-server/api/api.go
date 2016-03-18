@@ -5,7 +5,6 @@ import (
 	"github.com/macaron-contrib/binding"
 	"github.com/op/go-logging"
 	"github.com/raintank/met"
-
 	"github.com/raintank/raintank-apps/task-server/api/rbody"
 	"github.com/raintank/raintank-apps/task-server/model"
 )
@@ -17,13 +16,16 @@ var (
 	taskDelete met.Count
 )
 
-func Init(m *macaron.Macaron, adminKey string, metrics met.Backend) {
+func NewApi(adminKey string, metrics met.Backend) *macaron.Macaron {
+	m := macaron.Classic()
+	m.Use(macaron.Renderer())
 	m.Use(GetContextHandler())
 	m.Use(Auth(adminKey))
 	bind := binding.Bind
 
 	m.Get("/", heartbeat)
 	m.Group("/api/v1", func() {
+		m.Get("/", heartbeat)
 		m.Group("/agents", func() {
 			m.Combo("/").
 				Get(bind(model.GetAgentsQuery{}), GetAgents).
@@ -47,6 +49,7 @@ func Init(m *macaron.Macaron, adminKey string, metrics met.Backend) {
 
 	taskCreate = metrics.NewCount("api.tasks_create")
 	taskDelete = metrics.NewCount("api.tasks_delete")
+	return m
 }
 
 func heartbeat(ctx *macaron.Context) {
