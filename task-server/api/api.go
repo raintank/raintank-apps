@@ -6,6 +6,7 @@ import (
 	"github.com/op/go-logging"
 	"github.com/raintank/met"
 
+	"github.com/raintank/raintank-apps/task-server/api/rbody"
 	"github.com/raintank/raintank-apps/task-server/model"
 )
 
@@ -21,7 +22,7 @@ func Init(m *macaron.Macaron, adminKey string, metrics met.Backend) {
 	m.Use(Auth(adminKey))
 	bind := binding.Bind
 
-	m.Get("/", index)
+	m.Get("/", heartbeat)
 	m.Group("/api/v1", func() {
 		m.Group("/agents", func() {
 			m.Combo("/").
@@ -48,6 +49,6 @@ func Init(m *macaron.Macaron, adminKey string, metrics met.Backend) {
 	taskDelete = metrics.NewCount("api.tasks_delete")
 }
 
-func index(ctx *macaron.Context) {
-	ctx.JSON(200, "ok")
+func heartbeat(ctx *macaron.Context) {
+	ctx.JSON(200, rbody.OkResp("heartbeat", nil))
 }
