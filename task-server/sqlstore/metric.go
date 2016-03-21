@@ -23,6 +23,16 @@ func getMetrics(sess *session, query *model.GetMetricsQuery) ([]*model.Metric, e
 	if query.Version != 0 {
 		sess.And("version = ?", query.Version)
 	}
+	if query.OrderBy == "" {
+		query.OrderBy = "namespace"
+	}
+	if query.Limit == 0 {
+		query.Limit = 50
+	}
+	if query.Page == 0 {
+		query.Page = 1
+	}
+	sess.Asc(query.OrderBy).Limit(query.Limit, (query.Page-1)*query.Limit)
 	err := sess.Find(&metrics)
 	if err != nil {
 		return nil, err
