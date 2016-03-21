@@ -10,8 +10,8 @@ import (
 )
 
 type agentWithTag struct {
-	model.Agent `xorm:"extends"`
-	Tag         string
+	model.Agent    `xorm:"extends"`
+	model.AgentTag `xorm:"extends"`
 }
 
 type agentWithTags []*agentWithTag
@@ -23,17 +23,17 @@ func (agentWithTags) TableName() string {
 func (rows agentWithTags) ToAgentDTO() []*model.AgentDTO {
 	agentsById := make(map[int64]*model.AgentDTO)
 	for _, r := range rows {
-		a, ok := agentsById[r.Id]
+		a, ok := agentsById[r.Agent.Id]
 		if !ok {
-			agentsById[r.Id] = &model.AgentDTO{
-				Id:      r.Id,
-				Name:    r.Name,
-				Enabled: r.Enabled,
-				Owner:   r.Owner,
-				Public:  r.Public,
-				Created: r.Created,
-				Updated: r.Updated,
-				Tags:    []string{r.Tag},
+			agentsById[r.Agent.Id] = &model.AgentDTO{
+				Id:      r.Agent.Id,
+				Name:    r.Agent.Name,
+				Enabled: r.Agent.Enabled,
+				Owner:   r.Agent.Owner,
+				Public:  r.Agent.Public,
+				Created: r.Agent.Created,
+				Updated: r.Agent.Updated,
+				Tags:    []string{r.AgentTag.Tag},
 			}
 		} else {
 			a.Tags = append(a.Tags, r.Tag)
@@ -88,6 +88,16 @@ func getAgents(sess *session, query *model.GetAgentsQuery) ([]*model.AgentDTO, e
 		"agent.owner",
 		"agent_tag.tag",
 	)
+	if query.OrderBy == "" {
+		query.OrderBy = "name"
+	}
+	if query.Limit == 0 {
+		query.Limit = 50
+	}
+	if query.Page == 0 {
+		query.Page = 1
+	}
+	sess.Asc(query.OrderBy).Limit(query.Limit, (query.Page-1)*query.Limit)
 	err := sess.Join("LEFT", "agent_tag", "agent.id = agent_tag.agent_id").Find(&a)
 	if err != nil {
 		return nil, err
@@ -110,41 +120,23 @@ func getAgentById(sess *session, id int64, owner int64) (*model.AgentDTO, error)
 		return nil, err
 	}
 	if len(a) == 0 {
-		return nil, nil
+		return nil, model.AgentNotFound
 	}
 	return a.ToAgentDTO()[0], nil
 }
 
-func UpdateAgent(a *model.AgentDTO) error {
+func AddAgent(a *model.AgentDTO) error {
 	sess, err := newSession(true, "agent")
 	if err != nil {
 		return err
 	}
 	defer sess.Cleanup()
-
-	/*-------- Update existing Agent ---------*/
-	if a.Id != 0 {
-		existing, err := getAgentById(sess, a.Id, a.Owner)
-		if err != nil {
-			return err
-		}
-		if existing != nil {
-			// Update existing Agent.
-			err := updateAgent(sess, a, existing)
-			if err != nil {
-				return err
-			}
-			sess.Complete()
-			return err
-		}
-	}
-
-	/*--------- create new Agent -------------*/
 	if err = addAgent(sess, a); err != nil {
 		return err
 	}
 	sess.Complete()
 	return nil
+
 }
 
 func addAgent(sess *session, a *model.AgentDTO) error {
@@ -184,7 +176,29 @@ func addAgent(sess *session, a *model.AgentDTO) error {
 	return nil
 }
 
-func updateAgent(sess *session, a *model.AgentDTO, existing *model.AgentDTO) error {
+func UpdateAgent(a *model.AgentDTO) error {
+	sess, err := newSession(true, "agent")
+	if err != nil {
+		return err
+	}
+	defer sess.Cleanup()
+
+	err = updateAgent(sess, a)
+	if err != nil {
+		return err
+	}
+	sess.Complete()
+	return err
+}
+
+func updateAgent(sess *session, a *model.AgentDTO) error {
+	existing, err := getAgentById(sess, a.Id, a.Owner)
+	if err != nil {
+		return err
+	}
+	if existing == nil {
+		return model.AgentNotFound
+	}
 	// If the Owner is different, the only changes that can be made is to Tags.
 	if a.Owner == existing.Owner {
 		agent := &model.Agent{
@@ -312,4 +326,42 @@ func getAgentsForTask(sess *session, t *model.TaskDTO) ([]*AgentId, error) {
 	default:
 		return nil, fmt.Errorf("unknown routeType")
 	}
+}
+
+func DeleteAgent(id int64, owner int64) error {
+	sess, err := newSession(true, "agent")
+	if err != nil {
+		return err
+	}
+	defer sess.Cleanup()
+	err = deleteAgent(sess, id, owner)
+	if err != nil {
+		return err
+	}
+	sess.Complete()
+	return nil
+}
+
+func deleteAgent(sess *session, id int64, owner int64) error {
+	existing, err := getAgentById(sess, id, owner)
+	if err != nil {
+		return err
+	}
+	rawSql := "DELETE FROM agent WHERE id=? and owner=?"
+	if _, err := sess.Exec(rawSql, existing.Id, existing.Owner); err != nil {
+		return err
+	}
+	rawSql = "DELETE FROM agent_tag WHERE agent_id=? and owner=?"
+	if _, err := sess.Exec(rawSql, existing.Id, existing.Owner); err != nil {
+		return err
+	}
+	rawSql = "DELETE FROM agent_metric WHERE agent_id=? and owner=?"
+	if _, err := sess.Exec(rawSql, existing.Id, existing.Owner); err != nil {
+		return err
+	}
+	rawSql = "DELETE FROM route_by_id_index WHERE agent_id=?"
+	if _, err := sess.Exec(rawSql, existing.Id); err != nil {
+		return err
+	}
+	return nil
 }

@@ -25,6 +25,7 @@ func (s *socketList) CloseAll() {
 	for _, sock := range s.Sockets {
 		sock.Close()
 	}
+	s.Sockets = make(map[int64]*agent_session.AgentSession, 0)
 	s.Unlock()
 }
 
@@ -60,6 +61,32 @@ func (s *socketList) NewSocket(a *agent_session.AgentSession) {
 		existing.Close()
 	}
 	s.Sockets[a.Agent.Id] = a
+	s.Unlock()
+}
+
+func (s *socketList) DeleteSocket(a *agent_session.AgentSession) {
+	s.Lock()
+	delete(s.Sockets, a.Agent.Id)
+	s.Unlock()
+}
+
+func (s *socketList) CloseSocket(a *agent_session.AgentSession) {
+	s.Lock()
+	existing, ok := s.Sockets[a.Agent.Id]
+	if ok {
+		existing.Close()
+		delete(s.Sockets, a.Agent.Id)
+	}
+	s.Unlock()
+}
+
+func (s *socketList) CloseSocketByAgentId(id int64) {
+	s.Lock()
+	existing, ok := s.Sockets[id]
+	if ok {
+		existing.Close()
+		delete(s.Sockets, id)
+	}
 	s.Unlock()
 }
 
@@ -118,4 +145,5 @@ func socket(ctx *Context) {
 	sess.Start()
 	//block until connection closes.
 	<-sess.Done
+	ActiveSockets.DeleteSocket(sess)
 }

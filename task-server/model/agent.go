@@ -1,8 +1,13 @@
 package model
 
 import (
+	"errors"
 	"regexp"
 	"time"
+)
+
+var (
+	AgentNotFound = errors.New("Agent Not Found.")
 )
 
 type Agent struct {

@@ -43,7 +43,7 @@ func AddAgent(ctx *Context, agent model.AgentDTO) {
 	agent.Id = 0
 	//need to add suport for middelware context with AUTH/
 	agent.Owner = ctx.Owner
-	err := sqlstore.UpdateAgent(&agent)
+	err := sqlstore.AddAgent(&agent)
 	if err != nil {
 		log.Error(err)
 		ctx.JSON(200, rbody.ErrResp(500, err))
@@ -70,4 +70,23 @@ func UpdateAgent(ctx *Context, agent model.AgentDTO) {
 		return
 	}
 	ctx.JSON(200, rbody.OkResp("agent", agent))
+}
+
+func DeleteAgent(ctx *Context) {
+	id := ctx.ParamsInt64(":id")
+	owner := ctx.Owner
+	err := sqlstore.DeleteAgent(id, owner)
+	if err != nil {
+		if err == model.AgentNotFound {
+			ctx.JSON(200, rbody.ErrResp(404, fmt.Errorf("agent not found")))
+			return
+		}
+		log.Error(err)
+		ctx.JSON(200, rbody.ErrResp(500, err))
+		return
+	}
+
+	ActiveSockets.CloseSocketByAgentId(id)
+
+	ctx.JSON(200, rbody.OkResp("agent", nil))
 }
