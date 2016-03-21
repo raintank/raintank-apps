@@ -211,6 +211,211 @@ func addTask(sess *session, t *model.TaskDTO) error {
 	}
 
 	// add routeIndexes
+	return addTaskRoute(sess, t)
+
+}
+
+func UpdateTask(t *model.TaskDTO) error {
+	sess, err := newSession(true, "task")
+	if err != nil {
+		return err
+	}
+	defer sess.Cleanup()
+	err = updateTask(sess, t)
+	if err != nil {
+		return err
+	}
+	sess.Complete()
+	return nil
+}
+
+func updateTask(sess *session, t *model.TaskDTO) error {
+	existing, err := getTaskById(sess, t.Id, t.Owner)
+	if err != nil {
+		return err
+	}
+	if existing == nil {
+		return model.TaskNotFound
+	}
+	task := model.Task{
+		Id:       t.Id,
+		Name:     t.Name,
+		Owner:    t.Owner,
+		Interval: t.Interval,
+		Enabled:  t.Enabled,
+		Config:   t.Config,
+		Route:    t.Route,
+		Created:  existing.Created,
+		Updated:  time.Now(),
+	}
+	sess.UseBool("enabled")
+	_, err = sess.Id(task.Id).Update(&task)
+	if err != nil {
+		return err
+	}
+	t.Updated = task.Updated
+
+	// Update taskMetrics
+	metricsToAdd := make([]*model.TaskMetric, 0)
+	metricsToDel := make([]*model.TaskMetric, 0)
+	metricsMap := make(map[string]*model.TaskMetric)
+	seenMetrics := make(map[string]struct{})
+
+	for m, v := range existing.Metrics {
+		metricsMap[fmt.Sprintf("%s:%d", m, v)] = &model.TaskMetric{
+			TaskId:    t.Id,
+			Namespace: m,
+			Version:   v,
+		}
+	}
+	for m, v := range t.Metrics {
+		key := fmt.Sprintf("%s:%d", m, v)
+		seenMetrics[key] = struct{}{}
+		if _, ok := metricsMap[key]; !ok {
+			metricsToAdd = append(metricsToAdd, &model.TaskMetric{
+				TaskId:    t.Id,
+				Namespace: m,
+				Version:   v,
+				Created:   time.Now(),
+			})
+		}
+	}
+
+	for key, m := range metricsMap {
+		if _, ok := seenMetrics[key]; !ok {
+			metricsToDel = append(metricsToDel, m)
+		}
+	}
+
+	if len(metricsToDel) > 0 {
+		_, err := sess.Delete(&metricsToDel)
+		if err != nil {
+			return err
+		}
+	}
+	if len(metricsToAdd) > 0 {
+		_, err := sess.Insert(&metricsToAdd)
+		if err != nil {
+			return err
+		}
+	}
+
+	// handle task routes.
+	if existing.Route.Type != t.Route.Type {
+		if err := deleteTaskRoute(sess, existing); err != nil {
+			return err
+		}
+		if err := addTaskRoute(sess, t); err != nil {
+			return err
+		}
+	} else {
+		switch t.Route.Type {
+		case model.RouteAny:
+			//no need to do anything.
+		case model.RouteByTags:
+			existingTags := make(map[string]struct{})
+			tagsToAdd := make([]string, 0)
+			tagsToDel := make([]string, 0)
+			currentTags := make(map[string]struct{})
+
+			for _, tag := range existing.Route.Config["tags"].([]string) {
+				existingTags[tag] = struct{}{}
+			}
+			for _, tag := range t.Route.Config["tags"].([]string) {
+				currentTags[tag] = struct{}{}
+				if _, ok := existingTags[tag]; !ok {
+					tagsToAdd = append(tagsToAdd, tag)
+				}
+			}
+			for tag, _ := range existingTags {
+				if _, ok := currentTags[tag]; !ok {
+					tagsToDel = append(tagsToDel, tag)
+				}
+			}
+			if len(tagsToDel) > 0 {
+				tagRoutes := make([]*model.RouteByTagIndex, len(tagsToDel))
+				for i, tag := range tagsToDel {
+					tagRoutes[i] = &model.RouteByTagIndex{
+						TaskId: t.Id,
+						Tag:    tag,
+					}
+				}
+				_, err := sess.Delete(&tagRoutes)
+				if err != nil {
+					return err
+				}
+			}
+			if len(tagsToAdd) > 0 {
+				tagRoutes := make([]*model.RouteByTagIndex, len(tagsToAdd))
+				for i, tag := range tagsToAdd {
+					tagRoutes[i] = &model.RouteByTagIndex{
+						TaskId:  t.Id,
+						Tag:     tag,
+						Created: time.Now(),
+					}
+				}
+				_, err := sess.Insert(&tagRoutes)
+				if err != nil {
+					return err
+				}
+			}
+
+		case model.RouteByIds:
+			existingIds := make(map[int64]struct{})
+			idsToAdd := make([]int64, 0)
+			idsToDel := make([]int64, 0)
+			currentIds := make(map[int64]struct{})
+
+			for _, id := range existing.Route.Config["ids"].([]int64) {
+				existingIds[id] = struct{}{}
+			}
+			for _, id := range t.Route.Config["ids"].([]int64) {
+				currentIds[id] = struct{}{}
+				if _, ok := existingIds[id]; !ok {
+					idsToAdd = append(idsToAdd, id)
+				}
+			}
+			for id, _ := range existingIds {
+				if _, ok := currentIds[id]; !ok {
+					idsToDel = append(idsToDel, id)
+				}
+			}
+			if len(idsToDel) > 0 {
+				idRoutes := make([]*model.RouteByIdIndex, len(idsToDel))
+				for i, id := range idsToDel {
+					idRoutes[i] = &model.RouteByIdIndex{
+						TaskId:  t.Id,
+						AgentId: id,
+					}
+				}
+				_, err := sess.Delete(&idRoutes)
+				if err != nil {
+					return err
+				}
+			}
+			if len(idsToAdd) > 0 {
+				idRoutes := make([]*model.RouteByIdIndex, len(idsToAdd))
+				for i, id := range idsToAdd {
+					idRoutes[i] = &model.RouteByIdIndex{
+						TaskId:  t.Id,
+						AgentId: id,
+						Created: time.Now(),
+					}
+				}
+				_, err := sess.Insert(&idRoutes)
+				if err != nil {
+					return err
+				}
+			}
+		default:
+			return model.UnknownRouteType
+		}
+	}
+
+	return nil
+}
+
+func addTaskRoute(sess *session, t *model.TaskDTO) error {
 	switch t.Route.Type {
 	case model.RouteAny:
 		idx := model.RouteByIdIndex{
@@ -246,27 +451,22 @@ func addTask(sess *session, t *model.TaskDTO) error {
 			return err
 		}
 	default:
-		return fmt.Errorf("unknown routeType")
+		return model.UnknownRouteType
 	}
-
 	return nil
 }
 
-func UpdateTask(t *model.TaskDTO) error {
-	sess, err := newSession(true, "task")
-	if err != nil {
-		return err
+func deleteTaskRoute(sess *session, t *model.TaskDTO) error {
+	deletes := []string{
+		"DELETE from route_by_id_index where task_id = ?",
+		"DELETE from route_by_tag_index where task_id = ?",
 	}
-	defer sess.Cleanup()
-	err = updateTask(sess, t)
-	if err != nil {
-		return err
+	for _, sql := range deletes {
+		_, err := sess.Exec(sql, t.Id)
+		if err != nil {
+			return err
+		}
 	}
-	sess.Complete()
-	return nil
-}
-
-func updateTask(sess *session, t *model.TaskDTO) error {
 	return nil
 }
 
