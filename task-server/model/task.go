@@ -6,6 +6,10 @@ import (
 	"time"
 )
 
+var (
+	TaskNotFound = errors.New("Task Not Found.")
+)
+
 type Task struct {
 	Id       int64
 	Name     string
@@ -49,6 +53,7 @@ const (
 
 var (
 	InvalidRouteConfig = errors.New("Invlid route config")
+	UnknownRouteType   = errors.New("unknown route type")
 )
 
 type TaskRoute struct {
@@ -107,7 +112,7 @@ func (t *TaskRoute) UnmarshalJSON(body []byte) error {
 			config[k] = v
 		}
 	default:
-		return errors.New("unknown route type")
+		return UnknownRouteType
 	}
 
 	t.Config = config
@@ -138,7 +143,7 @@ func (r *TaskRoute) Validate() (bool, error) {
 			return false, InvalidRouteConfig
 		}
 	default:
-		return false, InvalidRouteConfig
+		return false, UnknownRouteType
 	}
 	return true, nil
 }
