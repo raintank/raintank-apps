@@ -65,3 +65,15 @@ func (c *Client) UpdateAgent(a *model.AgentDTO) error {
 	}
 	return nil
 }
+
+func (c *Client) DeleteAgent(a *model.AgentDTO) error {
+	resp, err := c.delete(fmt.Sprintf("/agents/%d", a.Id), nil)
+	if err != nil {
+		return err
+	}
+	if err := resp.Error(); err != nil {
+		return err
+	}
+
+	return nil
+}

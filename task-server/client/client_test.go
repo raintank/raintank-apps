@@ -112,6 +112,51 @@ func TestApiClient(t *testing.T) {
 				So(a.Updated, ShouldHappenAfter, pre)
 			})
 		})
+		Convey("Adding second Agent", func() {
+			pre := time.Now()
+			a := model.AgentDTO{
+				Name:    "demo3",
+				Enabled: true,
+				Public:  true,
+				Tags:    []string{"demo", "test"},
+			}
+			aErr := c.AddAgent(&a)
+			So(aErr, ShouldBeNil)
+			So(a.Id, ShouldNotBeEmpty)
+			So(a.Name, ShouldEqual, "demo3")
+			So(a.Enabled, ShouldEqual, true)
+			So(a.Public, ShouldEqual, true)
+			So(a.Created, ShouldHappenBefore, time.Now())
+			So(a.Created, ShouldHappenAfter, pre)
+			So(a.Created.Unix(), ShouldEqual, a.Updated.Unix())
+		})
+		Convey("Getting Agents after adding second", func() {
+			query := model.GetAgentsQuery{}
+			agents, err := c.GetAgents(&query)
+			So(err, ShouldBeNil)
+			So(len(agents), ShouldEqual, 2)
+			So(agents[0].Name, ShouldEqual, "demo2")
+			Convey("Getting first Agent by id", func() {
+				agent, err := c.GetAgentById(agents[0].Id)
+				So(err, ShouldBeNil)
+				So(agent, ShouldNotBeNil)
+				So(agent, ShouldHaveSameTypeAs, &model.AgentDTO{})
+				So(agent.Id, ShouldEqual, agents[0].Id)
+				So(agent.Created.Unix(), ShouldEqual, agents[0].Created.Unix())
+			})
+			Convey("deleting agent", func() {
+				err := c.DeleteAgent(agents[0])
+				So(err, ShouldBeNil)
+				Convey("Getting Agents after delete", func() {
+					query := model.GetAgentsQuery{}
+					agents, err = c.GetAgents(&query)
+					So(err, ShouldBeNil)
+					So(len(agents), ShouldEqual, 1)
+					So(agents[0].Name, ShouldEqual, "demo3")
+				})
+			})
+
+		})
 
 	})
 	close(done)
