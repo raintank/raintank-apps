@@ -11,13 +11,16 @@ var (
 )
 
 type Agent struct {
-	Id      int64
-	Name    string
-	Enabled bool
-	Owner   int64
-	Public  bool
-	Created time.Time
-	Updated time.Time
+	Id            int64
+	Name          string
+	Enabled       bool
+	EnabledChange time.Time
+	Owner         int64
+	Public        bool
+	Online        bool
+	OnlineChange  time.Time
+	Created       time.Time
+	Updated       time.Time
 }
 
 type AgentTag struct {
@@ -37,14 +40,17 @@ type AgentMetric struct {
 
 // DTO
 type AgentDTO struct {
-	Id      int64     `json:"id"`
-	Name    string    `json:"name"`
-	Enabled bool      `json:"enabled"`
-	Owner   int64     `json:"-"`
-	Public  bool      `json:"public"`
-	Tags    []string  `json:"tags"`
-	Created time.Time `json:"created"`
-	Updated time.Time `json:"updated"`
+	Id            int64     `json:"id"`
+	Name          string    `json:"name"`
+	Enabled       bool      `json:"enabled"`
+	EnabledChange time.Time `json:"enabledChange"`
+	Owner         int64     `json:"-"`
+	Public        bool      `json:"public"`
+	Tags          []string  `json:"tags"`
+	Online        bool      `json:"online"`
+	OnlineChange  time.Time `json:"onlineChange"`
+	Created       time.Time `json:"created"`
+	Updated       time.Time `json:"updated"`
 }
 
 func (a *AgentDTO) ValidName() bool {

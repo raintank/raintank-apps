@@ -26,14 +26,17 @@ func (rows agentWithTags) ToAgentDTO() []*model.AgentDTO {
 		a, ok := agentsById[r.Agent.Id]
 		if !ok {
 			agentsById[r.Agent.Id] = &model.AgentDTO{
-				Id:      r.Agent.Id,
-				Name:    r.Agent.Name,
-				Enabled: r.Agent.Enabled,
-				Owner:   r.Agent.Owner,
-				Public:  r.Agent.Public,
-				Created: r.Agent.Created,
-				Updated: r.Agent.Updated,
-				Tags:    []string{r.AgentTag.Tag},
+				Id:            r.Agent.Id,
+				Name:          r.Agent.Name,
+				Enabled:       r.Agent.Enabled,
+				EnabledChange: r.Agent.EnabledChange,
+				Owner:         r.Agent.Owner,
+				Public:        r.Agent.Public,
+				Online:        r.Agent.Online,
+				OnlineChange:  r.Agent.OnlineChange,
+				Created:       r.Agent.Created,
+				Updated:       r.Agent.Updated,
+				Tags:          []string{r.AgentTag.Tag},
 			}
 		} else {
 			a.Tags = append(a.Tags, r.Tag)
@@ -78,16 +81,7 @@ func getAgents(sess *session, query *model.GetAgentsQuery) ([]*model.AgentDTO, e
 	if query.Tag != "" {
 		sess.Join("INNER", []string{"agent_tag", "at"}, "agent.id = at.agent_id").Where("at.tag=?", query.Tag)
 	}
-	sess.Cols(
-		"agent.id",
-		"agent.name",
-		"agent.enabled",
-		"agent.public",
-		"agent.created",
-		"agent.updated",
-		"agent.owner",
-		"agent_tag.tag",
-	)
+
 	if query.OrderBy == "" {
 		query.OrderBy = "name"
 	}
@@ -141,16 +135,20 @@ func AddAgent(a *model.AgentDTO) error {
 
 func addAgent(sess *session, a *model.AgentDTO) error {
 	agent := &model.Agent{
-		Name:    a.Name,
-		Enabled: a.Enabled,
-		Owner:   a.Owner,
-		Public:  a.Public,
-		Created: time.Now(),
-		Updated: time.Now(),
+		Name:          a.Name,
+		Enabled:       a.Enabled,
+		EnabledChange: time.Now(),
+		Owner:         a.Owner,
+		Public:        a.Public,
+		Online:        false,
+		OnlineChange:  time.Now(),
+		Created:       time.Now(),
+		Updated:       time.Now(),
 	}
 
 	sess.UseBool("public")
 	sess.UseBool("enabled")
+	sess.UseBool("online")
 	if _, err := sess.Insert(agent); err != nil {
 		return err
 	}
@@ -201,14 +199,19 @@ func updateAgent(sess *session, a *model.AgentDTO) error {
 	}
 	// If the Owner is different, the only changes that can be made is to Tags.
 	if a.Owner == existing.Owner {
+		enabledChange := existing.EnabledChange
+		if existing.Enabled != a.Enabled {
+			enabledChange = time.Now()
+		}
 		agent := &model.Agent{
-			Id:      a.Id,
-			Name:    a.Name,
-			Enabled: a.Enabled,
-			Owner:   a.Owner,
-			Public:  a.Public,
-			Created: a.Created,
-			Updated: time.Now(),
+			Id:            a.Id,
+			Name:          a.Name,
+			Enabled:       a.Enabled,
+			EnabledChange: enabledChange,
+			Owner:         a.Owner,
+			Public:        a.Public,
+			Created:       a.Created,
+			Updated:       time.Now(),
 		}
 		sess.UseBool("public")
 		sess.UseBool("enabled")
