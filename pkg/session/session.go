@@ -96,13 +96,17 @@ func (s *Session) Close() {
 
 func (s *Session) disconnected() {
 	//dont emit a disconnect event if Close() was called.
+	closing := false
 	s.Lock()
 	if !s.closing {
+		closing = true
+	}
+	s.Unlock()
+	if closing {
 		if h, ok := s.EventHandlers["disconnect"]; ok {
 			h.Call([]byte{})
 		}
 	}
-	s.Unlock()
 }
 
 func (s *Session) socketReader(done chan struct{}) {
