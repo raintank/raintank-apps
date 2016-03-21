@@ -14,6 +14,7 @@ import (
 	"github.com/raintank/met/helper"
 	"github.com/raintank/raintank-apps/worldping-api/api"
 	"github.com/raintank/raintank-apps/worldping-api/sqlstore"
+	"github.com/raintank/raintank-apps/worldping-api/task_client"
 	"github.com/rakyll/globalconf"
 )
 
@@ -26,6 +27,8 @@ var (
 
 	addr   = flag.String("addr", "localhost:80", "http service address")
 	dbPath = flag.String("db-path", "/tmp/worldping-api.sqlite", "sqlite DB path")
+
+	taskServer = flag.String("task-server-addr", "http://localhost:80", "Task server address")
 
 	statsEnabled = flag.Bool("stats-enabled", false, "enable statsd metrics")
 	statsdAddr   = flag.String("statsd-addr", "localhost:8125", "statsd address")
@@ -78,6 +81,11 @@ func main() {
 
 	// initialize DB
 	sqlstore.NewEngine(*dbPath)
+
+	// init taskServer client
+	if err := task_client.Init(*taskServer, *adminKey, false); err != nil {
+		log.Fatal(4, "Failed in init task client. %s", err)
+	}
 
 	m := macaron.Classic()
 	//m.Use(macaron.Logger())

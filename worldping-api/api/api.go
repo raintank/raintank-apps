@@ -25,22 +25,24 @@ func Init(m *macaron.Macaron, adminKey string, metrics met.Backend) {
 			m.Delete("/:id", DeleteEndpoint)
 		})
 
-		/*m.Group("/probes", func() {
+		m.Group("/probes", func() {
 			m.Combo("/").
 				Get(bind(model.GetProbesQuery{}), GetProbes).
-				Post(ProbeQuota(), bind(model.AddProbeCmd{}), AddProbe).
+				Post(bind(model.ProbeDTO{}), AddProbe).
 				Put(bind(model.ProbeDTO{}), UpdateProbe)
 			m.Get("/:id", GetProbeById)
 			m.Delete("/:id", DeleteProbe)
-		})*/
+		})
 
-		/*m.Group("/admin", func() {
-			m.Get("/", index)
+		/*
+			m.Group("/admin", func() {
+				m.Get("/", index)
 
-			m.Get("/quota/:owner", GetQuotas)
-			m.Put("/quota/:owner/endpoint", bind(model.UpdateQuotaCmd{}), UpdateEndpointQuota)
+				m.Get("/quota/:owner", GetQuotas)
+				m.Put("/quota/:owner/endpoint", bind(model.UpdateQuotaCmd{}), UpdateEndpointQuota)
 
-		}, RequireAdmin())*/
+			}, RequireAdmin())
+		*/
 	}, Auth(adminKey))
 }
 
