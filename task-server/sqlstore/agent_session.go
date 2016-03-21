@@ -68,3 +68,20 @@ func deleteAgentSessionsByServer(sess *session, server string) error {
 	}
 	return nil
 }
+
+func GetAgentSessions(agentId int64) ([]*model.AgentSession, error) {
+	sess, err := newSession(false, "agent_session")
+	if err != nil {
+		return nil, err
+	}
+	return getAgentSessions(sess, agentId)
+}
+
+func getAgentSessions(sess *session, agentId int64) ([]*model.AgentSession, error) {
+	agentSessions := make([]*model.AgentSession, 0)
+	err := sess.Where("agent_id=?", agentId).Find(&agentSessions)
+	if err != nil {
+		return nil, err
+	}
+	return agentSessions, nil
+}
