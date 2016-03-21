@@ -76,7 +76,10 @@ func (a *AgentSession) close() {
 	if !a.closing {
 		a.closing = true
 		close(a.Shutdown)
+		log.Debugf("closing websocket")
 		a.SocketSession.Close()
+		log.Debugf("websocket closed")
+
 		a.cleanup()
 		close(a.Done)
 	}
@@ -103,7 +106,10 @@ func (a *AgentSession) saveDbSession() error {
 func (a *AgentSession) cleanup() {
 	//remove agentSession from DB.
 	if a.dbSession != nil {
-		sqlstore.DeleteAgentSession(a.dbSession.Id)
+		log.Debugf("deleting agent_session for %s from DB", a.Agent.Name)
+		sqlstore.DeleteAgentSession(a.dbSession)
+	} else {
+		log.Debugf("agent_session for %s has no db session.", a.Agent.Name)
 	}
 }
 
