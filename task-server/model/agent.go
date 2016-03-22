@@ -32,10 +32,11 @@ type AgentTag struct {
 }
 
 type AgentMetric struct {
-	Id       int64
-	Owner    int64
-	AgentId  int64
-	MetricId string
+	Id        int64
+	AgentId   int64
+	Namespace string
+	Version   int64
+	Created   time.Time
 }
 
 // DTO
@@ -67,6 +68,7 @@ func (a *AgentDTO) ValidName() bool {
 // "form" tag is used by is ued by github.com/go-macaron/binding
 type GetAgentsQuery struct {
 	Name    string `form:"name" url:"name,omitempty"`
+	Metric  string `form:"metric" url:"metric,omitempty"`
 	Enabled string `form:"enabled" url:"enabled,omitempty"`
 	Public  string `form:"public" url:"public,omitempty"`
 	Tag     string `form:"tag" url:"tag,omitempty"`

@@ -138,7 +138,7 @@ func (a *AgentSession) HandleCatalog() interface{} {
 				Policy:    m.Policy,
 			}
 		}
-		err := sqlstore.AddMissingMetrics(metrics)
+		err := sqlstore.AddMissingMetricsForAgent(a.Agent, metrics)
 		if err != nil {
 			log.Errorf("failed to update metrics in DB. %s", err)
 		}

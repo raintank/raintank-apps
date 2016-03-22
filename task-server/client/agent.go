@@ -37,6 +37,21 @@ func (c *Client) GetAgentById(id int64) (*model.AgentDTO, error) {
 	return agent, nil
 }
 
+func (c *Client) GetAgentMetrics(id int64) ([]*model.Metric, error) {
+	resp, err := c.get(fmt.Sprintf("/agents/%d/metrics", id), nil)
+	if err != nil {
+		return nil, err
+	}
+	if err := resp.Error(); err != nil {
+		return nil, err
+	}
+	metrics := make([]*model.Metric, 0)
+	if err := json.Unmarshal(resp.Body, &metrics); err != nil {
+		return nil, err
+	}
+	return metrics, nil
+}
+
 func (c *Client) AddAgent(a *model.AgentDTO) error {
 	resp, err := c.post("/agents", a)
 	if err != nil {

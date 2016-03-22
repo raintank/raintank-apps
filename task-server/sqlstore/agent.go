@@ -358,8 +358,8 @@ func deleteAgent(sess *session, id int64, owner int64) error {
 	if _, err := sess.Exec(rawSql, existing.Id, existing.Owner); err != nil {
 		return err
 	}
-	rawSql = "DELETE FROM agent_metric WHERE agent_id=? and owner=?"
-	if _, err := sess.Exec(rawSql, existing.Id, existing.Owner); err != nil {
+	rawSql = "DELETE FROM agent_metric WHERE agent_id=?"
+	if _, err := sess.Exec(rawSql, existing.Id); err != nil {
 		return err
 	}
 	rawSql = "DELETE FROM route_by_id_index WHERE agent_id=?"

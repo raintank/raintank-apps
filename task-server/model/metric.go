@@ -1,10 +1,7 @@
 package model
 
 import (
-	"bytes"
-	"crypto/md5"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/intelsdi-x/snap/mgmt/rest/rbody"
@@ -15,19 +12,13 @@ var (
 )
 
 type Metric struct {
-	Id        string              `json:"-"`
+	Id        int64               `json:"-"`
 	Owner     int64               `json:"-"`
 	Public    bool                `json:"public"`
 	Namespace string              `json:"namespace"`
 	Version   int64               `json:"version"`
 	Policy    []rbody.PolicyTable `json:"policy"`
 	Created   time.Time           `json:"created"`
-}
-
-func (m *Metric) SetId() {
-	var buffer bytes.Buffer
-	buffer.WriteString(fmt.Sprintf("%t:%d:%s:%d", m.Public, m.Owner, m.Namespace, m.Version))
-	m.Id = fmt.Sprintf("%x", md5.Sum(buffer.Bytes()))
 }
 
 // "url" tag is used by github.com/google/go-querystring/query

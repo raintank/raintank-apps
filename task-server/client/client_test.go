@@ -55,7 +55,7 @@ func startApi(done chan struct{}) string {
 	return fmt.Sprintf("http://%s/", l.Addr().String())
 }
 
-func addTestMetrics() {
+func addTestMetrics(agent *model.AgentDTO) {
 	metrics := []*model.Metric{
 		&model.Metric{
 			Owner:     1,
@@ -89,7 +89,7 @@ func addTestMetrics() {
 			Policy:    nil,
 		},
 	}
-	err := sqlstore.AddMissingMetrics(metrics)
+	err := sqlstore.AddMissingMetricsForAgent(agent, metrics)
 	if err != nil {
 		panic(err)
 	}
@@ -193,6 +193,7 @@ func TestApiClient(t *testing.T) {
 				So(err, ShouldBeNil)
 			})
 		})
+
 		Convey("Getting Agents list after delete", func() {
 			query := model.GetAgentsQuery{}
 			agents, err := c.GetAgents(&query)
@@ -210,13 +211,24 @@ func TestApiClient(t *testing.T) {
 			So(len(metrics), ShouldEqual, 0)
 		})
 		Convey("When getting metrics list", func() {
-			addTestMetrics()
+			agents, err := c.GetAgents(&model.GetAgentsQuery{})
+			if err != nil {
+				panic(err)
+			}
+			addTestMetrics(agents[0])
 			query := &model.GetMetricsQuery{}
 			metrics, err := c.GetMetrics(query)
 			So(err, ShouldBeNil)
 			So(metrics, ShouldNotBeNil)
 			So(metrics, ShouldHaveSameTypeAs, []*model.Metric{})
 			So(len(metrics), ShouldEqual, 2)
+			Convey("When getting metrics for Agent", func() {
+				metrics, err := c.GetAgentMetrics(agents[0].Id)
+				So(err, ShouldBeNil)
+				So(metrics, ShouldNotBeNil)
+				So(metrics, ShouldHaveSameTypeAs, []*model.Metric{})
+				So(len(metrics), ShouldEqual, 2)
+			})
 		})
 
 		Convey("When getting empty list of tasks", func() {

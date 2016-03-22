@@ -1,6 +1,7 @@
 package sqlstore
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/raintank/raintank-apps/task-server/model"
@@ -61,77 +62,100 @@ func getMetricById(sess *session, id string, owner int64) (*model.Metric, error)
 	return m, nil
 }
 
-func AddMetric(m *model.Metric) error {
+func AddMissingMetricsForAgent(a *model.AgentDTO, m []*model.Metric) error {
 	sess, err := newSession(true, "metric")
 	if err != nil {
 		return err
 	}
 	defer sess.Cleanup()
-	if err = addMetric(sess, m); err != nil {
+	if err = addMissingMetricsForAgent(sess, a, m); err != nil {
 		return err
 	}
 	sess.Complete()
 	return nil
 }
 
-func addMetric(sess *session, m *model.Metric) error {
-	m.SetId()
-	existing := &model.Metric{}
-	exists, err := sess.Id(m.Id).Get(existing)
+func addMissingMetricsForAgent(sess *session, agent *model.AgentDTO, metrics []*model.Metric) error {
+	existing, err := getAgentMetrics(sess, agent)
 	if err != nil {
 		return err
 	}
-	if exists {
-		return model.MetricAlreadyExists
-	}
-	m.Created = time.Now()
-	if _, err := sess.Insert(m); err != nil {
-		return err
-	}
-	return nil
-}
-
-func AddMissingMetrics(m []*model.Metric) error {
-	sess, err := newSession(true, "metric")
-	if err != nil {
-		return err
-	}
-	defer sess.Cleanup()
-	if err = addMissingMetrics(sess, m); err != nil {
-		return err
-	}
-	sess.Complete()
-	return nil
-}
-
-func addMissingMetrics(sess *session, metrics []*model.Metric) error {
-	existing := make([]*model.Metric, 0)
-	ids := make([]string, len(metrics))
-	for i, m := range metrics {
-		m.SetId()
-		ids[i] = m.Id
-	}
-	sess.In("id", ids)
-	err := sess.Find(&existing)
-	if err != nil {
-		return err
-	}
-	existingMap := make(map[string]struct{})
+	existingMap := make(map[string]*model.Metric)
+	seenMap := make(map[string]*model.Metric)
+	inserts := make([]*model.Metric, 0)
+	agentMetrics := make([]*model.AgentMetric, 0)
 	for _, m := range existing {
-		existingMap[m.Id] = struct{}{}
+		key := fmt.Sprintf("%s:%d", m.Namespace, m.Version)
+		existingMap[key] = m
 	}
-
-	toAdd := make([]*model.Metric, 0)
 	for _, m := range metrics {
-		if _, ok := existingMap[m.Id]; !ok {
-			m.Created = time.Now()
-			toAdd = append(toAdd, m)
+		key := fmt.Sprintf("%s:%d", m.Namespace, m.Version)
+		seenMap[key] = m
+		if e, ok := existingMap[key]; ok {
+			if e.Public != m.Public {
+				// public attribute has changed. need to update
+				_, err := sess.Id(e.Id).Update(m)
+				if err != nil {
+					return err
+				}
+			}
+		} else {
+			inserts = append(inserts, m)
+			agentMetrics = append(agentMetrics, &model.AgentMetric{
+				AgentId:   agent.Id,
+				Namespace: m.Namespace,
+				Version:   m.Version,
+				Created:   time.Now(),
+			})
 		}
 	}
-	if len(toAdd) > 0 {
-		if _, err := sess.Insert(&metrics); err != nil {
+	for key, m := range existingMap {
+		if _, ok := seenMap[key]; !ok {
+			// need to delete agent_metric association.
+			rawSql := "DELETE from agent_metric where agent_id=? and namespace=? and version=?"
+			if _, err := sess.Exec(rawSql, agent.Id, m.Namespace, m.Version); err != nil {
+				return err
+			}
+		}
+	}
+
+	if len(inserts) > 0 {
+		if _, err := sess.Insert(&inserts); err != nil {
 			return err
 		}
 	}
+	if len(agentMetrics) > 0 {
+		if _, err := sess.Insert(agentMetrics); err != nil {
+			return err
+		}
+	}
+
 	return nil
+}
+
+func GetAgentMetrics(agent *model.AgentDTO) ([]*model.Metric, error) {
+	sess, err := newSession(true, "metric")
+	if err != nil {
+		return nil, err
+	}
+	defer sess.Cleanup()
+	metrics, err := getAgentMetrics(sess, agent)
+	if err != nil {
+		return nil, err
+	}
+	sess.Complete()
+	return metrics, nil
+}
+
+func getAgentMetrics(sess *session, agent *model.AgentDTO) ([]*model.Metric, error) {
+	metrics := make([]*model.Metric, 0)
+	sess.Table("metric")
+	sess.Join("INNER", "agent_metric", "metric.namespace = agent_metric.namespace AND metric.version = agent_metric.version")
+	sess.Where("agent_metric.agent_id=?", agent.Id)
+	sess.Cols("`metric`.*")
+	err := sess.Find(&metrics)
+	if err != nil {
+		return nil, err
+	}
+	return metrics, nil
 }

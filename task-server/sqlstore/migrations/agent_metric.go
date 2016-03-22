@@ -12,13 +12,12 @@ func addAgentMetricMigrations(mg *migrator.Migrator) {
 		Columns: []*migrator.Column{
 			{Name: "id", Type: migrator.DB_BigInt, IsPrimaryKey: true, IsAutoIncrement: true},
 			{Name: "agent_id", Type: migrator.DB_BigInt, Nullable: false},
-			{Name: "owner", Type: migrator.DB_BigInt, Nullable: false},
-			{Name: "metric_id", Type: migrator.DB_NVarchar, Length: 255},
+			{Name: "namespace", Type: migrator.DB_NVarchar, Length: 255, Nullable: false},
+			{Name: "version", Type: migrator.DB_BigInt, Nullable: false},
 			{Name: "created", Type: migrator.DB_DateTime},
 		},
 		Indices: []*migrator.Index{
-			{Cols: []string{"owner", "agent_id"}},
-			{Cols: []string{"owner", "metric_id"}},
+			{Cols: []string{"agent_id", "namespace", "version"}, Type: migrator.UniqueIndex},
 		},
 	}
 	mg.AddMigration("create agent_metric table v1", migrator.NewAddTableMigration(agentMetricV1))
