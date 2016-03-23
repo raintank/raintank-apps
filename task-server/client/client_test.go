@@ -135,16 +135,6 @@ func TestApiClient(t *testing.T) {
 			So(a.Created, ShouldHappenAfter, pre)
 			So(a.Created.Unix(), ShouldEqual, a.Updated.Unix())
 
-			Convey("When getting the list of Agents", func() {
-				query := model.GetAgentsQuery{}
-				agents, err := c.GetAgents(&query)
-
-				So(err, ShouldBeNil)
-				So(len(agents), ShouldEqual, agentCount)
-				So(agents[0].Name, ShouldEqual, "demo1")
-
-			})
-
 			Convey("when getting an agent by id", func() {
 				agent, err := c.GetAgentById(a.Id)
 				So(err, ShouldBeNil)
@@ -167,26 +157,26 @@ func TestApiClient(t *testing.T) {
 					So(a.Updated, ShouldHappenAfter, pre)
 				})
 			})
-		})
+			var deleteTime time.Time
+			Convey("When getting the list of Agents", func() {
+				query := model.GetAgentsQuery{}
+				agents, err := c.GetAgents(&query)
 
-		Convey("When getting the list agents after inserts", func() {
-			query := model.GetAgentsQuery{}
-			agents, err := c.GetAgents(&query)
-			So(err, ShouldBeNil)
-			So(len(agents), ShouldEqual, agentCount)
-			So(agents[0].Name, ShouldEqual, "demo1")
-			Convey("When deleting an agent", func() {
-				err := c.DeleteAgent(agents[agentCount-1])
 				So(err, ShouldBeNil)
-				agentCount--
-			})
-			Convey("When getting first Agent by id", func() {
-				agent, err := c.GetAgentById(agents[0].Id)
-				So(err, ShouldBeNil)
-				So(agent, ShouldNotBeNil)
-				So(agent, ShouldHaveSameTypeAs, &model.AgentDTO{})
-				So(agent.Id, ShouldEqual, agents[0].Id)
-				So(agent.Created.Unix(), ShouldEqual, agents[0].Created.Unix())
+				So(len(agents), ShouldEqual, agentCount)
+				So(agents[0].Name, ShouldEqual, "demo2")
+
+				Convey("When deleting an agent", func() {
+					err := c.DeleteAgent(agents[0])
+					So(err, ShouldBeNil)
+					agentCount--
+					deleteTime = time.Now()
+				})
+				Convey("After deleting agent", func() {
+					//agent demo2 was deleted, then re-added when
+					// "when adding a new Agent" was run prior to this block.
+					So(agents[0].Created, ShouldHappenAfter, deleteTime)
+				})
 			})
 		})
 
