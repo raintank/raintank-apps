@@ -5,6 +5,15 @@ import (
 	"fmt"
 )
 
+type ApiError struct {
+	Code    int
+	Message string
+}
+
+func (e ApiError) Error() string {
+	return fmt.Sprintf("%d: %s", e.Code, e.Message)
+}
+
 type ApiResponse struct {
 	Meta *ResponseMeta   `json:"meta"`
 	Body json.RawMessage `json:"body"`
@@ -20,7 +29,7 @@ func (r *ApiResponse) Error() error {
 	if r.Meta.Code == 200 {
 		return nil
 	}
-	return fmt.Errorf("%d: %s", r.Meta.Code, r.Meta.Message)
+	return ApiError{Code: r.Meta.Code, Message: r.Meta.Message}
 }
 
 func OkResp(t string, body interface{}) *ApiResponse {
