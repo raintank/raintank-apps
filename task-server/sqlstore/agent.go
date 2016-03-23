@@ -82,6 +82,10 @@ func getAgents(sess *session, query *model.GetAgentsQuery) ([]*model.AgentDTO, e
 		sess.Join("INNER", []string{"agent_tag", "at"}, "agent.id = at.agent_id").Where("at.tag=?", query.Tag)
 	}
 
+	if query.Metric != "" {
+		sess.Join("INNER", "agent_metric", "agent_metric.agent_id = agent.id").Where("agent_metric.namespace=?", query.Metric)
+	}
+
 	if query.OrderBy == "" {
 		query.OrderBy = "name"
 	}
