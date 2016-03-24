@@ -138,3 +138,7 @@ type GetEndpointsQuery struct {
 	Limit   int    `binding:"Range(0,100)"`
 	Page    int
 }
+
+type DiscoverEndpointCmd struct {
+	Name string `form:"name"`
+}

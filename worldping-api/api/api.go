@@ -21,7 +21,9 @@ func Init(m *macaron.Macaron, adminKey string, metrics met.Backend) {
 				Get(bind(model.GetEndpointsQuery{}), GetEndpoints).
 				Post(bind(model.EndpointDTO{}), AddEndpoint).
 				Put(bind(model.EndpointDTO{}), UpdateEndpoint)
+			m.Get("/discover", bind(model.DiscoverEndpointCmd{}), DiscoverEndpoint)
 			m.Get("/:id", GetEndpointById)
+
 			m.Delete("/:id", DeleteEndpoint)
 		})
 

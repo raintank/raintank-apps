@@ -5,6 +5,7 @@ import (
 
 	"github.com/grafana/grafana/pkg/log"
 	"github.com/raintank/met"
+	"github.com/raintank/raintank-apps/worldping-api/endpoint_discovery"
 	"github.com/raintank/raintank-apps/worldping-api/model"
 	"github.com/raintank/raintank-apps/worldping-api/sqlstore"
 )
@@ -106,4 +107,13 @@ func DeleteEndpoint(ctx *Context) {
 	endpointDeleteDuration.Value(time.Now().Sub(pre))
 	endpointDeleteOk.Inc(1)
 	ctx.JSON(200, "ok")
+}
+
+func DiscoverEndpoint(ctx *Context, cmd model.DiscoverEndpointCmd) {
+	checks, err := endpoint_discovery.Discover(cmd.Name)
+	if err != nil {
+		log.Error(3, "api.DiscoverEndpoint failed. %s", err)
+		ctx.JSON(500, err)
+	}
+	ctx.JSON(200, checks)
 }
