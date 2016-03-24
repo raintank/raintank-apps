@@ -12,6 +12,7 @@ func addCheckMigrations(mg *migrator.Migrator) {
 		Columns: []*migrator.Column{
 			{Name: "id", Type: migrator.DB_BigInt, IsPrimaryKey: true, IsAutoIncrement: true},
 			{Name: "endpoint_id", Type: migrator.DB_BigInt, Nullable: false},
+			{Name: "task_id", Type: migrator.DB_BigInt, Nullable: false},
 			{Name: "owner", Type: migrator.DB_BigInt, Nullable: false},
 			{Name: "type", Type: migrator.DB_NVarchar, Length: 64},
 			{Name: "frequency", Type: migrator.DB_BigInt, Nullable: false},
