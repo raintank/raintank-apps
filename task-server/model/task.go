@@ -16,7 +16,7 @@ type Task struct {
 	OrgId    int64
 	Config   map[string]map[string]interface{}
 	Interval int64
-	Route    *TaskRoute
+	Route    *TaskRoute `xorm:"JSON"`
 	Enabled  bool
 	Created  time.Time
 	Updated  time.Time
@@ -59,14 +59,6 @@ var (
 type TaskRoute struct {
 	Type   RouteType              `json:"type"`
 	Config map[string]interface{} `json:"config"`
-}
-
-func (t *TaskRoute) ToDB() ([]byte, error) {
-	return json.Marshal(t)
-}
-
-func (t *TaskRoute) FromDB(data []byte) error {
-	return json.Unmarshal(data, t)
 }
 
 func (t *TaskRoute) UnmarshalJSON(body []byte) error {
