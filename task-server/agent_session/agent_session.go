@@ -131,7 +131,7 @@ func (a *AgentSession) HandleCatalog() interface{} {
 		metrics := make([]*model.Metric, len(catalog))
 		for i, m := range catalog {
 			metrics[i] = &model.Metric{
-				Owner:     a.Agent.Owner,
+				OrgId:     a.Agent.OrgId,
 				Public:    a.Agent.Public,
 				Namespace: m.Namespace,
 				Version:   int64(m.Version),

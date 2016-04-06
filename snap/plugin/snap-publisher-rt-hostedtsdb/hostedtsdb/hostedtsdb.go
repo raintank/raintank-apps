@@ -238,7 +238,7 @@ func (f *HostedtsdbPublisher) GetConfigPolicy() (*cpolicy.ConfigPolicy, error) {
 	rule, _ := cpolicy.NewStringRule("raintank_tsdb_url", true)
 	rule2, _ := cpolicy.NewStringRule("raintank_api_key", true)
 	rule3, _ := cpolicy.NewIntegerRule("interval", true)
-	rule4, _ := cpolicy.NewIntegerRule("orgId", true)
+	rule4, _ := cpolicy.NewIntegerRule("orgId", false, 0)
 
 	p := cpolicy.NewPolicyNode()
 	p.Add(rule)

@@ -13,7 +13,7 @@ var (
 type Task struct {
 	Id       int64
 	Name     string
-	Owner    int64
+	OrgId    int64
 	Config   map[string]map[string]interface{}
 	Interval int64
 	Route    *TaskRoute
@@ -33,7 +33,7 @@ type TaskMetric struct {
 type TaskDTO struct {
 	Id       int64                             `json:"id"`
 	Name     string                            `json:"name"`
-	Owner    int64                             `json:"-"`
+	OrgId    int64                             `json:"-"`
 	Config   map[string]map[string]interface{} `json:"config"`
 	Interval int64                             `json:"interval"`
 	Route    *TaskRoute                        `json:"route"`
@@ -154,7 +154,7 @@ type GetTasksQuery struct {
 	Name          string `form:"name" url:"name,omitempty"`
 	Metric        string `form:"metric" url:"metric,omitempty"`
 	MetricVersion int64  `form:"metricVersion" url:"metricVersion,omitempty"`
-	Owner         int64  `form:"-" url:"-"`
+	OrgId         int64  `form:"-" url:"-"`
 	Enabled       string `form:"enabled" url:"enabled,omitempty"`
 	OrderBy       string `form:"orderBy" url:"orderBy,omitempty"`
 	Limit         int    `form:"limit" url:"limit,omitempty"`

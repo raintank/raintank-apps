@@ -7,7 +7,7 @@ import (
 )
 
 func GetMetrics(ctx *Context, query model.GetMetricsQuery) {
-	query.Owner = ctx.Owner
+	query.OrgId = ctx.OrgId
 	metrics, err := sqlstore.GetMetrics(&query)
 	if err != nil {
 		log.Error(err)

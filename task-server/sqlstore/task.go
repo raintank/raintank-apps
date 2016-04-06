@@ -28,7 +28,7 @@ func (rows taskWithMetrics) ToTaskDTO() []*model.TaskDTO {
 		if !ok {
 			taskById[r.Id] = &model.TaskDTO{
 				Id:       r.Id,
-				Owner:    r.Owner,
+				OrgId:    r.OrgId,
 				Name:     r.Name,
 				Enabled:  r.Enabled,
 				Interval: r.Interval,
@@ -61,8 +61,8 @@ func GetTasks(query *model.GetTasksQuery) ([]*model.TaskDTO, error) {
 
 func getTasks(sess *session, query *model.GetTasksQuery) ([]*model.TaskDTO, error) {
 	var t taskWithMetrics
-	if query.Owner != 0 {
-		sess.Where("task.owner = ?", query.Owner)
+	if query.OrgId != 0 {
+		sess.Where("task.org_id = ?", query.OrgId)
 	}
 	if query.Enabled != "" {
 		enabled, err := strconv.ParseBool(query.Enabled)
@@ -81,7 +81,7 @@ func getTasks(sess *session, query *model.GetTasksQuery) ([]*model.TaskDTO, erro
 			Where("tm.namespace=?", query.Metric)
 		if query.MetricVersion == 0 {
 			// get the latest version.
-			sess.And("tm.version = (SELECT MAX(version) FROM metric WHERE namespace=? AND (owner=? or public=1) group by version)", query.Metric, query.Owner)
+			sess.And("tm.version = (SELECT MAX(version) FROM metric WHERE namespace=? AND (org_id=? or public=1) group by version)", query.Metric, query.OrgId)
 		} else {
 			sess.And("tm.version=?", query.MetricVersion)
 		}
@@ -100,7 +100,7 @@ func getTasks(sess *session, query *model.GetTasksQuery) ([]*model.TaskDTO, erro
 	sess.Cols(
 		"task.id",
 		"task.name",
-		"task.owner",
+		"task.org_id",
 		"task.enabled",
 		"task.interval",
 		"task.config",
@@ -117,17 +117,17 @@ func getTasks(sess *session, query *model.GetTasksQuery) ([]*model.TaskDTO, erro
 	return t.ToTaskDTO(), nil
 }
 
-func GetTaskById(id int64, owner int64) (*model.TaskDTO, error) {
+func GetTaskById(id int64, orgId int64) (*model.TaskDTO, error) {
 	sess, err := newSession(false, "task")
 	if err != nil {
 		return nil, err
 	}
-	return getTaskById(sess, id, owner)
+	return getTaskById(sess, id, orgId)
 }
 
-func getTaskById(sess *session, id int64, owner int64) (*model.TaskDTO, error) {
+func getTaskById(sess *session, id int64, orgId int64) (*model.TaskDTO, error) {
 	var t taskWithMetrics
-	err := sess.Where("task.id=? AND owner=?", id, owner).Join("LEFT", "task_metric", "task.id = task_metric.task_id").Find(&t)
+	err := sess.Where("task.id=? AND org_id=?", id, orgId).Join("LEFT", "task_metric", "task.id = task_metric.task_id").Find(&t)
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +153,7 @@ func AddTask(t *model.TaskDTO) error {
 func addTask(sess *session, t *model.TaskDTO) error {
 	task := model.Task{
 		Name:     t.Name,
-		Owner:    t.Owner,
+		OrgId:    t.OrgId,
 		Interval: t.Interval,
 		Enabled:  t.Enabled,
 		Config:   t.Config,
@@ -176,7 +176,7 @@ func addTask(sess *session, t *model.TaskDTO) error {
 		//validate metrics
 		mQuery := &model.GetMetricsQuery{
 			Namespace: namespace,
-			Owner:     t.Owner,
+			OrgId:     t.OrgId,
 		}
 		if ver != 0 {
 			mQuery.Version = ver
@@ -230,7 +230,7 @@ func UpdateTask(t *model.TaskDTO) error {
 }
 
 func updateTask(sess *session, t *model.TaskDTO) error {
-	existing, err := getTaskById(sess, t.Id, t.Owner)
+	existing, err := getTaskById(sess, t.Id, t.OrgId)
 	if err != nil {
 		return err
 	}
@@ -240,7 +240,7 @@ func updateTask(sess *session, t *model.TaskDTO) error {
 	task := model.Task{
 		Id:       t.Id,
 		Name:     t.Name,
-		Owner:    t.Owner,
+		OrgId:    t.OrgId,
 		Interval: t.Interval,
 		Enabled:  t.Enabled,
 		Config:   t.Config,
@@ -523,13 +523,13 @@ func getAgentTasks(sess *session, agent *model.AgentDTO) ([]*model.TaskDTO, erro
 	return tasks.ToTaskDTO(), err
 }
 
-func DeleteTask(id int64, owner int64) (*model.TaskDTO, error) {
+func DeleteTask(id int64, orgId int64) (*model.TaskDTO, error) {
 	sess, err := newSession(true, "task")
 	if err != nil {
 		return nil, err
 	}
 	defer sess.Cleanup()
-	existing, err := deleteTask(sess, id, owner)
+	existing, err := deleteTask(sess, id, orgId)
 	if err != nil {
 		return nil, err
 	}
@@ -537,8 +537,8 @@ func DeleteTask(id int64, owner int64) (*model.TaskDTO, error) {
 	return existing, nil
 }
 
-func deleteTask(sess *session, id int64, owner int64) (*model.TaskDTO, error) {
-	existing, err := getTaskById(sess, id, owner)
+func deleteTask(sess *session, id int64, orgId int64) (*model.TaskDTO, error) {
+	existing, err := getTaskById(sess, id, orgId)
 	if err != nil {
 		return nil, err
 	}

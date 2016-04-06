@@ -10,7 +10,7 @@ import (
 
 func GetTaskById(ctx *Context) {
 	id := ctx.ParamsInt64(":id")
-	owner := ctx.Owner
+	owner := ctx.OrgId
 	task, err := sqlstore.GetTaskById(id, owner)
 	if err != nil {
 		log.Error(err)
@@ -25,7 +25,7 @@ func GetTaskById(ctx *Context) {
 }
 
 func GetTasks(ctx *Context, query model.GetTasksQuery) {
-	query.Owner = ctx.Owner
+	query.OrgId = ctx.OrgId
 	tasks, err := sqlstore.GetTasks(&query)
 	if err != nil {
 		log.Error(err)
@@ -36,7 +36,7 @@ func GetTasks(ctx *Context, query model.GetTasksQuery) {
 }
 
 func AddTask(ctx *Context, task model.TaskDTO) {
-	task.Owner = ctx.Owner
+	task.OrgId = ctx.OrgId
 	if task.Route.Type == model.RouteAny {
 		// need to schedule the task to an agent.
 		//TDOD: lookup least loded agent.
@@ -64,7 +64,7 @@ func AddTask(ctx *Context, task model.TaskDTO) {
 }
 
 func UpdateTask(ctx *Context, task model.TaskDTO) {
-	task.Owner = ctx.Owner
+	task.OrgId = ctx.OrgId
 	err := sqlstore.UpdateTask(&task)
 	if err != nil {
 		log.Error(err)
@@ -76,7 +76,7 @@ func UpdateTask(ctx *Context, task model.TaskDTO) {
 
 func DeleteTask(ctx *Context) {
 	id := ctx.ParamsInt64(":id")
-	owner := ctx.Owner
+	owner := ctx.OrgId
 	existing, err := sqlstore.DeleteTask(id, owner)
 	if err != nil {
 		log.Error(err)

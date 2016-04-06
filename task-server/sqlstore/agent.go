@@ -30,7 +30,7 @@ func (rows agentWithTags) ToAgentDTO() []*model.AgentDTO {
 				Name:          r.Agent.Name,
 				Enabled:       r.Agent.Enabled,
 				EnabledChange: r.Agent.EnabledChange,
-				Owner:         r.Agent.Owner,
+				OrgId:         r.Agent.OrgId,
 				Public:        r.Agent.Public,
 				Online:        r.Agent.Online,
 				OnlineChange:  r.Agent.OnlineChange,
@@ -103,17 +103,21 @@ func getAgents(sess *session, query *model.GetAgentsQuery) ([]*model.AgentDTO, e
 	return a.ToAgentDTO(), nil
 }
 
-func GetAgentById(id int64, owner int64) (*model.AgentDTO, error) {
+func GetAgentById(id int64, orgId int64) (*model.AgentDTO, error) {
 	sess, err := newSession(false, "agent")
 	if err != nil {
 		return nil, err
 	}
-	return getAgentById(sess, id, owner)
+	return getAgentById(sess, id, orgId)
 }
 
-func getAgentById(sess *session, id int64, owner int64) (*model.AgentDTO, error) {
+func getAgentById(sess *session, id int64, orgId int64) (*model.AgentDTO, error) {
 	var a agentWithTags
-	err := sess.Where("agent.id=?", id).Join("INNER", "agent_tag", "agent.id = agent_tag.agent_id").Find(&a)
+	sess.Where("agent.id=?", id)
+	if orgId != 0 {
+		sess.And("agent.org_id=?", orgId)
+	}
+	err := sess.Join("INNER", "agent_tag", "agent.id = agent_tag.agent_id").Find(&a)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +146,7 @@ func addAgent(sess *session, a *model.AgentDTO) error {
 		Name:          a.Name,
 		Enabled:       a.Enabled,
 		EnabledChange: time.Now(),
-		Owner:         a.Owner,
+		OrgId:         a.OrgId,
 		Public:        a.Public,
 		Online:        false,
 		OnlineChange:  time.Now(),
@@ -163,7 +167,7 @@ func addAgent(sess *session, a *model.AgentDTO) error {
 	agentTags := make([]model.AgentTag, 0, len(a.Tags))
 	for _, tag := range a.Tags {
 		agentTags = append(agentTags, model.AgentTag{
-			Owner:   a.Owner,
+			OrgId:   a.OrgId,
 			AgentId: agent.Id,
 			Tag:     tag,
 			Created: time.Now(),
@@ -194,15 +198,15 @@ func UpdateAgent(a *model.AgentDTO) error {
 }
 
 func updateAgent(sess *session, a *model.AgentDTO) error {
-	existing, err := getAgentById(sess, a.Id, a.Owner)
+	existing, err := getAgentById(sess, a.Id, a.OrgId)
 	if err != nil {
 		return err
 	}
 	if existing == nil {
 		return model.AgentNotFound
 	}
-	// If the Owner is different, the only changes that can be made is to Tags.
-	if a.Owner == existing.Owner {
+	// If the OrgId is different, the only changes that can be made is to Tags.
+	if a.OrgId == existing.OrgId {
 		enabledChange := existing.EnabledChange
 		if existing.Enabled != a.Enabled {
 			enabledChange = time.Now()
@@ -212,7 +216,7 @@ func updateAgent(sess *session, a *model.AgentDTO) error {
 			Name:          a.Name,
 			Enabled:       a.Enabled,
 			EnabledChange: enabledChange,
-			Owner:         a.Owner,
+			OrgId:         a.OrgId,
 			Public:        a.Public,
 			Created:       a.Created,
 			Updated:       time.Now(),
@@ -259,13 +263,13 @@ func updateAgent(sess *session, a *model.AgentDTO) error {
 	}
 	if len(tagsToDelete) > 0 {
 		rawParams := make([]interface{}, 0)
-		rawParams = append(rawParams, a.Id, a.Owner)
+		rawParams = append(rawParams, a.Id, a.OrgId)
 		p := make([]string, len(tagsToDelete))
 		for i, t := range tagsToDelete {
 			p[i] = "?"
 			rawParams = append(rawParams, t)
 		}
-		rawSql := fmt.Sprintf("DELETE FROM agent_tag WHERE agent_id=? AND owner=? AND tag IN (%s)", strings.Join(p, ","))
+		rawSql := fmt.Sprintf("DELETE FROM agent_tag WHERE agent_id=? AND org_id=? AND tag IN (%s)", strings.Join(p, ","))
 		if _, err := sess.Exec(rawSql, rawParams...); err != nil {
 			return err
 		}
@@ -274,7 +278,7 @@ func updateAgent(sess *session, a *model.AgentDTO) error {
 		newAgentTags := make([]model.AgentTag, len(tagsToAdd))
 		for i, tag := range tagsToAdd {
 			newAgentTags[i] = model.AgentTag{
-				Owner:   a.Owner,
+				OrgId:   a.OrgId,
 				AgentId: a.Id,
 				Tag:     tag,
 				Created: time.Now(),
@@ -319,7 +323,7 @@ func getAgentsForTask(sess *session, t *model.TaskDTO) ([]*AgentId, error) {
 			tags[i] = tag
 		}
 		sess.Join("LEFT", "agent_tag", "agent.id = agent_tag.agent_id")
-		sess.Where("agent_tag.owner = ?", t.Owner)
+		sess.Where("agent_tag.org_id = ?", t.OrgId)
 		sess.In("agent_tag.tag", tags)
 		sess.Cols("agent.id")
 		err := sess.Find(&agents)
@@ -335,13 +339,13 @@ func getAgentsForTask(sess *session, t *model.TaskDTO) ([]*AgentId, error) {
 	}
 }
 
-func DeleteAgent(id int64, owner int64) error {
+func DeleteAgent(id int64, orgId int64) error {
 	sess, err := newSession(true, "agent")
 	if err != nil {
 		return err
 	}
 	defer sess.Cleanup()
-	err = deleteAgent(sess, id, owner)
+	err = deleteAgent(sess, id, orgId)
 	if err != nil {
 		return err
 	}
@@ -349,17 +353,17 @@ func DeleteAgent(id int64, owner int64) error {
 	return nil
 }
 
-func deleteAgent(sess *session, id int64, owner int64) error {
-	existing, err := getAgentById(sess, id, owner)
+func deleteAgent(sess *session, id int64, orgId int64) error {
+	existing, err := getAgentById(sess, id, orgId)
 	if err != nil {
 		return err
 	}
-	rawSql := "DELETE FROM agent WHERE id=? and owner=?"
-	if _, err := sess.Exec(rawSql, existing.Id, existing.Owner); err != nil {
+	rawSql := "DELETE FROM agent WHERE id=? and org_id=?"
+	if _, err := sess.Exec(rawSql, existing.Id, existing.OrgId); err != nil {
 		return err
 	}
-	rawSql = "DELETE FROM agent_tag WHERE agent_id=? and owner=?"
-	if _, err := sess.Exec(rawSql, existing.Id, existing.Owner); err != nil {
+	rawSql = "DELETE FROM agent_tag WHERE agent_id=? and org_id=?"
+	if _, err := sess.Exec(rawSql, existing.Id, existing.OrgId); err != nil {
 		return err
 	}
 	rawSql = "DELETE FROM agent_metric WHERE agent_id=?"

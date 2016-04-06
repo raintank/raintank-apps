@@ -17,7 +17,7 @@ func GetMetrics(query *model.GetMetricsQuery) ([]*model.Metric, error) {
 
 func getMetrics(sess *session, query *model.GetMetricsQuery) ([]*model.Metric, error) {
 	metrics := make([]*model.Metric, 0)
-	sess.Where("(public=1 OR owner = ?)", query.Owner)
+	sess.Where("(public=1 OR org_id = ?)", query.OrgId)
 	if query.Namespace != "" {
 		sess.And("namespace like ?", query.Namespace)
 	}
@@ -41,18 +41,18 @@ func getMetrics(sess *session, query *model.GetMetricsQuery) ([]*model.Metric, e
 	return metrics, nil
 }
 
-func GetMetricById(id string, owner int64) (*model.Metric, error) {
+func GetMetricById(id string, orgId int64) (*model.Metric, error) {
 	sess, err := newSession(false, "metric")
 	if err != nil {
 		return nil, err
 	}
 
-	return getMetricById(sess, id, owner)
+	return getMetricById(sess, id, orgId)
 }
 
-func getMetricById(sess *session, id string, owner int64) (*model.Metric, error) {
+func getMetricById(sess *session, id string, orgId int64) (*model.Metric, error) {
 	m := &model.Metric{}
-	exists, err := sess.Where("(public=1 OR owner = ?) AND id=?", owner, id).Get(m)
+	exists, err := sess.Where("(public=1 OR org_id = ?) AND id=?", orgId, id).Get(m)
 	if err != nil {
 		return nil, err
 	}

@@ -29,13 +29,13 @@ func Init(graphiteUrl string) error {
 	return err
 }
 
-func Proxy(owner int64, proxyPath string, request *http.Request) *httputil.ReverseProxy {
+func Proxy(orgId int64, proxyPath string, request *http.Request) *httputil.ReverseProxy {
 	/*
 		// check if this is a special raintank_db requests
 		if proxyPath == "metrics/find" {
 			query := c.Query("query")
 			if strings.HasPrefix(query, "raintank_db") {
-				response, err := executeRaintankDbQuery(query, c.Owner)
+				response, err := executeRaintankDbQuery(query, c.OrgId)
 				if err != nil {
 					c.JsonApiErr(500, "Failed to execute raintank_db query", err)
 					return
@@ -49,7 +49,7 @@ func Proxy(owner int64, proxyPath string, request *http.Request) *httputil.Rever
 	director := func(req *http.Request) {
 		req.URL.Scheme = GraphiteUrl.Scheme
 		req.URL.Host = GraphiteUrl.Host
-		req.Header.Add("X-Org-Id", strconv.FormatInt(owner, 10))
+		req.Header.Add("X-Org-Id", strconv.FormatInt(orgId, 10))
 		req.URL.Path = joinUrlFragments(GraphiteUrl.Path, proxyPath)
 	}
 

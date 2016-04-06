@@ -58,7 +58,7 @@ func startApi(done chan struct{}) string {
 func addTestMetrics(agent *model.AgentDTO) {
 	metrics := []*model.Metric{
 		&model.Metric{
-			Owner:     1,
+			OrgId:     1,
 			Public:    true,
 			Namespace: "/testing/demo/demo1",
 			Version:   1,
@@ -82,7 +82,7 @@ func addTestMetrics(agent *model.AgentDTO) {
 			},
 		},
 		&model.Metric{
-			Owner:     1,
+			OrgId:     1,
 			Public:    true,
 			Namespace: "/testing/demo2/demo",
 			Version:   2,

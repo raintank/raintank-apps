@@ -108,7 +108,7 @@ func connectedAgent(agentName string, owner int64) (*model.AgentDTO, error) {
 	}
 	q := model.GetAgentsQuery{
 		Name:  agentName,
-		Owner: owner,
+		OrgId: owner,
 	}
 	agents, err := sqlstore.GetAgents(&q)
 	if err != nil {
@@ -124,7 +124,7 @@ func socket(ctx *Context) {
 	agentName := ctx.Params(":agent")
 	agentVer := ctx.ParamsInt64(":ver")
 	//TODO: add auth
-	owner := ctx.Owner
+	owner := ctx.OrgId
 	agent, err := connectedAgent(agentName, owner)
 	if err != nil {
 		log.Debugf("agent cant connect. %s", err)

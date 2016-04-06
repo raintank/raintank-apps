@@ -12,7 +12,7 @@ func addAgentMigrations(mg *migrator.Migrator) {
 		Columns: []*migrator.Column{
 			{Name: "id", Type: migrator.DB_BigInt, IsPrimaryKey: true, IsAutoIncrement: true},
 			{Name: "name", Type: migrator.DB_NVarchar, Length: 255},
-			{Name: "owner", Type: migrator.DB_BigInt, Nullable: false},
+			{Name: "org_id", Type: migrator.DB_BigInt, Nullable: false},
 			{Name: "enabled", Type: migrator.DB_Bool},
 			{Name: "enabled_change", Type: migrator.DB_DateTime},
 			{Name: "online", Type: migrator.DB_Bool},
@@ -22,8 +22,8 @@ func addAgentMigrations(mg *migrator.Migrator) {
 			{Name: "updated", Type: migrator.DB_DateTime},
 		},
 		Indices: []*migrator.Index{
-			{Cols: []string{"owner", "public"}},
-			{Cols: []string{"name", "owner"}, Type: migrator.UniqueIndex},
+			{Cols: []string{"org_id", "public"}},
+			{Cols: []string{"name", "org_id"}, Type: migrator.UniqueIndex},
 		},
 	}
 	mg.AddMigration("create agent table v1", migrator.NewAddTableMigration(agentV1))

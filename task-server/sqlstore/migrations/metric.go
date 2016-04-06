@@ -12,14 +12,14 @@ func addMetricMigrations(mg *migrator.Migrator) {
 		Columns: []*migrator.Column{
 			{Name: "id", Type: migrator.DB_BigInt, Length: 255, IsPrimaryKey: true},
 			{Name: "namespace", Type: migrator.DB_NVarchar, Length: 255},
-			{Name: "owner", Type: migrator.DB_BigInt, Nullable: false},
+			{Name: "org_id", Type: migrator.DB_BigInt, Nullable: false},
 			{Name: "public", Type: migrator.DB_Bool},
 			{Name: "policy", Type: migrator.DB_Text},
 			{Name: "version", Type: migrator.DB_BigInt},
 			{Name: "created", Type: migrator.DB_DateTime},
 		},
 		Indices: []*migrator.Index{
-			{Cols: []string{"owner", "public", "namespace", "version"}, Type: migrator.UniqueIndex},
+			{Cols: []string{"org_id", "public", "namespace", "version"}, Type: migrator.UniqueIndex},
 		},
 	}
 	mg.AddMigration("create metric table v1", migrator.NewAddTableMigration(metricV1))

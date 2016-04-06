@@ -15,7 +15,7 @@ type Agent struct {
 	Name          string
 	Enabled       bool
 	EnabledChange time.Time
-	Owner         int64
+	OrgId         int64
 	Public        bool
 	Online        bool
 	OnlineChange  time.Time
@@ -25,7 +25,7 @@ type Agent struct {
 
 type AgentTag struct {
 	Id      int64
-	Owner   int64
+	OrgId   int64
 	AgentId int64
 	Tag     string
 	Created time.Time
@@ -45,7 +45,7 @@ type AgentDTO struct {
 	Name          string    `json:"name"`
 	Enabled       bool      `json:"enabled"`
 	EnabledChange time.Time `json:"enabledChange"`
-	Owner         int64     `json:"-"`
+	OrgId         int64     `json:"-"`
 	Public        bool      `json:"public"`
 	Tags          []string  `json:"tags"`
 	Online        bool      `json:"online"`
@@ -75,5 +75,5 @@ type GetAgentsQuery struct {
 	OrderBy string `form:"orderBy" url:"orderBy,omitempty"`
 	Limit   int    `form:"limit" url:"limit,omitempty"`
 	Page    int    `form:"page" url:"page,omitempty"`
-	Owner   int64  `form:"-" url:"-"`
+	OrgId   int64  `form:"-" url:"-"`
 }

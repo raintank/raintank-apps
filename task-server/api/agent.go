@@ -9,7 +9,7 @@ import (
 )
 
 func GetAgents(ctx *Context, query model.GetAgentsQuery) {
-	query.Owner = ctx.Owner
+	query.OrgId = ctx.OrgId
 	agents, err := sqlstore.GetAgents(&query)
 	if err != nil {
 		log.Error(err)
@@ -21,7 +21,7 @@ func GetAgents(ctx *Context, query model.GetAgentsQuery) {
 
 func GetAgentById(ctx *Context) {
 	id := ctx.ParamsInt64(":id")
-	owner := ctx.Owner
+	owner := ctx.OrgId
 	agent, err := sqlstore.GetAgentById(id, owner)
 	if err != nil {
 		log.Error(err)
@@ -37,7 +37,7 @@ func GetAgentById(ctx *Context) {
 
 func GetAgentMetrics(ctx *Context) {
 	id := ctx.ParamsInt64(":id")
-	owner := ctx.Owner
+	owner := ctx.OrgId
 	agent, err := sqlstore.GetAgentById(id, owner)
 	if err != nil {
 		log.Error(err)
@@ -65,7 +65,7 @@ func AddAgent(ctx *Context, agent model.AgentDTO) {
 	}
 	agent.Id = 0
 	//need to add suport for middelware context with AUTH/
-	agent.Owner = ctx.Owner
+	agent.OrgId = ctx.OrgId
 	err := sqlstore.AddAgent(&agent)
 	if err != nil {
 		log.Error(err)
@@ -85,7 +85,7 @@ func UpdateAgent(ctx *Context, agent model.AgentDTO) {
 		return
 	}
 	//need to add suport for middelware context with AUTH/
-	agent.Owner = ctx.Owner
+	agent.OrgId = ctx.OrgId
 	err := sqlstore.UpdateAgent(&agent)
 	if err != nil {
 		log.Error(err)
@@ -97,7 +97,7 @@ func UpdateAgent(ctx *Context, agent model.AgentDTO) {
 
 func DeleteAgent(ctx *Context) {
 	id := ctx.ParamsInt64(":id")
-	owner := ctx.Owner
+	owner := ctx.OrgId
 	err := sqlstore.DeleteAgent(id, owner)
 	if err != nil {
 		if err == model.AgentNotFound {

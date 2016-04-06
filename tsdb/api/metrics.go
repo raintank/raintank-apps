@@ -25,7 +25,6 @@ func metricsJson(ctx *Context) {
 }
 
 func metricsBinary(ctx *Context) {
-	owner := ctx.Owner
 	defer ctx.Req.Request.Body.Close()
 	if ctx.Req.Request.Body != nil {
 		body, err := ioutil.ReadAll(ctx.Req.Request.Body)
@@ -45,13 +44,12 @@ func metricsBinary(ctx *Context) {
 			ctx.JSON(500, err)
 			return
 		}
-		//if !ctx.IsAdmin {
-		for _, m := range ms.Metrics {
-			//TODO: get orgId from context.
-			m.OrgId = int(owner)
-			m.SetId()
+		if !ctx.IsAdmin {
+			for _, m := range ms.Metrics {
+				m.OrgId = int(ctx.OrgId)
+				m.SetId()
+			}
 		}
-		//}
 
 		err = metric_publish.Publish(ms.Metrics)
 		if err != nil {

@@ -4,21 +4,20 @@ import (
 	"strings"
 
 	"github.com/Unknwon/macaron"
+	"github.com/raintank/raintank-apps/pkg/auth"
 	"github.com/raintank/raintank-apps/task-server/model"
 )
 
 type Context struct {
 	*macaron.Context
-	Owner   int64
-	IsAdmin bool
+	*auth.SignedInUser
 }
 
 func GetContextHandler() macaron.Handler {
 	return func(c *macaron.Context) {
 		ctx := &Context{
-			Context: c,
-			Owner:   0,
-			IsAdmin: false,
+			Context:      c,
+			SignedInUser: &auth.SignedInUser{},
 		}
 		c.Map(ctx)
 	}
@@ -39,13 +38,16 @@ func Auth(adminKey string) macaron.Handler {
 			ctx.JSON(401, "Unauthorized")
 			return
 		}
-		if key == adminKey {
-			ctx.Owner = int64(1)
-			ctx.IsAdmin = true
+		user, err := auth.Auth(adminKey, key)
+		if err != nil {
+			if err == auth.ErrInvalidApiKey {
+				ctx.JSON(401, "Unauthorized")
+				return
+			}
+			ctx.JSON(500, err)
 			return
 		}
-		//TODO: validate Key against Grafana.Net
-		ctx.Owner = int64(2)
+		ctx.SignedInUser = user
 	}
 }
 
@@ -62,7 +64,7 @@ func getApiKey(c *Context) string {
 
 func AgentQuota() macaron.Handler {
 	return func(ctx *Context) {
-		//check quotas for ctx.Owner
+		//check quotas for ctx.OrgId
 		return
 	}
 }
