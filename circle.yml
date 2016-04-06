@@ -1,13 +1,11 @@
 machine:
-  node:
-    version: 4.0
   environment:
     GOPATH: "/home/ubuntu/go"
 dependencies:
   override:
     - mkdir -p /home/ubuntu/go/src/github.com/$CIRCLE_PROJECT_USERNAME
     - ln -s /home/ubuntu/$CIRCLE_PROJECT_REPONAME /home/ubuntu/go/src/github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME
-    - go get ./...:
+    - go get -t ./...:
         pwd:
           ../go/src/github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME
     - bundle install:
