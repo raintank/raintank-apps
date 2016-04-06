@@ -12,13 +12,13 @@ func addEndpointTagMigrations(mg *migrator.Migrator) {
 		Columns: []*migrator.Column{
 			{Name: "id", Type: migrator.DB_BigInt, IsPrimaryKey: true, IsAutoIncrement: true},
 			{Name: "endpoint_id", Type: migrator.DB_BigInt, Nullable: false},
-			{Name: "owner", Type: migrator.DB_BigInt, Nullable: false},
+			{Name: "org_id", Type: migrator.DB_BigInt, Nullable: false},
 			{Name: "tag", Type: migrator.DB_NVarchar, Length: 255},
 			{Name: "created", Type: migrator.DB_DateTime},
 		},
 		Indices: []*migrator.Index{
-			{Cols: []string{"owner", "endpoint_id"}},
-			{Cols: []string{"owner", "tag"}},
+			{Cols: []string{"org_id", "endpoint_id"}},
+			{Cols: []string{"org_id", "tag"}},
 		},
 	}
 	mg.AddMigration("create endpoint_tag table v1", migrator.NewAddTableMigration(endpointTagV1))

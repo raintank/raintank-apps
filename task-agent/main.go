@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"path"
+	"runtime"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -21,6 +22,7 @@ import (
 const Version int = 1
 
 var (
+	GitHash     = "(none)"
 	showVersion = flag.Bool("version", false, "print version string")
 	logLevel    = flag.Int("log-level", 2, "log level. 0=TRACE|1=DEBUG|2=INFO|3=WARN|4=ERROR|5=CRITICAL|6=FATAL")
 	confFile    = flag.String("config", "/etc/raintank/collector.ini", "configuration file path")
@@ -68,6 +70,11 @@ func main() {
 		log.Level(log.CRITICAL)
 	case 6:
 		log.Level(log.FATAL)
+	}
+
+	if *showVersion {
+		fmt.Printf("task-agent (built with %s, git hash %s)\n", runtime.Version(), GitHash)
+		return
 	}
 
 	if *nodeName == "" {

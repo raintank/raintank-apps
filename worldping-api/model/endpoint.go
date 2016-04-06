@@ -16,7 +16,7 @@ var (
 
 type Endpoint struct {
 	Id      int64
-	Owner   int64
+	OrgId   int64
 	Name    string
 	Slug    string
 	Created time.Time
@@ -32,7 +32,7 @@ func (endpoint *Endpoint) UpdateSlug() {
 
 type EndpointTag struct {
 	Id         int64
-	Owner      int64
+	OrgId      int64
 	EndpointId int64
 	Tag        string
 	Created    time.Time
@@ -42,7 +42,7 @@ type EndpointTag struct {
 // DTOs
 type EndpointDTO struct {
 	Id      int64     `json:"id"`
-	Owner   int64     `json:"owner"`
+	OrgId   int64     `json:"orgId"`
 	Name    string    `json:"name" binding:"Required"`
 	Slug    string    `json:"slug"`
 	Checks  []*Check  `json:"checks"`
@@ -62,7 +62,7 @@ const (
 
 type Check struct {
 	Id             int64                  `json:"id"`
-	Owner          int64                  `json:"-"`
+	OrgId          int64                  `json:"-"`
 	EndpointId     int64                  `json:"-"`
 	Type           CheckType              `json:"type" binding:"Required,In(http,https,dns,ping)"`
 	Frequency      int64                  `json:"frequency" binding:"Required,Range(10,300)"`
@@ -131,7 +131,7 @@ func (e *CheckHealthSettings) ToDB() ([]byte, error) {
 }
 
 type GetEndpointsQuery struct {
-	Owner   int64
+	OrgId   int64
 	Name    string
 	Tag     string
 	OrderBy string `binding:"In(name,slug,created,updated,)"`

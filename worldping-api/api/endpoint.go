@@ -39,7 +39,7 @@ func InitEndpointMetrics(stats met.Backend) {
 }
 
 func GetEndpoints(ctx *Context, query model.GetEndpointsQuery) {
-	query.Owner = ctx.Owner
+	query.OrgId = ctx.OrgId
 	endpoints, err := sqlstore.GetEndpoints(&query)
 	if err != nil {
 		log.Error(3, "api.GetEndpoints failed. %s", err)
@@ -51,7 +51,7 @@ func GetEndpoints(ctx *Context, query model.GetEndpointsQuery) {
 
 func GetEndpointById(ctx *Context) {
 	id := ctx.ParamsInt64(":id")
-	endpoint, err := sqlstore.GetEndpointById(id, ctx.Owner)
+	endpoint, err := sqlstore.GetEndpointById(id, ctx.OrgId)
 	if err != nil {
 		log.Error(3, "api.GetEndpointById failed. %s", err)
 		ctx.JSON(500, err)
@@ -66,7 +66,7 @@ func GetEndpointById(ctx *Context) {
 
 func AddEndpoint(ctx *Context, e model.EndpointDTO) {
 	pre := time.Now()
-	e.Owner = ctx.Owner
+	e.OrgId = ctx.OrgId
 	err := sqlstore.AddEndpoint(&e)
 	if err != nil {
 		log.Error(3, "api.AddEndpoint failed. %s", err)
@@ -81,7 +81,7 @@ func AddEndpoint(ctx *Context, e model.EndpointDTO) {
 
 func UpdateEndpoint(ctx *Context, e model.EndpointDTO) {
 	pre := time.Now()
-	e.Owner = ctx.Owner
+	e.OrgId = ctx.OrgId
 	err := sqlstore.UpdateEndpoint(&e)
 	if err != nil {
 		log.Error(3, "api.UpdateEndpoint failed. %s", err)
@@ -97,7 +97,7 @@ func UpdateEndpoint(ctx *Context, e model.EndpointDTO) {
 func DeleteEndpoint(ctx *Context) {
 	pre := time.Now()
 	id := ctx.ParamsInt64(":id")
-	err := sqlstore.DeleteEndpoint(id, ctx.Owner)
+	err := sqlstore.DeleteEndpoint(id, ctx.OrgId)
 	if err != nil {
 		log.Error(3, "api.DeleteEndpoint failed. %s", err)
 		ctx.JSON(500, err)

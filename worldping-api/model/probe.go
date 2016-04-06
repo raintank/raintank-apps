@@ -6,7 +6,7 @@ import (
 
 type ProbeDTO struct {
 	Id            int64     `json:"id"`
-	Owner         int64     `json:"owner"`
+	OrgId         int64     `json:"orgId"`
 	Slug          string    `json:"slug"`
 	Name          string    `json:"name"`
 	Tags          []string  `json:"tags"`
@@ -25,5 +25,5 @@ type GetProbesQuery struct {
 	OrderBy string `form:"orderBy" url:"orderBy,omitempty"`
 	Limit   int    `form:"limit" url:"limit,omitempty"`
 	Page    int    `form:"page" url:"page,omitempty"`
-	Owner   int64  `form:"-" url:"-"`
+	OrgId   int64  `form:"-" url:"-"`
 }

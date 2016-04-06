@@ -4,24 +4,19 @@ import (
 	"strings"
 
 	"github.com/Unknwon/macaron"
-	"github.com/grafana/grafana/pkg/log"
-	//"github.com/raintank/raintank-apps/worldping-api/model"
+	"github.com/raintank/raintank-apps/pkg/auth"
 )
 
 type Context struct {
 	*macaron.Context
-	Owner   int64
-	IsAdmin bool
-	ApiKey  string
+	*auth.SignedInUser
 }
 
 func GetContextHandler() macaron.Handler {
 	return func(c *macaron.Context) {
 		ctx := &Context{
-			Context: c,
-			Owner:   0,
-			IsAdmin: false,
-			ApiKey:  "",
+			Context:      c,
+			SignedInUser: &auth.SignedInUser{},
 		}
 		c.Map(ctx)
 	}
@@ -39,19 +34,19 @@ func Auth(adminKey string) macaron.Handler {
 	return func(ctx *Context) {
 		key := getApiKey(ctx)
 		if key == "" {
-			log.Debug("Auth failed, no apiKey")
 			ctx.JSON(401, "Unauthorized")
 			return
 		}
-		if key == adminKey {
-			ctx.Owner = int64(1)
-			ctx.IsAdmin = true
-			ctx.ApiKey = key
+		user, err := auth.Auth(adminKey, key)
+		if err != nil {
+			if err == auth.ErrInvalidApiKey {
+				ctx.JSON(401, "Unauthorized")
+				return
+			}
+			ctx.JSON(500, err)
 			return
 		}
-		//TODO: validate Key against Grafana.Net
-		ctx.Owner = int64(2)
-		ctx.ApiKey = key
+		ctx.SignedInUser = user
 	}
 }
 

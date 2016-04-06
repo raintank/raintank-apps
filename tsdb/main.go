@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
 	"strings"
 
 	"github.com/Unknwon/macaron"
@@ -21,6 +22,7 @@ import (
 var log = logging.MustGetLogger("default")
 
 var (
+	GitHash     = "(none)"
 	showVersion = flag.Bool("version", false, "print version string")
 	logLevel    = flag.Int("log-level", 5, "log level. 5=DEBUG|4=INFO|3=NOTICE|2=WARNING|1=ERROR|0=CRITICAL")
 	confFile    = flag.String("config", "/etc/raintank/tsdb.ini", "configuration file path")
@@ -55,6 +57,11 @@ func main() {
 	logging.SetFormatter(logging.GlogFormatter)
 	logging.SetLevel(logging.Level(*logLevel), "default")
 	log.SetBackend(logging.AddModuleLevel(logging.NewLogBackend(os.Stdout, "", 0)))
+
+	if *showVersion {
+		fmt.Printf("tsdb (built with %s, git hash %s)\n", runtime.Version(), GitHash)
+		return
+	}
 
 	hostname, _ := os.Hostname()
 

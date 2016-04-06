@@ -13,7 +13,7 @@ func addCheckMigrations(mg *migrator.Migrator) {
 			{Name: "id", Type: migrator.DB_BigInt, IsPrimaryKey: true, IsAutoIncrement: true},
 			{Name: "endpoint_id", Type: migrator.DB_BigInt, Nullable: false},
 			{Name: "task_id", Type: migrator.DB_BigInt, Nullable: false},
-			{Name: "owner", Type: migrator.DB_BigInt, Nullable: false},
+			{Name: "org_id", Type: migrator.DB_BigInt, Nullable: false},
 			{Name: "type", Type: migrator.DB_NVarchar, Length: 64},
 			{Name: "frequency", Type: migrator.DB_BigInt, Nullable: false},
 			{Name: "enabled", Type: migrator.DB_Bool, Nullable: false},
@@ -26,7 +26,7 @@ func addCheckMigrations(mg *migrator.Migrator) {
 			{Name: "updated", Type: migrator.DB_DateTime, Nullable: false},
 		},
 		Indices: []*migrator.Index{
-			{Cols: []string{"endpoint_id", "owner"}},
+			{Cols: []string{"endpoint_id", "org_id"}},
 		},
 	}
 	mg.AddMigration("create check table v1", migrator.NewAddTableMigration(checkV1))

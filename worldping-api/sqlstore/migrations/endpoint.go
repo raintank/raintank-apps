@@ -11,16 +11,16 @@ func addEndpointMigrations(mg *migrator.Migrator) {
 		Name: "endpoint",
 		Columns: []*migrator.Column{
 			{Name: "id", Type: migrator.DB_BigInt, IsPrimaryKey: true, IsAutoIncrement: true},
-			{Name: "owner", Type: migrator.DB_BigInt, Nullable: false},
+			{Name: "org_id", Type: migrator.DB_BigInt, Nullable: false},
 			{Name: "name", Type: migrator.DB_NVarchar, Length: 255},
 			{Name: "slug", Type: migrator.DB_NVarchar, Length: 255},
 			{Name: "created", Type: migrator.DB_DateTime},
 			{Name: "updated", Type: migrator.DB_DateTime},
 		},
 		Indices: []*migrator.Index{
-			{Cols: []string{"owner", "id"}},
-			{Cols: []string{"slug", "owner"}, Type: migrator.UniqueIndex},
-			{Cols: []string{"name", "owner"}, Type: migrator.UniqueIndex},
+			{Cols: []string{"org_id", "id"}},
+			{Cols: []string{"slug", "org_id"}, Type: migrator.UniqueIndex},
+			{Cols: []string{"name", "org_id"}, Type: migrator.UniqueIndex},
 		},
 	}
 	mg.AddMigration("create endpoint table v1", migrator.NewAddTableMigration(endpointV1))

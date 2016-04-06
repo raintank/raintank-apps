@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
 	"strings"
 
 	"github.com/grafana/grafana/pkg/log"
@@ -17,6 +18,7 @@ import (
 )
 
 var (
+	GitHash     = "(none)"
 	showVersion = flag.Bool("version", false, "print version string")
 	logLevel    = flag.Int("log-level", 2, "log level. 0=TRACE|1=DEBUG|2=INFO|3=WARN|4=ERROR|5=CRITICAL|6=FATAL")
 	confFile    = flag.String("config", "/etc/raintank/task-server.ini", "configuration file path")
@@ -60,6 +62,11 @@ func main() {
 		log.Level(log.CRITICAL)
 	case 6:
 		log.Level(log.FATAL)
+	}
+
+	if *showVersion {
+		fmt.Printf("task-server (built with %s, git hash %s)\n", runtime.Version(), GitHash)
+		return
 	}
 
 	hostname, _ := os.Hostname()

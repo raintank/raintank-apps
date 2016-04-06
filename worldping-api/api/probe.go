@@ -9,7 +9,7 @@ import (
 )
 
 func GetProbes(ctx *Context, query model.GetProbesQuery) {
-	query.Owner = ctx.Owner
+	query.OrgId = ctx.OrgId
 	pQuery := sModel.GetAgentsQuery{
 		Name:    query.Name,
 		Metric:  "/worldping/*/*/ping/*",
@@ -37,9 +37,9 @@ func GetProbes(ctx *Context, query model.GetProbesQuery) {
 }
 
 func AddProbe(ctx *Context, p model.ProbeDTO) {
-	p.Owner = ctx.Owner
+	p.OrgId = ctx.OrgId
 	agent := &sModel.AgentDTO{
-		Owner:         ctx.Owner,
+		OrgId:         ctx.OrgId,
 		Name:          p.Name,
 		Tags:          p.Tags,
 		Public:        p.Public,
@@ -64,10 +64,10 @@ func AddProbe(ctx *Context, p model.ProbeDTO) {
 }
 
 func UpdateProbe(ctx *Context, p model.ProbeDTO) {
-	p.Owner = ctx.Owner
+	p.OrgId = ctx.OrgId
 	agent := &sModel.AgentDTO{
 		Id:            p.Id,
-		Owner:         ctx.Owner,
+		OrgId:         ctx.OrgId,
 		Name:          p.Name,
 		Tags:          p.Tags,
 		Public:        p.Public,

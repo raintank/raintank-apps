@@ -30,7 +30,7 @@ func (rows endpointRows) ToDTO() []*model.EndpointDTO {
 
 		check := &model.Check{
 			Id:             r.Check.Id,
-			Owner:          r.Check.Owner,
+			OrgId:          r.Check.OrgId,
 			EndpointId:     r.Check.EndpointId,
 			Type:           r.Check.Type,
 			Frequency:      r.Check.Frequency,
@@ -47,7 +47,7 @@ func (rows endpointRows) ToDTO() []*model.EndpointDTO {
 		if !ok {
 			endpointsById[r.Endpoint.Id] = &model.EndpointDTO{
 				Id:      r.Endpoint.Id,
-				Owner:   r.Endpoint.Owner,
+				OrgId:   r.Endpoint.OrgId,
 				Name:    r.Endpoint.Name,
 				Slug:    r.Endpoint.Slug,
 				Checks:  make([]*model.Check, 0),
@@ -132,17 +132,17 @@ func getEndpoints(sess *session, query *model.GetEndpointsQuery) ([]*model.Endpo
 	return e.ToDTO(), nil
 }
 
-func GetEndpointById(id int64, owner int64) (*model.EndpointDTO, error) {
+func GetEndpointById(id int64, orgId int64) (*model.EndpointDTO, error) {
 	sess, err := newSession(false, "endpoint")
 	if err != nil {
 		return nil, err
 	}
-	return getEndpointById(sess, id, owner)
+	return getEndpointById(sess, id, orgId)
 }
 
-func getEndpointById(sess *session, id int64, owner int64) (*model.EndpointDTO, error) {
+func getEndpointById(sess *session, id int64, orgId int64) (*model.EndpointDTO, error) {
 	var e endpointRows
-	sess.Where("endpoint.id=? AND endpoint.owner=?", id, owner)
+	sess.Where("endpoint.id=? AND endpoint.org_id=?", id, orgId)
 	sess.Join("LEFT", "check", "endpoint.id = `check`.endpoint_id")
 	sess.Join("LEFT", "endpoint_tag", "endpoint.id = endpoint_tag.endpoint_id")
 
@@ -172,7 +172,7 @@ func AddEndpoint(e *model.EndpointDTO) error {
 
 func addEndpoint(sess *session, e *model.EndpointDTO) error {
 	endpoint := &model.Endpoint{
-		Owner:   e.Owner,
+		OrgId:   e.OrgId,
 		Name:    e.Name,
 		Created: time.Now(),
 		Updated: time.Now(),
@@ -189,7 +189,7 @@ func addEndpoint(sess *session, e *model.EndpointDTO) error {
 	endpointTags := make([]model.EndpointTag, 0, len(e.Tags))
 	for _, tag := range e.Tags {
 		endpointTags = append(endpointTags, model.EndpointTag{
-			Owner:      e.Owner,
+			OrgId:      e.OrgId,
 			EndpointId: endpoint.Id,
 			Tag:        tag,
 			Created:    time.Now(),
@@ -204,7 +204,7 @@ func addEndpoint(sess *session, e *model.EndpointDTO) error {
 
 	//perform each insert on its own so that the ID field gets assigned and task created
 	for _, c := range e.Checks {
-		c.Owner = e.Owner
+		c.OrgId = e.OrgId
 		c.EndpointId = e.Id
 		if err := addCheck(sess, c); err != nil {
 			return err
@@ -229,7 +229,7 @@ func UpdateEndpoint(e *model.EndpointDTO) error {
 }
 
 func updateEndpoint(sess *session, e *model.EndpointDTO) error {
-	existing, err := getEndpointById(sess, e.Id, e.Owner)
+	existing, err := getEndpointById(sess, e.Id, e.OrgId)
 	if err != nil {
 		return err
 	}
@@ -238,7 +238,7 @@ func updateEndpoint(sess *session, e *model.EndpointDTO) error {
 	}
 	endpoint := &model.Endpoint{
 		Id:      e.Id,
-		Owner:   e.Owner,
+		OrgId:   e.OrgId,
 		Name:    e.Name,
 		Created: existing.Created,
 		Updated: time.Now(),
@@ -287,7 +287,7 @@ func updateEndpoint(sess *session, e *model.EndpointDTO) error {
 	}
 	if len(tagsToDelete) > 0 {
 		sess.Table("endpoint_tag")
-		sess.Where("endpoint_id=? AND owner=?", e.Id, e.Owner)
+		sess.Where("endpoint_id=? AND org_id=?", e.Id, e.OrgId)
 		sess.In("tag", tagsToDelete)
 		if _, err := sess.Delete(nil); err != nil {
 			return err
@@ -297,7 +297,7 @@ func updateEndpoint(sess *session, e *model.EndpointDTO) error {
 		newEndpointTags := make([]model.EndpointTag, len(tagsToAdd))
 		for i, tag := range tagsToAdd {
 			newEndpointTags[i] = model.EndpointTag{
-				Owner:      e.Owner,
+				OrgId:      e.OrgId,
 				EndpointId: e.Id,
 				Tag:        tag,
 				Created:    time.Now(),
@@ -322,7 +322,7 @@ func updateEndpoint(sess *session, e *model.EndpointDTO) error {
 	}
 	for _, c := range e.Checks {
 		c.EndpointId = e.Id
-		c.Owner = e.Owner
+		c.OrgId = e.OrgId
 		seenChecks[c.Type] = true
 		ec, ok := checkMap[c.Type]
 		if !ok {
@@ -369,36 +369,36 @@ func updateEndpoint(sess *session, e *model.EndpointDTO) error {
 	return nil
 }
 
-func DeleteEndpoint(id, owner int64) error {
+func DeleteEndpoint(id, orgId int64) error {
 	sess, err := newSession(true, "endpoint")
 	if err != nil {
 		return err
 	}
 	defer sess.Cleanup()
 
-	if err = deleteEndpoint(sess, id, owner); err != nil {
+	if err = deleteEndpoint(sess, id, orgId); err != nil {
 		return err
 	}
 	sess.Complete()
 	return nil
 }
 
-func deleteEndpoint(sess *session, id, owner int64) error {
-	existing, err := getEndpointById(sess, id, owner)
+func deleteEndpoint(sess *session, id, orgId int64) error {
+	existing, err := getEndpointById(sess, id, orgId)
 	if err != nil {
 		return err
 	}
 	if existing == nil {
 		return model.ErrEndpointNotFound
 	}
-	var rawSql = "DELETE FROM endpoint WHERE id=? and owner=?"
-	_, err = sess.Exec(rawSql, id, owner)
+	var rawSql = "DELETE FROM endpoint WHERE id=? and org_id=?"
+	_, err = sess.Exec(rawSql, id, orgId)
 	if err != nil {
 		return err
 	}
 
-	rawSql = "DELETE FROM endpoint_tag WHERE endpoint_id=? and owner=?"
-	if _, err := sess.Exec(rawSql, id, owner); err != nil {
+	rawSql = "DELETE FROM endpoint_tag WHERE endpoint_id=? and org_id=?"
+	if _, err := sess.Exec(rawSql, id, orgId); err != nil {
 		return err
 	}
 	checks := make([]*model.Check, 0)

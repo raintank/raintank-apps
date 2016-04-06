@@ -1,0 +1,10 @@
+build/
+tsdb/tsdb
+task-server/task-server
+task-agent/task-agent
+
+# Editor junk
+*.sublime-workspace
+*.swp
+.idea/
+*.iml
