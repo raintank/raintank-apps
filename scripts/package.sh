@@ -21,7 +21,7 @@ for VAR in task-server task-agent tsdb; do
 	cp ${BUILD}/bin/$VAR ${NSQ_BUILD}/usr/bin
 	fpm -s dir -t deb \
 	  -v ${VERSION} -n ${VAR} -a ${ARCH} --iteration $ITERATION --description "Raintank $VAR" \
-	  --deb-upstart ${BUILD}/etc/init/${VAR} \
+	  --deb-upstart ${BASE}/etc/init/${VAR} \
 	  -C ${NSQ_BUILD} -p ${NSQ_PACKAGE_NAME} .
 done
 

@@ -18,14 +18,14 @@ general:
 test:
   override:
      # FMT
-     - test -z "$(gofmt -s -l ./... | tee /dev/stderr)"
+     - test -z "$(gofmt -s -l . | tee /dev/stderr)"
      # GO VET
      - go vet ./...
      # Go test
      - go test -v ./...
   post:
     - scripts/build_all.sh
-    - scipts/package.sh
+    - scripts/package.sh
 deployment:
   production:
     branch: master
