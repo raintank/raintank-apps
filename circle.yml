@@ -9,10 +9,10 @@ dependencies:
     - ln -s /home/ubuntu/$CIRCLE_PROJECT_REPONAME /home/ubuntu/go/src/github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME
     - go get ./...:
         pwd:
-          /home/ubuntu/go/src/github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME
+          ../go/src/github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME
     - bundle install:
         pwd:
-          /home/ubuntu/$CIRCLE_PROJECT_REPONAME/scripts
+          scripts
 general:
   artifacts:
     - build/
