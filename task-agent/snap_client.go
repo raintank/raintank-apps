@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 
+	"github.com/grafana/grafana/pkg/log"
 	"github.com/intelsdi-x/snap/core/ctypes"
 	"github.com/intelsdi-x/snap/mgmt/rest/client"
 	"github.com/intelsdi-x/snap/mgmt/rest/rbody"
@@ -73,7 +74,7 @@ func CreateSnapTask(t *model.TaskDTO, name string) (*rbody.ScheduledTask, error)
 	}
 
 	resp := SnapClient.CreateTask(s, wf, name, "10s", true)
-	log.Debugf("%v", resp)
+	log.Debug("%v", resp)
 	var newTask rbody.ScheduledTask
 	if resp.Err == nil {
 		newTask = rbody.ScheduledTask(*resp.AddScheduledTask)

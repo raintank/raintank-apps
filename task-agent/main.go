@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/op/go-logging"
+	"github.com/grafana/grafana/pkg/log"
 	"github.com/raintank/raintank-apps/pkg/message"
 	"github.com/raintank/raintank-apps/pkg/session"
 	"github.com/rakyll/globalconf"
@@ -20,11 +20,9 @@ import (
 
 const Version int = 1
 
-var log = logging.MustGetLogger("default")
-
 var (
 	showVersion = flag.Bool("version", false, "print version string")
-	logLevel    = flag.Int("log-level", 4, "log level. 5=DEBUG|4=INFO|3=NOTICE|2=WARNING|1=ERROR|0=CRITICAL")
+	logLevel    = flag.Int("log-level", 2, "log level. 0=TRACE|1=DEBUG|2=INFO|3=WARN|4=ERROR|5=CRITICAL|6=FATAL")
 	confFile    = flag.String("config", "/etc/raintank/collector.ini", "configuration file path")
 
 	serverAddr = flag.String("server-addr", "ws://localhost:80/api/v1/", "addres of raintank-apps server")
@@ -35,7 +33,7 @@ var (
 )
 
 func connect(u *url.URL) (*websocket.Conn, error) {
-	log.Infof("connecting to %s", u.String())
+	log.Info("connecting to %s", u.String())
 	header := make(http.Header)
 	header.Set("Authorization", fmt.Sprintf("Bearer %s", *apiKey))
 	conn, _, err := websocket.DefaultDialer.Dial(u.String(), header)
@@ -53,26 +51,41 @@ func main() {
 		conf.ParseAll()
 	}
 
-	logging.SetFormatter(logging.GlogFormatter)
-	logging.SetLevel(logging.Level(*logLevel), "default")
-	log.SetBackend(logging.AddModuleLevel(logging.NewLogBackend(os.Stdout, "", 0)))
+	log.NewLogger(0, "console", fmt.Sprintf(`{"level": %d, "formatting":true}`, *logLevel))
+	// workaround for https://github.com/grafana/grafana/issues/4055
+	switch *logLevel {
+	case 0:
+		log.Level(log.TRACE)
+	case 1:
+		log.Level(log.DEBUG)
+	case 2:
+		log.Level(log.INFO)
+	case 3:
+		log.Level(log.WARN)
+	case 4:
+		log.Level(log.ERROR)
+	case 5:
+		log.Level(log.CRITICAL)
+	case 6:
+		log.Level(log.FATAL)
+	}
 
 	if *nodeName == "" {
-		log.Fatalf("name must be set.")
+		log.Fatal(4, "name must be set.")
 	}
 
 	snapUrl, err := url.Parse(*snapUrlStr)
 	if err != nil {
-		log.Fatalf("could not parse snapUrl. %s", err)
+		log.Fatal(4, "could not parse snapUrl. %s", err)
 	}
 	InitSnapClient(snapUrl)
 	catalog, err := GetSnapMetrics()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(4, err.Error())
 	}
 	err = SetSnapGlobalConfig()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(4, err.Error())
 	}
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
@@ -80,17 +93,17 @@ func main() {
 
 	controllerUrl, err := url.Parse(*serverAddr)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(4, err.Error())
 	}
 	controllerUrl.Path = path.Clean(controllerUrl.Path + fmt.Sprintf("/socket/%s/%d", *nodeName, Version))
 
 	if controllerUrl.Scheme != "ws" && controllerUrl.Scheme != "wss" {
-		log.Fatal("invalid server address.  scheme must be ws or wss. was %s", controllerUrl.Scheme)
+		log.Fatal(4, "invalid server address.  scheme must be ws or wss. was %s", controllerUrl.Scheme)
 	}
 
 	conn, err := connect(controllerUrl)
 	if err != nil {
-		log.Fatalf("unable to connect to server on url %s: %s", controllerUrl.String(), err)
+		log.Fatal(4, "unable to connect to server on url %s: %s", controllerUrl.String(), err)
 	}
 
 	//create new session, allow 1000 events to be queued in the writeQueue before Emit() blocks.
@@ -117,7 +130,7 @@ func main() {
 	})
 
 	sess.On("heartbeat", func(body []byte) {
-		log.Debugf("recieved heartbeat event. %s", body)
+		log.Debug("recieved heartbeat event. %s", body)
 	})
 
 	sess.On("taskUpdate", HandleTaskUpdate())
@@ -128,7 +141,7 @@ func main() {
 	//send our MetricCatalog
 	body, err := json.Marshal(catalog)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(4, err.Error())
 	}
 	e := &message.Event{Event: "catalog", Payload: body}
 	sess.Emit(e)
@@ -153,12 +166,12 @@ func SendCatalog(sess *session.Session, shutdownStart chan struct{}) {
 		case <-ticker.C:
 			catalog, err := GetSnapMetrics()
 			if err != nil {
-				log.Error(err)
+				log.Error(3, err.Error())
 				continue
 			}
 			body, err := json.Marshal(catalog)
 			if err != nil {
-				log.Error(err)
+				log.Error(3, err.Error())
 				continue
 			}
 			e := &message.Event{Event: "catalog", Payload: body}
