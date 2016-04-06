@@ -83,7 +83,7 @@ func (s *Session) Close() {
 	s.Lock()
 	s.closing = true
 	s.Unlock()
-	s.writeMessageChan <- &message.Message{websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")}
+	s.writeMessageChan <- &message.Message{MessageType: websocket.CloseMessage, Body: websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")}
 	close(s.writeMessageChan)
 	log.Info("waiting for socketWriter to finish sending all messages.")
 	select {
@@ -118,7 +118,7 @@ func (s *Session) socketReader(done chan struct{}) {
 			log.Errorf("read: %s", err)
 			return
 		}
-		msg := &message.Message{mtype, body}
+		msg := &message.Message{MessageType: mtype, Body: body}
 		e, err := msg.ToEvent()
 		if err != nil {
 			log.Error("Error: failed to decode message to Event.")

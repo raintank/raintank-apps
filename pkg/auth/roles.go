@@ -33,5 +33,5 @@ type SignedInUser struct {
 	Role      RoleType  `json:"role"`
 	CreatedAt time.Time `json:"createAt"`
 	IsAdmin   bool      `json:"-"`
-	key       string    `json:"-"`
+	key       string
 }

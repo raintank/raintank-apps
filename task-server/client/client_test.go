@@ -30,7 +30,7 @@ func startApi(done chan struct{}) string {
 	// initialize DB
 	tmpfile, err := ioutil.TempFile("", "example")
 	if err != nil {
-		panic(err.Error)
+		panic(err.Error())
 	}
 	dbpath := tmpfile.Name()
 	tmpfile.Close()
