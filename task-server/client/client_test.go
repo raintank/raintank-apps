@@ -57,23 +57,23 @@ func startApi(done chan struct{}) string {
 
 func addTestMetrics(agent *model.AgentDTO) {
 	metrics := []*model.Metric{
-		&model.Metric{
+		{
 			OrgId:     1,
 			Public:    true,
 			Namespace: "/testing/demo/demo1",
 			Version:   1,
 			Policy: []rbody.PolicyTable{
-				rbody.PolicyTable{
+				{
 					Name:     "user",
 					Type:     "string",
 					Required: true,
 				},
-				rbody.PolicyTable{
+				{
 					Name:     "passwd",
 					Type:     "string",
 					Required: true,
 				},
-				rbody.PolicyTable{
+				{
 					Name:     "limit",
 					Type:     "integer",
 					Required: false,
@@ -81,7 +81,7 @@ func addTestMetrics(agent *model.AgentDTO) {
 				},
 			},
 		},
-		&model.Metric{
+		{
 			OrgId:     1,
 			Public:    true,
 			Namespace: "/testing/demo2/demo",
@@ -227,7 +227,7 @@ func TestApiClient(t *testing.T) {
 				t := &model.TaskDTO{
 					Name:     fmt.Sprintf("test Task%d", taskCount),
 					Interval: 60,
-					Config: map[string]map[string]interface{}{"/": map[string]interface{}{
+					Config: map[string]map[string]interface{}{"/": {
 						"user":   "test",
 						"passwd": "test",
 					}},

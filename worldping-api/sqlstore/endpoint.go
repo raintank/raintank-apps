@@ -85,7 +85,7 @@ func (rows endpointRows) ToDTO() []*model.EndpointDTO {
 			e.Checks = append(e.Checks, c)
 		}
 
-		for t, _ := range endpointTagsById[e.Id] {
+		for t := range endpointTagsById[e.Id] {
 			e.Tags = append(e.Tags, t)
 		}
 

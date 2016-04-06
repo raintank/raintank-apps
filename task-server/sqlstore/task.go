@@ -326,7 +326,7 @@ func updateTask(sess *session, t *model.TaskDTO) error {
 					tagsToAdd = append(tagsToAdd, tag)
 				}
 			}
-			for tag, _ := range existingTags {
+			for tag := range existingTags {
 				if _, ok := currentTags[tag]; !ok {
 					tagsToDel = append(tagsToDel, tag)
 				}
@@ -374,7 +374,7 @@ func updateTask(sess *session, t *model.TaskDTO) error {
 					idsToAdd = append(idsToAdd, id)
 				}
 			}
-			for id, _ := range existingIds {
+			for id := range existingIds {
 				if _, ok := currentIds[id]; !ok {
 					idsToDel = append(idsToDel, id)
 				}
