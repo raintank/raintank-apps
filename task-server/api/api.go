@@ -3,13 +3,10 @@ package api
 import (
 	"github.com/Unknwon/macaron"
 	"github.com/macaron-contrib/binding"
-	"github.com/op/go-logging"
 	"github.com/raintank/met"
 	"github.com/raintank/raintank-apps/task-server/api/rbody"
 	"github.com/raintank/raintank-apps/task-server/model"
 )
-
-var log = logging.MustGetLogger("default")
 
 var (
 	taskCreate met.Count

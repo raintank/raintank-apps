@@ -163,7 +163,6 @@ func addTask(sess *session, t *model.TaskDTO) error {
 	}
 	sess.UseBool("enabled")
 	if _, err := sess.Insert(&task); err != nil {
-		log.Debugf("could not insert into task. %s", err)
 		return err
 	}
 	t.Created = task.Created

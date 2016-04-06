@@ -6,13 +6,11 @@ import (
 	"path"
 
 	"github.com/go-xorm/xorm"
+	"github.com/grafana/grafana/pkg/log"
 	"github.com/grafana/grafana/pkg/services/sqlstore/migrator"
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/op/go-logging"
 	"github.com/raintank/raintank-apps/task-server/sqlstore/migrations"
 )
-
-var log = logging.MustGetLogger("default")
 
 var (
 	x       *xorm.Engine
@@ -58,11 +56,11 @@ func NewEngine(dbPath string) {
 	x, err := getEngine(dbPath)
 
 	if err != nil {
-		log.Fatalf("Sqlstore: Fail to connect to database: %v", err)
+		log.Fatal(3, "Sqlstore: Fail to connect to database: %v", err)
 	}
 	err = SetEngine(x, true)
 	if err != nil {
-		log.Fatalf("fail to initialize orm engine: %v", err)
+		log.Fatal(3, "fail to initialize orm engine: %v", err)
 	}
 }
 

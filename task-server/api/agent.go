@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 
+	"github.com/grafana/grafana/pkg/log"
 	"github.com/raintank/raintank-apps/task-server/api/rbody"
 	"github.com/raintank/raintank-apps/task-server/model"
 	"github.com/raintank/raintank-apps/task-server/sqlstore"
@@ -12,7 +13,7 @@ func GetAgents(ctx *Context, query model.GetAgentsQuery) {
 	query.OrgId = ctx.OrgId
 	agents, err := sqlstore.GetAgents(&query)
 	if err != nil {
-		log.Error(err)
+		log.Error(3, err.Error())
 		ctx.JSON(200, rbody.ErrResp(500, err))
 		return
 	}
@@ -24,7 +25,7 @@ func GetAgentById(ctx *Context) {
 	owner := ctx.OrgId
 	agent, err := sqlstore.GetAgentById(id, owner)
 	if err != nil {
-		log.Error(err)
+		log.Error(3, err.Error())
 		ctx.JSON(200, rbody.ErrResp(500, err))
 		return
 	}
@@ -40,7 +41,7 @@ func GetAgentMetrics(ctx *Context) {
 	owner := ctx.OrgId
 	agent, err := sqlstore.GetAgentById(id, owner)
 	if err != nil {
-		log.Error(err)
+		log.Error(3, err.Error())
 		ctx.JSON(200, rbody.ErrResp(500, err))
 		return
 	}
@@ -50,7 +51,7 @@ func GetAgentMetrics(ctx *Context) {
 	}
 	metrics, err := sqlstore.GetAgentMetrics(agent)
 	if err != nil {
-		log.Error(err)
+		log.Error(3, err.Error())
 		ctx.JSON(200, rbody.ErrResp(500, err))
 		return
 	}
@@ -68,7 +69,7 @@ func AddAgent(ctx *Context, agent model.AgentDTO) {
 	agent.OrgId = ctx.OrgId
 	err := sqlstore.AddAgent(&agent)
 	if err != nil {
-		log.Error(err)
+		log.Error(3, err.Error())
 		ctx.JSON(200, rbody.ErrResp(500, err))
 		return
 	}
@@ -88,7 +89,7 @@ func UpdateAgent(ctx *Context, agent model.AgentDTO) {
 	agent.OrgId = ctx.OrgId
 	err := sqlstore.UpdateAgent(&agent)
 	if err != nil {
-		log.Error(err)
+		log.Error(3, err.Error())
 		ctx.JSON(200, rbody.ErrResp(500, err))
 		return
 	}
@@ -104,7 +105,7 @@ func DeleteAgent(ctx *Context) {
 			ctx.JSON(200, rbody.ErrResp(404, fmt.Errorf("agent not found")))
 			return
 		}
-		log.Error(err)
+		log.Error(3, err.Error())
 		ctx.JSON(200, rbody.ErrResp(500, err))
 		return
 	}

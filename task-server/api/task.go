@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 
+	"github.com/grafana/grafana/pkg/log"
 	"github.com/raintank/raintank-apps/task-server/api/rbody"
 	"github.com/raintank/raintank-apps/task-server/model"
 	"github.com/raintank/raintank-apps/task-server/sqlstore"
@@ -13,7 +14,7 @@ func GetTaskById(ctx *Context) {
 	owner := ctx.OrgId
 	task, err := sqlstore.GetTaskById(id, owner)
 	if err != nil {
-		log.Error(err)
+		log.Error(3, err.Error())
 		ctx.JSON(200, rbody.ErrResp(500, err))
 		return
 	}
@@ -28,7 +29,7 @@ func GetTasks(ctx *Context, query model.GetTasksQuery) {
 	query.OrgId = ctx.OrgId
 	tasks, err := sqlstore.GetTasks(&query)
 	if err != nil {
-		log.Error(err)
+		log.Error(3, err.Error())
 		ctx.JSON(200, rbody.ErrResp(500, err))
 		return
 	}
@@ -44,7 +45,7 @@ func AddTask(ctx *Context, task model.TaskDTO) {
 	}
 	ok, err := task.Route.Validate()
 	if err != nil {
-		log.Error(err)
+		log.Error(3, err.Error())
 		ctx.JSON(200, rbody.ErrResp(500, err))
 		return
 	}
@@ -54,7 +55,7 @@ func AddTask(ctx *Context, task model.TaskDTO) {
 	}
 	err = sqlstore.AddTask(&task)
 	if err != nil {
-		log.Error(err)
+		log.Error(3, err.Error())
 		ctx.JSON(200, rbody.ErrResp(500, err))
 		return
 	}
@@ -67,7 +68,7 @@ func UpdateTask(ctx *Context, task model.TaskDTO) {
 	task.OrgId = ctx.OrgId
 	err := sqlstore.UpdateTask(&task)
 	if err != nil {
-		log.Error(err)
+		log.Error(3, err.Error())
 		ctx.JSON(200, rbody.ErrResp(500, err))
 		return
 	}
@@ -79,7 +80,7 @@ func DeleteTask(ctx *Context) {
 	owner := ctx.OrgId
 	existing, err := sqlstore.DeleteTask(id, owner)
 	if err != nil {
-		log.Error(err)
+		log.Error(3, err.Error())
 		ctx.JSON(200, rbody.ErrResp(500, err))
 		return
 	}

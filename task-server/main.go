@@ -9,18 +9,16 @@ import (
 	"os/signal"
 	"strings"
 
-	"github.com/op/go-logging"
+	"github.com/grafana/grafana/pkg/log"
 	"github.com/raintank/met/helper"
 	"github.com/raintank/raintank-apps/task-server/api"
 	"github.com/raintank/raintank-apps/task-server/sqlstore"
 	"github.com/rakyll/globalconf"
 )
 
-var log = logging.MustGetLogger("default")
-
 var (
 	showVersion = flag.Bool("version", false, "print version string")
-	logLevel    = flag.Int("log-level", 5, "log level. 5=DEBUG|4=INFO|3=NOTICE|2=WARNING|1=ERROR|0=CRITICAL")
+	logLevel    = flag.Int("log-level", 2, "log level. 0=TRACE|1=DEBUG|2=INFO|3=WARN|4=ERROR|5=CRITICAL|6=FATAL")
 	confFile    = flag.String("config", "/etc/raintank/task-server.ini", "configuration file path")
 
 	addr   = flag.String("addr", "localhost:80", "http service address")
@@ -45,15 +43,30 @@ func main() {
 		conf.ParseAll()
 	}
 
-	logging.SetFormatter(logging.GlogFormatter)
-	logging.SetLevel(logging.Level(*logLevel), "default")
-	log.SetBackend(logging.AddModuleLevel(logging.NewLogBackend(os.Stdout, "", 0)))
+	log.NewLogger(0, "console", fmt.Sprintf(`{"level": %d, "formatting":true}`, *logLevel))
+	// workaround for https://github.com/grafana/grafana/issues/4055
+	switch *logLevel {
+	case 0:
+		log.Level(log.TRACE)
+	case 1:
+		log.Level(log.DEBUG)
+	case 2:
+		log.Level(log.INFO)
+	case 3:
+		log.Level(log.WARN)
+	case 4:
+		log.Level(log.ERROR)
+	case 5:
+		log.Level(log.CRITICAL)
+	case 6:
+		log.Level(log.FATAL)
+	}
 
 	hostname, _ := os.Hostname()
 
 	stats, err := helper.New(*statsEnabled, *statsdAddr, *statsdType, "raintank_apps", strings.Replace(hostname, ".", "_", -1))
 	if err != nil {
-		log.Fatalf("failed to initialize statsd. %s", err)
+		log.Fatal(4, "failed to initialize statsd. %s", err)
 	}
 
 	// initialize DB
@@ -73,11 +86,11 @@ func main() {
 	// define our own listner so we can call Close on it
 	l, err := net.Listen("tcp", *addr)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(4, err.Error())
 	}
 	done := make(chan struct{})
 	go handleShutdown(done, interrupt, l)
-	log.Info(http.Serve(l, m))
+	log.Info("%v", http.Serve(l, m))
 	<-done
 }
 

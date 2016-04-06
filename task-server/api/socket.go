@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"github.com/gorilla/websocket"
-
+	"github.com/grafana/grafana/pkg/log"
 	"github.com/raintank/raintank-apps/pkg/message"
 	"github.com/raintank/raintank-apps/task-server/agent_session"
 	"github.com/raintank/raintank-apps/task-server/model"
@@ -45,7 +45,7 @@ func (s *socketList) EmitTask(task *model.TaskDTO, event string) error {
 	s.Lock()
 	for _, agent := range agents {
 		if as, ok := s.Sockets[agent.Id]; ok {
-			log.Debugf("sending %s event to agent %d", event, agent.Id)
+			log.Debug("sending %s event to agent %d", event, agent.Id)
 			as.SocketSession.Emit(e)
 		}
 	}
@@ -57,7 +57,7 @@ func (s *socketList) NewSocket(a *agent_session.AgentSession) {
 	s.Lock()
 	existing, ok := s.Sockets[a.Agent.Id]
 	if ok {
-		log.Debugf("new connection for agent %d - %s, closing existing session", a.Agent.Id, a.Agent.Name)
+		log.Debug("new connection for agent %d - %s, closing existing session", a.Agent.Id, a.Agent.Name)
 		existing.Close()
 	}
 	s.Sockets[a.Agent.Id] = a
@@ -127,18 +127,18 @@ func socket(ctx *Context) {
 	owner := ctx.OrgId
 	agent, err := connectedAgent(agentName, owner)
 	if err != nil {
-		log.Debugf("agent cant connect. %s", err)
+		log.Debug("agent cant connect. %s", err)
 		ctx.JSON(400, err.Error())
 		return
 	}
 
 	c, err := upgrader.Upgrade(ctx.Resp, ctx.Req.Request, nil)
 	if err != nil {
-		log.Errorf("upgrade:", err)
+		log.Error(3, "upgrade:", err)
 		return
 	}
 
-	log.Debugf("agent %s connected.", agent.Name)
+	log.Debug("agent %s connected.", agent.Name)
 
 	sess := agent_session.NewSession(agent, agentVer, c)
 	ActiveSockets.NewSocket(sess)

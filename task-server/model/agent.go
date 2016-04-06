@@ -4,6 +4,8 @@ import (
 	"errors"
 	"regexp"
 	"time"
+
+	"github.com/grafana/grafana/pkg/log"
 )
 
 var (
@@ -57,7 +59,7 @@ type AgentDTO struct {
 func (a *AgentDTO) ValidName() bool {
 	matched, err := regexp.MatchString("^[0-9a-zA-Z_-]+$", a.Name)
 	if err != nil {
-		log.Errorf("regex error. %s", err)
+		log.Error(3, "regex error. %s", err)
 		return false
 	}
 

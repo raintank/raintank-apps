@@ -6,15 +6,13 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/grafana/grafana/pkg/log"
 	"github.com/intelsdi-x/snap/mgmt/rest/rbody"
-	"github.com/op/go-logging"
 	"github.com/raintank/raintank-apps/pkg/message"
 	"github.com/raintank/raintank-apps/pkg/session"
 	"github.com/raintank/raintank-apps/task-server/model"
 	"github.com/raintank/raintank-apps/task-server/sqlstore"
 )
-
-var log = logging.MustGetLogger("default")
 
 type AgentSession struct {
 	Agent         *model.AgentDTO
@@ -39,26 +37,26 @@ func NewSession(agent *model.AgentDTO, agentVer int64, conn *websocket.Conn) *Ag
 
 func (a *AgentSession) Start() error {
 	if err := a.saveDbSession(); err != nil {
-		log.Errorf("unable to add agentSession to DB. %s", err.Error())
+		log.Error(3, "unable to add agentSession to DB. %s", err.Error())
 		a.close()
 		return err
 	}
 
 	log.Debug("setting handler for disconnect event.")
 	if err := a.SocketSession.On("disconnect", a.OnDisconnect()); err != nil {
-		log.Errorf("failed to bind disconnect event. %s", err.Error())
+		log.Error(3, "failed to bind disconnect event. %s", err.Error())
 		a.close()
 		return err
 	}
 
 	log.Debug("setting handler for catalog event.")
 	if err := a.SocketSession.On("catalog", a.HandleCatalog()); err != nil {
-		log.Errorf("failed to bind catalog event handler. %s", err.Error())
+		log.Error(3, "failed to bind catalog event handler. %s", err.Error())
 		a.close()
 		return err
 	}
 
-	log.Infof("starting session %s", a.SocketSession.Id)
+	log.Info("starting session %s", a.SocketSession.Id)
 	go a.SocketSession.Start()
 
 	// run background tasks for this session.
@@ -76,9 +74,9 @@ func (a *AgentSession) close() {
 	if !a.closing {
 		a.closing = true
 		close(a.Shutdown)
-		log.Debugf("closing websocket")
+		log.Debug("closing websocket")
 		a.SocketSession.Close()
-		log.Debugf("websocket closed")
+		log.Debug("websocket closed")
 
 		a.cleanup()
 		close(a.Done)
@@ -106,16 +104,16 @@ func (a *AgentSession) saveDbSession() error {
 func (a *AgentSession) cleanup() {
 	//remove agentSession from DB.
 	if a.dbSession != nil {
-		log.Debugf("deleting agent_session for %s from DB", a.Agent.Name)
+		log.Debug("deleting agent_session for %s from DB", a.Agent.Name)
 		sqlstore.DeleteAgentSession(a.dbSession)
 	} else {
-		log.Debugf("agent_session for %s has no db session.", a.Agent.Name)
+		log.Debug("agent_session for %s has no db session.", a.Agent.Name)
 	}
 }
 
 func (a *AgentSession) OnDisconnect() interface{} {
 	return func() {
-		log.Debugf("session %s has disconnected", a.SocketSession.Id)
+		log.Debug("session %s has disconnected", a.SocketSession.Id)
 		a.close()
 	}
 }
@@ -124,10 +122,10 @@ func (a *AgentSession) HandleCatalog() interface{} {
 	return func(body []byte) {
 		catalog := make([]*rbody.Metric, 0)
 		if err := json.Unmarshal(body, &catalog); err != nil {
-			log.Error(err)
+			log.Error(3, err.Error())
 			return
 		}
-		log.Debugf("Received catalog for session %s: %s", a.SocketSession.Id, body)
+		log.Debug("Received catalog for session %s: %s", a.SocketSession.Id, body)
 		metrics := make([]*model.Metric, len(catalog))
 		for i, m := range catalog {
 			metrics[i] = &model.Metric{
@@ -140,7 +138,7 @@ func (a *AgentSession) HandleCatalog() interface{} {
 		}
 		err := sqlstore.AddMissingMetricsForAgent(a.Agent, metrics)
 		if err != nil {
-			log.Errorf("failed to update metrics in DB. %s", err)
+			log.Error(3, "failed to update metrics in DB. %s", err)
 		}
 	}
 }
@@ -156,7 +154,7 @@ func (a *AgentSession) sendHeartbeat() {
 			e := &message.Event{Event: "heartbeat", Payload: []byte(t.String())}
 			err := a.SocketSession.Emit(e)
 			if err != nil {
-				log.Error("failed to emit heartbeat event. %s", err)
+				log.Error(3, "failed to emit heartbeat event. %s", err)
 			}
 		}
 	}
@@ -176,20 +174,20 @@ func (a *AgentSession) sendTaskUpdates() {
 }
 
 func (a *AgentSession) sendTaskUpdate() {
-	log.Debugf("sending TaskUpdate to %s", a.SocketSession.Id)
+	log.Debug("sending TaskUpdate to %s", a.SocketSession.Id)
 	tasks, err := sqlstore.GetAgentTasks(a.Agent)
 	if err != nil {
-		log.Errorf("failed to get task list. %s", err)
+		log.Error(3, "failed to get task list. %s", err)
 		return
 	}
 	body, err := json.Marshal(&tasks)
 	if err != nil {
-		log.Errorf("failed to Marshal task list to json. %s", err)
+		log.Error(3, "failed to Marshal task list to json. %s", err)
 		return
 	}
 	e := &message.Event{Event: "taskUpdate", Payload: body}
 	err = a.SocketSession.Emit(e)
 	if err != nil {
-		log.Error("failed to emit taskUpdate event. %s", err)
+		log.Error(3, "failed to emit taskUpdate event. %s", err)
 	}
 }
