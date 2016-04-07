@@ -17,8 +17,14 @@ for VAR in task-server task-agent tsdb; do
 	mkdir -p ${NSQ_BUILD}/etc/init
 	mkdir -p ${NSQ_BUILD}/etc/raintank
 
+	if [ $VAR == 'tsdb']; then
+		# also add the plugins
+		mkdir -p ${NSQ_BUILD}/var/lib/task-agent/plugins
+		cp ${BUILD}/plugins/* ${NSQ_BUILD}/var/lib/task-agent/plugins/
+	fi
+
 	cp ${BASE}/etc/${VAR}.ini ${NSQ_BUILD}/etc/raintank/
-	cp ${BUILD}/bin/$VAR ${NSQ_BUILD}/usr/bin
+	cp cp ${BUILD}/bin/$VAR ${NSQ_BUILD}/usr/bin
 	fpm -s dir -t deb \
 	  -v ${VERSION} -n ${VAR} -a ${ARCH} --iteration $ITERATION --description "Raintank $VAR" \
 	  --deb-upstart ${BASE}/etc/init/${VAR} \

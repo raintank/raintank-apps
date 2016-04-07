@@ -17,4 +17,6 @@ for VAR in task-server task-agent tsdb; do
 	go build -ldflags "-X main.GitHash=$GIT_HASH" -o ${CODE_DIR}/build/bin/$VAR
 done
 
+$CODE_DIR/snap/scripts/build.sh
+
 cd $CURRENT_PWD
