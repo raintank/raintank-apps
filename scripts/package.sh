@@ -5,7 +5,7 @@ CODE_DIR=$(readlink -e "$BASE/../")
 
 BUILD=$CODE_DIR/build
 
-VERSION="0.0.2" # need an automatic way to do this again :-/
+VERSION="0.0.3" # need an automatic way to do this again :-/
 ARCH="$(uname -m)"
 ITERATION=`date +%s`ubuntu1
 TAG="pkg-${VERSION}-${ITERATION}"
@@ -17,7 +17,7 @@ for VAR in task-server task-agent tsdb; do
 	mkdir -p ${NSQ_BUILD}/etc/init
 	mkdir -p ${NSQ_BUILD}/etc/raintank
 
-	if [ $VAR == 'tsdb']; then
+	if [ $VAR == 'task-agent' ]; then
 		# also add the plugins
 		mkdir -p ${NSQ_BUILD}/var/lib/task-agent/plugins
 		cp ${BUILD}/plugins/* ${NSQ_BUILD}/var/lib/task-agent/plugins/
