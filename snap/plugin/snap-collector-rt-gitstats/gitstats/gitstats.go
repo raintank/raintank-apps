@@ -25,6 +25,18 @@ const (
 // make sure that we actually satisify requierd interface
 var _ plugin.CollectorPlugin = (*Gitstats)(nil)
 
+var (
+	metricNames = []string{
+		"forks",
+		"issues",
+		"network",
+		"stars",
+		"subscribers",
+		"watches",
+		"size",
+	}
+)
+
 type Gitstats struct {
 }
 
@@ -112,10 +124,13 @@ func gitStats(accessToken, owner, repo string, mts []plugin.PluginMetricType) ([
 //GetMetricTypes returns metric types for testing
 func (f *Gitstats) GetMetricTypes(cfg plugin.PluginConfigType) ([]plugin.PluginMetricType, error) {
 	mts := []plugin.PluginMetricType{}
-	mts = append(mts, plugin.PluginMetricType{
-		Namespace_: []string{"raintank", "apps", "gitstats", "*", "*", "*"},
-		Labels_:    []core.Label{{Index: 3, Name: "owner"}, {Index: 4, Name: "repo"}, {Index: 5, Name: "stat"}},
-	})
+	for _, metricName := range metricNames {
+		mts = append(mts, plugin.PluginMetricType{
+			Namespace_: []string{"raintank", "apps", "gitstats", "*", "*", metricName},
+			Labels_:    []core.Label{{Index: 3, Name: "owner"}, {Index: 4, Name: "repo"}},
+			Config_:    cfg.ConfigDataNode,
+		})
+	}
 	return mts, nil
 }
 

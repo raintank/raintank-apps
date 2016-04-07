@@ -24,6 +24,17 @@ const (
 // make sure that we actually satisify requierd interface
 var _ plugin.CollectorPlugin = (*Ping)(nil)
 
+var (
+	metricNames = []string{
+		"avg",
+		"min",
+		"max",
+		"median",
+		"mdev",
+		"loss",
+	}
+)
+
 func init() {
 	GlobalPinger = pinger.NewPinger()
 }
@@ -109,10 +120,12 @@ func ping(agentName, endpoint, host string, mts []plugin.PluginMetricType) ([]pl
 //GetMetricTypes returns metric types for testing
 func (p *Ping) GetMetricTypes(cfg plugin.PluginConfigType) ([]plugin.PluginMetricType, error) {
 	mts := []plugin.PluginMetricType{}
-	mts = append(mts, plugin.PluginMetricType{
-		Namespace_: []string{"worldping", "*", "*", "ping", "*"},
-		Labels_:    []core.Label{{Index: 1, Name: "endpoint"}, {Index: 2, Name: "probe"}, {Index: 3, Name: "stat"}},
-	})
+	for _, metricName := range metricNames {
+		mts = append(mts, plugin.PluginMetricType{
+			Namespace_: []string{"worldping", "*", "*", "ping", metricName},
+			Labels_:    []core.Label{{Index: 1, Name: "endpoint"}, {Index: 2, Name: "probe"}},
+		})
+	}
 	return mts, nil
 }
 
