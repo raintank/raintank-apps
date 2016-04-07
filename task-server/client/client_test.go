@@ -156,8 +156,19 @@ func TestApiClient(t *testing.T) {
 					So(a.Created, ShouldHappenBefore, pre)
 					So(a.Updated, ShouldHappenAfter, pre)
 				})
+				Convey("When deleting an agent", func() {
+					err := c.DeleteAgent(&a)
+					So(err, ShouldBeNil)
+					agentCount--
+
+					Convey("When searching for agent by name", func() {
+						query := model.GetAgentsQuery{Name: a.Name}
+						agents, err := c.GetAgents(&query)
+						So(err, ShouldBeNil)
+						So(len(agents), ShouldEqual, 0)
+					})
+				})
 			})
-			var deleteTime time.Time
 			Convey("When getting the list of Agents", func() {
 				query := model.GetAgentsQuery{}
 				agents, err := c.GetAgents(&query)
@@ -165,18 +176,6 @@ func TestApiClient(t *testing.T) {
 				So(err, ShouldBeNil)
 				So(len(agents), ShouldEqual, agentCount)
 				So(agents[0].Name, ShouldEqual, "demo2")
-
-				Convey("When deleting an agent", func() {
-					err := c.DeleteAgent(agents[0])
-					So(err, ShouldBeNil)
-					agentCount--
-					deleteTime = time.Now()
-				})
-				Convey("After deleting agent", func() {
-					//agent demo2 was deleted, then re-added when
-					// "when adding a new Agent" was run prior to this block.
-					So(agents[0].Created, ShouldHappenAfter, deleteTime)
-				})
 			})
 		})
 
