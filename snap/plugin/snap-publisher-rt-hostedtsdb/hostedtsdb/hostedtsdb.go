@@ -216,6 +216,7 @@ func (f *HostedtsdbPublisher) Publish(contentType string, content []byte, config
 			Unit:       unit,
 			Tags:       tags,
 		}
+		metricsArray[i].SetId()
 	}
 	writeQueue.Add(metricsArray)
 
