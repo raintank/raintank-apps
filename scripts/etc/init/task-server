@@ -24,4 +24,4 @@ chdir /usr/share/worldping-api
 console log # log stdout/stderr to /var/log/upstart/
 
 
-exec /usr/sbin/task-server" --config=/etc/raintank/task-server.ini"
+exec /usr/bin/task-server --config=/etc/raintank/task-server.ini

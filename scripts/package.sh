@@ -5,7 +5,7 @@ CODE_DIR=$(readlink -e "$BASE/../")
 
 BUILD=$CODE_DIR/build
 
-VERSION="0.0.1" # need an automatic way to do this again :-/
+VERSION="0.0.2" # need an automatic way to do this again :-/
 ARCH="$(uname -m)"
 ITERATION=`date +%s`ubuntu1
 TAG="pkg-${VERSION}-${ITERATION}"
