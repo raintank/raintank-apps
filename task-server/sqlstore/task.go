@@ -79,12 +79,6 @@ func getTasks(sess *session, query *model.GetTasksQuery) ([]*model.TaskDTO, erro
 	if query.Metric != "" {
 		sess.Join("INNER", []string{"task_metric", "tm"}, "task.id = tm.task_id").
 			Where("tm.namespace=?", query.Metric)
-		if query.MetricVersion == 0 {
-			// get the latest version.
-			sess.And("tm.version = (SELECT MAX(version) FROM metric WHERE namespace=? AND (org_id=? or public=1) group by version)", query.Metric, query.OrgId)
-		} else {
-			sess.And("tm.version=?", query.MetricVersion)
-		}
 	}
 	if query.OrderBy == "" {
 		query.OrderBy = "name"
