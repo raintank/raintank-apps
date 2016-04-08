@@ -41,7 +41,7 @@ type MonitoringJob struct {
 
 type JobStatus struct {
 	Since  int    `json:"since"`
-	Status string `json":status"`
+	Status string `json:"status"`
 }
 
 type MonitoringMetric struct {
