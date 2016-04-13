@@ -28,6 +28,7 @@ var (
 
 func init() {
 	hostname, _ = os.Hostname()
+	slug.CustomSub["."] = "_"
 }
 
 // make sure that we actually satisify requierd interface
