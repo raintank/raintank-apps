@@ -87,11 +87,9 @@ func deleteAgentSessionsByServer(sess *session, server string) error {
 	}
 
 	// set the online state for all agents that now have no sessions.
-	rawSql = `UPDATE agent set online=0, online_change=? where id IN (SELECT agent.id 
-	FROM agent LEFT JOIN agent_session ON agent.id = agent_session.agent_id
-	WHERE agent.online=1
-	GROUP BY agent_session.agent_id
-	HAVING COUNT(agent_session.agent_id) = 0)`
+	rawSql = `UPDATE agent set online=0, online_change=? where id IN (SELECT t.id 
+	FROM (SELECT id from agent WHERE agent.online=1) as t LEFT JOIN agent_session ON t.id = agent_session.agent_id
+	WHERE agent_session.id is NULL)`
 	_, err = sess.Exec(rawSql, time.Now())
 	if err != nil {
 		return err
