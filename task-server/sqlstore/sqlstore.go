@@ -5,12 +5,12 @@ import (
 	"os"
 	"path"
 
-	"github.com/go-sql-driver/mysql"
 	"github.com/go-xorm/xorm"
 	"github.com/grafana/grafana/pkg/log"
 	"github.com/grafana/grafana/pkg/services/sqlstore/migrator"
 	"github.com/raintank/raintank-apps/task-server/sqlstore/migrations"
 
+	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/mattn/go-sqlite3"
 )
 

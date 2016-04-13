@@ -15,8 +15,8 @@ type Metric struct {
 	Id        int64               `json:"-"`
 	OrgId     int64               `json:"-"`
 	Public    bool                `json:"public"`
-	Namespace string              `json:"namespace"`
-	Version   int64               `json:"version"`
+	Namespace string              `json:"namespace" binding:"Required"`
+	Version   int64               `json:"version" binding:"Required"`
 	Policy    []rbody.PolicyTable `json:"policy"`
 	Created   time.Time           `json:"created"`
 }

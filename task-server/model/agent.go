@@ -44,7 +44,7 @@ type AgentMetric struct {
 // DTO
 type AgentDTO struct {
 	Id            int64     `json:"id"`
-	Name          string    `json:"name"`
+	Name          string    `json:"name" binding:"Required"`
 	Enabled       bool      `json:"enabled"`
 	EnabledChange time.Time `json:"enabledChange"`
 	OrgId         int64     `json:"-"`

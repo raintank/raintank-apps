@@ -78,8 +78,8 @@ func main() {
 	}
 
 	// initialize DB
-	enableSqlLog = false
-	if *logLevel >= log.DEBUG {
+	enableSqlLog := false
+	if *logLevel >= int(log.DEBUG) {
 		enableSqlLog = true
 	}
 	sqlstore.NewEngine(*dbType, *dbConnectString, enableSqlLog)

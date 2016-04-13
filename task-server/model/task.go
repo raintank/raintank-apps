@@ -32,12 +32,12 @@ type TaskMetric struct {
 
 type TaskDTO struct {
 	Id       int64                             `json:"id"`
-	Name     string                            `json:"name"`
+	Name     string                            `json:"name" binding:"Required"`
 	OrgId    int64                             `json:"-"`
 	Config   map[string]map[string]interface{} `json:"config"`
-	Interval int64                             `json:"interval"`
-	Route    *TaskRoute                        `json:"route"`
-	Metrics  map[string]int64                  `json:"metrics"`
+	Interval int64                             `json:"interval" binding:"Required"`
+	Route    *TaskRoute                        `json:"route" binding:"Required"`
+	Metrics  map[string]int64                  `json:"metrics" binding:"Required"`
 	Enabled  bool                              `json:"enabled"`
 	Created  time.Time                         `json:"created"`
 	Updated  time.Time                         `json:"updated"`
@@ -57,8 +57,8 @@ var (
 )
 
 type TaskRoute struct {
-	Type   RouteType              `json:"type"`
-	Config map[string]interface{} `json:"config"`
+	Type   RouteType              `json:"type" binding:"Required"`
+	Config map[string]interface{} `json:"config" binding:"Required"`
 }
 
 func (t *TaskRoute) UnmarshalJSON(body []byte) error {

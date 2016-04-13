@@ -53,6 +53,12 @@ func AddTask(ctx *Context, task model.TaskDTO) {
 		ctx.JSON(200, rbody.ErrResp(400, fmt.Errorf("invalid route config")))
 		return
 	}
+
+	err = sqlstore.ValidateMetrics(task.OrgId, task.Metrics)
+	if err != nil {
+		ctx.JSON(200, rbody.ErrResp(400, err))
+	}
+
 	err = sqlstore.AddTask(&task)
 	if err != nil {
 		log.Error(3, err.Error())

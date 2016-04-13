@@ -7,6 +7,42 @@ import (
 	"github.com/raintank/raintank-apps/task-server/model"
 )
 
+func ValidateMetrics(orgId int64, metrics map[string]int64) error {
+	sess, err := newSession(false, "metric")
+	if err != nil {
+		return err
+	}
+	return validateMetrics(sess, orgId, metrics)
+}
+
+func validateMetrics(sess *session, orgId int64, metrics map[string]int64) error {
+	for namespace, ver := range metrics {
+		//validate metrics
+		mQuery := &model.GetMetricsQuery{
+			Namespace: namespace,
+			OrgId:     orgId,
+			Version:   ver,
+		}
+		matches, err := getMetrics(sess, mQuery)
+		if err != nil {
+			return err
+		}
+		if len(matches) == 0 {
+			return fmt.Errorf("no matching metric found.")
+		}
+		//Use the latest version available.
+		if ver == 0 {
+			for _, m := range matches {
+				if m.Version > ver {
+					ver = m.Version
+				}
+			}
+			metrics[namespace] = ver
+		}
+	}
+	return nil
+}
+
 func GetMetrics(query *model.GetMetricsQuery) ([]*model.Metric, error) {
 	sess, err := newSession(false, "metric")
 	if err != nil {
