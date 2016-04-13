@@ -35,7 +35,7 @@ func startApi(done chan struct{}) string {
 	dbpath := tmpfile.Name()
 	tmpfile.Close()
 	fmt.Printf("dbpath: %s\n", dbpath)
-	sqlstore.NewEngine(dbpath)
+	sqlstore.NewEngine("sqlite3", dbpath, false)
 
 	m := api.NewApi(adminKey, stats)
 
