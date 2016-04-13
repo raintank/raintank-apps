@@ -23,8 +23,9 @@ var (
 	logLevel    = flag.Int("log-level", 2, "log level. 0=TRACE|1=DEBUG|2=INFO|3=WARN|4=ERROR|5=CRITICAL|6=FATAL")
 	confFile    = flag.String("config", "/etc/raintank/task-server.ini", "configuration file path")
 
-	addr   = flag.String("addr", "localhost:80", "http service address")
-	dbPath = flag.String("db-path", "/tmp/task-server.sqlite", "sqlite DB path")
+	addr            = flag.String("addr", "localhost:80", "http service address")
+	dbType          = flag.String("db-type", "sqlite3", "Database type. sqlite3 or mysql")
+	dbConnectString = flag.String("db-connect-str", "file:/tmp/task-server.db?cache=shared&mode=rwc&_loc=Local", "DSN to connect to DB. https://godoc.org/github.com/mattn/go-sqlite3#SQLiteDriver.Open or https://github.com/go-sql-driver/mysql#dsn-data-source-name")
 
 	statsEnabled = flag.Bool("stats-enabled", false, "enable statsd metrics")
 	statsdAddr   = flag.String("statsd-addr", "localhost:8125", "statsd address")
@@ -77,7 +78,11 @@ func main() {
 	}
 
 	// initialize DB
-	sqlstore.NewEngine(*dbPath)
+	enableSqlLog = false
+	if *logLevel >= log.DEBUG {
+		enableSqlLog = true
+	}
+	sqlstore.NewEngine(*dbType, *dbConnectString, enableSqlLog)
 
 	// delete any stale agentSessions.
 	if err := sqlstore.DeleteAgentSessionsByServer(hostname); err != nil {
