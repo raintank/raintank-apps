@@ -117,7 +117,7 @@ func getAgentById(sess *session, id int64, orgId int64) (*model.AgentDTO, error)
 	if orgId != 0 {
 		sess.And("agent.org_id=?", orgId)
 	}
-	err := sess.Join("INNER", "agent_tag", "agent.id = agent_tag.agent_id").Find(&a)
+	err := sess.Join("LEFT", "agent_tag", "agent.id = agent_tag.agent_id").Find(&a)
 	if err != nil {
 		return nil, err
 	}
