@@ -37,6 +37,7 @@ var (
 	statsdType   = flag.String("statsd-type", "standard", "statsd type: standard or datadog")
 
 	graphiteUrl      = flag.String("graphite-url", "http://localhost:8080", "graphite-api address")
+	worldpingUrl     = flag.String("worldping-url", "http://localhost/", "worldping-api address")
 	elasticsearchUrl = flag.String("elasticsearch-url", "http://localhost:9200", "elasticsearch server address")
 	esIndex          = flag.String("es-index", "events", "elasticsearch index name")
 
@@ -94,7 +95,7 @@ func main() {
 
 	api.InitRoutes(m, *adminKey)
 
-	if err := graphite.Init(*graphiteUrl); err != nil {
+	if err := graphite.Init(*graphiteUrl, *worldpingUrl); err != nil {
 		log.Fatal(4, err.Error())
 	}
 	if err := elasticsearch.Init(*elasticsearchUrl, *esIndex); err != nil {
