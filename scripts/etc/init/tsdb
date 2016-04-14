@@ -24,4 +24,4 @@ chdir /usr/share/worldping-api
 console log # log stdout/stderr to /var/log/upstart/
 
 
-exec /usr/sbin/tsdb --config=/etc/raintank/tsdb.ini
+exec /usr/bin/tsdb --config=/etc/raintank/tsdb.ini
