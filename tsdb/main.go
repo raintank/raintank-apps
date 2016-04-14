@@ -14,6 +14,7 @@ import (
 	"github.com/grafana/grafana/pkg/log"
 	"github.com/raintank/met/helper"
 	"github.com/raintank/raintank-apps/tsdb/api"
+	"github.com/raintank/raintank-apps/tsdb/elasticsearch"
 	"github.com/raintank/raintank-apps/tsdb/graphite"
 	"github.com/raintank/raintank-apps/tsdb/metric_publish"
 	"github.com/rakyll/globalconf"
@@ -35,7 +36,9 @@ var (
 	statsdAddr   = flag.String("statsd-addr", "localhost:8125", "statsd address")
 	statsdType   = flag.String("statsd-type", "standard", "statsd type: standard or datadog")
 
-	graphiteUrl = flag.String("graphite-url", "http://localhost:8080", "graphite-api address")
+	graphiteUrl      = flag.String("graphite-url", "http://localhost:8080", "graphite-api address")
+	elasticsearchUrl = flag.String("elasticsearch-url", "http://localhost:9200", "elasticsearch server address")
+	esIndex          = flag.String("es-index", "events", "elasticsearch index name")
 
 	adminKey = flag.String("admin-key", "not_very_secret_key", "Admin Secret Key")
 )
@@ -92,6 +95,9 @@ func main() {
 	api.InitRoutes(m, *adminKey)
 
 	if err := graphite.Init(*graphiteUrl); err != nil {
+		log.Fatal(4, err.Error())
+	}
+	if err := elasticsearch.Init(*elasticsearchUrl, *esIndex); err != nil {
 		log.Fatal(4, err.Error())
 	}
 

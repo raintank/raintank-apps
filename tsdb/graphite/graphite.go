@@ -6,20 +6,9 @@ import (
 	"net/url"
 	//"regexp"
 	"strconv"
-	"strings"
-)
 
-func joinUrlFragments(a, b string) string {
-	aslash := strings.HasSuffix(a, "/")
-	bslash := strings.HasPrefix(b, "/")
-	switch {
-	case aslash && bslash:
-		return a + b[1:]
-	case !aslash && !bslash:
-		return a + "/" + b
-	}
-	return a + b
-}
+	"github.com/raintank/raintank-apps/tsdb/util"
+)
 
 var GraphiteUrl *url.URL
 
@@ -50,7 +39,7 @@ func Proxy(orgId int64, proxyPath string, request *http.Request) *httputil.Rever
 		req.URL.Scheme = GraphiteUrl.Scheme
 		req.URL.Host = GraphiteUrl.Host
 		req.Header.Add("X-Org-Id", strconv.FormatInt(orgId, 10))
-		req.URL.Path = joinUrlFragments(GraphiteUrl.Path, proxyPath)
+		req.URL.Path = util.JoinUrlFragments(GraphiteUrl.Path, proxyPath)
 	}
 
 	return &httputil.ReverseProxy{Director: director}
