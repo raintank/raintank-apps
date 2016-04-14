@@ -55,7 +55,7 @@ func ErrResp(code int, err error) *ApiResponse {
 			Message: err.Error(),
 			Type:    "error",
 		},
-		Body: nil,
+		Body: json.RawMessage([]byte("null")),
 	}
 	return resp
 }
