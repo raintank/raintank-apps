@@ -45,7 +45,7 @@ func (c *Client) Run() {
 		conf, err := c.GetSnapGlobalConfig()
 		if err != nil {
 			if c.connected {
-				log.Error(3, "Snap server unreachable. %s", err.Error)
+				log.Error(3, "Snap server unreachable. %s", err.Error())
 				c.connected = false
 			}
 			continue
