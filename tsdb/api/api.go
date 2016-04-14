@@ -2,10 +2,7 @@ package api
 
 import (
 	"github.com/Unknwon/macaron"
-	"github.com/op/go-logging"
 )
-
-var log = logging.MustGetLogger("default")
 
 func InitRoutes(m *macaron.Macaron, adminKey string) {
 	m.Use(GetContextHandler())

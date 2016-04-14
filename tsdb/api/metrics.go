@@ -3,6 +3,7 @@ package api
 import (
 	"io/ioutil"
 
+	"github.com/grafana/grafana/pkg/log"
 	"github.com/raintank/raintank-apps/tsdb/metric_publish"
 	msg "github.com/raintank/raintank-metric/msg"
 )
@@ -21,7 +22,7 @@ func Metrics(ctx *Context) {
 
 func metricsJson(ctx *Context) {
 	//TODO
-	ctx.JSON(200, "ok")
+	ctx.JSON(404, "Not yet implemented.")
 }
 
 func metricsBinary(ctx *Context) {
@@ -29,18 +30,18 @@ func metricsBinary(ctx *Context) {
 	if ctx.Req.Request.Body != nil {
 		body, err := ioutil.ReadAll(ctx.Req.Request.Body)
 		if err != nil {
-			panic("unable to read requst body.")
+			log.Error(3, "unable to read requst body. %s", err)
 		}
 		ms, err := msg.MetricDataFromMsg(body)
 		if err != nil {
-			log.Errorf("event payload not metricData. %s", err.Error())
+			log.Error(3, "event payload not metricData. %s", err)
 			ctx.JSON(500, err)
 			return
 		}
 
 		err = ms.DecodeMetricData()
 		if err != nil {
-			log.Errorf("failed to unmarshal metricData. %s", err.Error())
+			log.Error(3, "failed to unmarshal metricData. %s", err)
 			ctx.JSON(500, err)
 			return
 		}
@@ -53,7 +54,7 @@ func metricsBinary(ctx *Context) {
 
 		err = metric_publish.Publish(ms.Metrics)
 		if err != nil {
-			log.Errorf("failed to publush metrics. %s", err)
+			log.Error(3, "failed to publush metrics. %s", err)
 			ctx.JSON(500, err)
 			return
 		}

@@ -4,14 +4,12 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/grafana/grafana/pkg/log"
 	"github.com/nsqio/go-nsq"
-	"github.com/op/go-logging"
 	"github.com/raintank/met"
 	msg "github.com/raintank/raintank-metric/msg"
 	"github.com/raintank/raintank-metric/schema"
 )
-
-var log = logging.MustGetLogger("default")
 
 var (
 	globalProducer    *nsq.Producer
@@ -33,11 +31,11 @@ func Init(metrics met.Backend, t string, addr string, enabled bool) {
 	var err error
 	globalProducer, err = nsq.NewProducer(addr, cfg)
 	if err != nil {
-		log.Fatalf("failed to initialize nsq producer. %s", err)
+		log.Fatal(4, "failed to initialize nsq producer. %s", err)
 	}
 	err = globalProducer.Ping()
 	if err != nil {
-		log.Fatalf("can't connect to nsqd: %s", err)
+		log.Fatal(4, "can't connect to nsqd: %s", err)
 	}
 	metricsPublished = metrics.NewCount("metricpublisher.metrics-published")
 	messagesPublished = metrics.NewCount("metricpublisher.messages-published")
@@ -48,7 +46,7 @@ func Init(metrics met.Backend, t string, addr string, enabled bool) {
 
 func Publish(metrics []*schema.MetricData) error {
 	if globalProducer == nil {
-		log.Debugf("droping %d metrics as publishing is disbaled", len(metrics))
+		log.Debug("droping %d metrics as publishing is disbaled", len(metrics))
 		return nil
 	}
 	if len(metrics) == 0 {
@@ -58,7 +56,7 @@ func Publish(metrics []*schema.MetricData) error {
 	id := time.Now().UnixNano()
 	data, err := msg.CreateMsg(metrics, id, msg.FormatMetricDataArrayMsgp)
 	if err != nil {
-		log.Fatal(0, "Fatal error creating metric message: %s", err)
+		log.Fatal(4, "Fatal error creating metric message: %s", err)
 	}
 	metricsPublished.Inc(int64(len(metrics)))
 	messagesPublished.Inc(1)
@@ -68,7 +66,7 @@ func Publish(metrics []*schema.MetricData) error {
 	err = globalProducer.Publish(topic, data)
 	publishDuration.Value(time.Since(pre))
 	if err != nil {
-		log.Fatal(0, "can't publish to nsqd: %s", err)
+		log.Fatal(4, "can't publish to nsqd: %s", err)
 	}
 	log.Info("published metrics %d size=%d", id, len(data))
 
