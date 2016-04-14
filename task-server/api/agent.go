@@ -24,15 +24,16 @@ func GetAgentById(ctx *Context) {
 	id := ctx.ParamsInt64(":id")
 	owner := ctx.OrgId
 	agent, err := sqlstore.GetAgentById(id, owner)
+	if err == model.AgentNotFound {
+		ctx.JSON(200, rbody.ErrResp(404, fmt.Errorf("agent not found")))
+		return
+	}
 	if err != nil {
 		log.Error(3, err.Error())
 		ctx.JSON(200, rbody.ErrResp(500, err))
 		return
 	}
-	if agent == nil {
-		ctx.JSON(200, rbody.ErrResp(404, fmt.Errorf("agent not found")))
-		return
-	}
+
 	ctx.JSON(200, rbody.OkResp("agent", agent))
 }
 
