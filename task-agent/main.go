@@ -16,6 +16,7 @@ import (
 	"github.com/grafana/grafana/pkg/log"
 	"github.com/raintank/raintank-apps/pkg/message"
 	"github.com/raintank/raintank-apps/pkg/session"
+	"github.com/raintank/raintank-apps/task-agent/snap"
 	"github.com/rakyll/globalconf"
 )
 
@@ -85,15 +86,12 @@ func main() {
 	if err != nil {
 		log.Fatal(4, "could not parse snapUrl. %s", err)
 	}
-	InitSnapClient(snapUrl)
-	catalog, err := GetSnapMetrics()
+	snapClient, err := snap.NewClient(*nodeName, *tsdbAddr, *apiKey, snapUrl)
 	if err != nil {
 		log.Fatal(4, err.Error())
 	}
-	err = SetSnapGlobalConfig()
-	if err != nil {
-		log.Fatal(4, err.Error())
-	}
+	InitTaskCache(snapClient)
+
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 	shutdownStart := make(chan struct{})
@@ -145,16 +143,12 @@ func main() {
 	sess.On("taskRemove", HandleTaskRemove())
 
 	go sess.Start()
-	//send our MetricCatalog
-	body, err := json.Marshal(catalog)
-	if err != nil {
-		log.Fatal(4, err.Error())
-	}
-	e := &message.Event{Event: "catalog", Payload: body}
-	sess.Emit(e)
 
 	//periodically send an Updated Catalog.
-	go SendCatalog(sess, shutdownStart)
+	go SendCatalog(sess, snapClient, shutdownStart)
+
+	// connect to the snap server and monitor that it is up.
+	go snapClient.Run()
 
 	//wait for interupt Signal.
 	<-interrupt
@@ -164,25 +158,39 @@ func main() {
 	return
 }
 
-func SendCatalog(sess *session.Session, shutdownStart chan struct{}) {
+func SendCatalog(sess *session.Session, snapClient *snap.Client, shutdownStart chan struct{}) {
 	ticker := time.NewTicker(time.Minute * 5)
 	for {
 		select {
 		case <-shutdownStart:
 			return
 		case <-ticker.C:
-			catalog, err := GetSnapMetrics()
+			emitMetrics(sess, snapClient)
+		case <-snapClient.ConnectChan:
+			emitMetrics(sess, snapClient)
+			taskList, err := snapClient.GetSnapTasks()
 			if err != nil {
 				log.Error(3, err.Error())
 				continue
 			}
-			body, err := json.Marshal(catalog)
-			if err != nil {
-				log.Error(3, err.Error())
-				continue
+			if err := GlobalTaskCache.IndexSnapTasks(taskList); err != nil {
+				log.Error(3, "failed to add task to cache. %s", err)
 			}
-			e := &message.Event{Event: "catalog", Payload: body}
-			sess.Emit(e)
 		}
 	}
+}
+
+func emitMetrics(sess *session.Session, snapClient *snap.Client) {
+	catalog, err := snapClient.GetSnapMetrics()
+	if err != nil {
+		log.Error(3, err.Error())
+		return
+	}
+	body, err := json.Marshal(catalog)
+	if err != nil {
+		log.Error(3, err.Error())
+		return
+	}
+	e := &message.Event{Event: "catalog", Payload: body}
+	sess.Emit(e)
 }

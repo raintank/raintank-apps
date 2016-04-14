@@ -8,12 +8,13 @@ import (
 
 	"github.com/grafana/grafana/pkg/log"
 	"github.com/intelsdi-x/snap/mgmt/rest/rbody"
-	"github.com/raintank/raintank-apps/pkg/session"
+	"github.com/raintank/raintank-apps/task-agent/snap"
 	"github.com/raintank/raintank-apps/task-server/model"
 )
 
 type TaskCache struct {
 	sync.RWMutex
+	c         *snap.Client
 	Tasks     map[int64]*model.TaskDTO
 	SnapTasks map[string]*rbody.ScheduledTask
 }
@@ -21,11 +22,16 @@ type TaskCache struct {
 func (t *TaskCache) AddTask(task *model.TaskDTO) error {
 	t.Lock()
 	defer t.Unlock()
+	return t.addTask(task)
+}
+
+func (t *TaskCache) addTask(task *model.TaskDTO) error {
+	t.Tasks[task.Id] = task
 	snapTaskName := fmt.Sprintf("raintank-apps:%d", task.Id)
 	snapTask, ok := t.SnapTasks[snapTaskName]
 	if !ok {
 		log.Debug("New task recieved %s", snapTaskName)
-		snapTask, err := CreateSnapTask(task, snapTaskName)
+		snapTask, err := t.c.CreateSnapTask(task, snapTaskName)
 		if err != nil {
 			return err
 		}
@@ -35,18 +41,29 @@ func (t *TaskCache) AddTask(task *model.TaskDTO) error {
 		if task.Updated.After(time.Unix(snapTask.CreationTimestamp, 0)) {
 			log.Debug("%s needs to be updated", snapTaskName)
 			// need to update task.
-			if err := RemoveSnapTask(snapTask); err != nil {
+			if err := t.c.RemoveSnapTask(snapTask); err != nil {
 				return err
 			}
-			snapTask, err := CreateSnapTask(task, snapTaskName)
+			snapTask, err := t.c.CreateSnapTask(task, snapTaskName)
 			if err != nil {
 				return err
 			}
 			t.SnapTasks[snapTaskName] = snapTask
 		}
 	}
-	t.Tasks[task.Id] = task
+
 	return nil
+}
+
+func (t *TaskCache) Sync() {
+	t.Lock()
+	defer t.Unlock()
+	for _, task := range t.Tasks {
+		err := t.addTask(task)
+		if err != nil {
+			log.Error(3, err.Error())
+		}
+	}
 }
 
 func (t *TaskCache) RemoveTask(task *model.TaskDTO) error {
@@ -57,7 +74,7 @@ func (t *TaskCache) RemoveTask(task *model.TaskDTO) error {
 	if !ok {
 		log.Debug("task to remove not in cache. %s", snapTaskName)
 	} else {
-		if err := RemoveSnapTask(snapTask); err != nil {
+		if err := t.c.RemoveSnapTask(snapTask); err != nil {
 			return err
 		}
 		delete(t.SnapTasks, snapTaskName)
@@ -73,13 +90,15 @@ func (t *TaskCache) IndexSnapTasks(tasks []*rbody.ScheduledTask) error {
 		t.SnapTasks[task.Name] = task
 	}
 	t.Unlock()
+	t.Sync()
 	return nil
 }
 
 var GlobalTaskCache *TaskCache
 
-func init() {
+func InitTaskCache(snapClient *snap.Client) {
 	GlobalTaskCache = &TaskCache{
+		c:         snapClient,
 		Tasks:     make(map[int64]*model.TaskDTO),
 		SnapTasks: make(map[string]*rbody.ScheduledTask),
 	}
@@ -128,25 +147,6 @@ func HandleTaskRemove() interface{} {
 		log.Debug("Removing Task. %s", data)
 		if err := GlobalTaskCache.RemoveTask(&task); err != nil {
 			log.Error(3, "failed to remove task from cache. %s", err)
-		}
-	}
-}
-
-func IndexTasks(sess *session.Session, shutdownStart chan struct{}) {
-	ticker := time.NewTicker(time.Minute * 5)
-	for {
-		select {
-		case <-shutdownStart:
-			return
-		case <-ticker.C:
-			taskList, err := GetSnapTasks()
-			if err != nil {
-				log.Error(3, err.Error())
-				continue
-			}
-			if err := GlobalTaskCache.IndexSnapTasks(taskList); err != nil {
-				log.Error(3, "failed to add task to cache. %s", err)
-			}
 		}
 	}
 }
