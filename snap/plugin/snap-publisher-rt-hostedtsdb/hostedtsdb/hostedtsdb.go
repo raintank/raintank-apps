@@ -75,7 +75,7 @@ func (q *WriteQueue) Flush() {
 	}
 	sent := false
 	for !sent {
-		if err = PostData(RemoteUrl, Token, body); err != nil {
+		if err = PostData("metrics", Token, body); err != nil {
 			log.Printf("Error: %s", err)
 			time.Sleep(time.Second)
 		} else {
@@ -103,26 +103,11 @@ func NewWriteQueue() *WriteQueue {
 	}
 }
 
-type EventQueue struct {
-}
-
-func (e *EventQueue) Add(m *plugin.PluginMetricType) error {
-	return nil
-}
-
-func NewEventQueue() *EventQueue {
-	return &EventQueue{}
-}
-
 var writeQueue *WriteQueue
-
-var eventQueue *EventQueue
 
 func init() {
 	writeQueue = NewWriteQueue()
 	go writeQueue.Run()
-	eventQueue = NewEventQueue()
-	//go eventQueue.Run()
 }
 
 func (f *HostedtsdbPublisher) Publish(contentType string, content []byte, config map[string]ctypes.ConfigValue) error {
@@ -141,15 +126,20 @@ func (f *HostedtsdbPublisher) Publish(contentType string, content []byte, config
 		return errors.New(fmt.Sprintf("Unknown content type '%s'", contentType))
 	}
 
-	log.Printf("publishing %v metrics to %v", len(metrics), config)
+	log.Printf("publishing %d metrics to %v", len(metrics), config)
 
 	// set the RemoteURL and Token when the first metrics is recieved.
 	var err error
 	if RemoteUrl == nil {
-		RemoteUrl, err = url.Parse(config["raintank_tsdb_url"].(ctypes.ConfigValueStr).Value)
+		remote := config["raintank_tsdb_url"].(ctypes.ConfigValueStr).Value
+		if !strings.HasSuffix(remote, "/") {
+			remote += "/"
+		}
+		RemoteUrl, err = url.Parse(remote)
 		if err != nil {
 			return err
 		}
+
 	}
 	if Token == "" {
 		Token = config["raintank_api_key"].(ctypes.ConfigValueStr).Value
@@ -161,22 +151,13 @@ func (f *HostedtsdbPublisher) Publish(contentType string, content []byte, config
 
 	metricsArray := make([]*schema.MetricData, len(metrics))
 	for i, m := range metrics {
-		tags := make([]string, 0)
-		targetType := "gauge"
-		unit := ""
-		for k, v := range m.Tags() {
-			switch k {
-			case "targetType":
-				targetType = v
-			case "unit":
-				unit = v
-			default:
-				tags = append(tags, fmt.Sprintf("%s:%s", k, v))
-			}
-		}
 		var value float64
 		rawData := m.Data()
 		switch rawData.(type) {
+		case string:
+			//payload is an event.
+			go sendEvent(int64(orgId), &m)
+			continue
 		case int:
 			value = float64(rawData.(int))
 		case int8:
@@ -199,11 +180,22 @@ func (f *HostedtsdbPublisher) Publish(contentType string, content []byte, config
 			value = float64(rawData.(float32))
 		case float64:
 			value = rawData.(float64)
-		case string:
-			//payload is an event.
-			return eventQueue.Add(&m)
 		default:
 			return errors.New("unknown data type")
+		}
+
+		tags := make([]string, 0)
+		targetType := "gauge"
+		unit := ""
+		for k, v := range m.Tags() {
+			switch k {
+			case "targetType":
+				targetType = v
+			case "unit":
+				unit = v
+			default:
+				tags = append(tags, fmt.Sprintf("%s:%s", k, v))
+			}
 		}
 
 		metricsArray[i] = &schema.MetricData{
@@ -256,8 +248,9 @@ func handleErr(e error) {
 	}
 }
 
-func PostData(remoteUrl *url.URL, token string, body []byte) error {
-	req, err := http.NewRequest("POST", remoteUrl.String(), bytes.NewBuffer(body))
+func PostData(path, token string, body []byte) error {
+	u := RemoteUrl.String() + path
+	req, err := http.NewRequest("POST", u, bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "rt-metric-binary")
 	req.Header.Set("Authorization", "Bearer "+token)
 
@@ -272,4 +265,42 @@ func PostData(remoteUrl *url.URL, token string, body []byte) error {
 		return fmt.Errorf("Posting data failed. %d - %s", resp.StatusCode, string(respBody))
 	}
 	return nil
+}
+
+func sendEvent(orgId int64, m *plugin.PluginMetricType) {
+	ns := m.Namespace()
+	if len(ns) != 4 {
+		log.Printf("Error: invalid event metric. Expected namesapce to be 4 fields.")
+		return
+	}
+	if ns[0] != "worldping" || ns[1] != "event" {
+		log.Printf("Error: invalid event metrics.  Metrics hould begin with 'worldping.event'")
+		return
+	}
+
+	id := time.Now().UnixNano()
+	event := &schema.ProbeEvent{
+		OrgId:     orgId,
+		EventType: ns[2],
+		Severity:  ns[3],
+		Source:    m.Source(),
+		Timestamp: id / int64(time.Millisecond),
+		Message:   m.Data().(string),
+		Tags:      m.Tags(),
+	}
+
+	body, err := msg.CreateProbeEventMsg(event, id, msg.FormatProbeEventMsgp)
+	if err != nil {
+		log.Printf("Error: unable to convert event to ProbeEventMsgp. %s", err)
+		return
+	}
+	sent := false
+	for !sent {
+		if err = PostData("events", Token, body); err != nil {
+			log.Printf("Error: %s", err)
+			time.Sleep(time.Second)
+		} else {
+			sent = true
+		}
+	}
 }
