@@ -1,11 +1,14 @@
 package api
 
 import (
+	"encoding/json"
+	"fmt"
 	"io/ioutil"
 
 	"github.com/grafana/grafana/pkg/log"
 	"github.com/raintank/raintank-apps/tsdb/metric_publish"
 	msg "github.com/raintank/raintank-metric/msg"
+	"github.com/raintank/raintank-metric/schema"
 )
 
 func Metrics(ctx *Context) {
@@ -21,8 +24,35 @@ func Metrics(ctx *Context) {
 }
 
 func metricsJson(ctx *Context) {
-	//TODO
-	ctx.JSON(404, "Not yet implemented.")
+	defer ctx.Req.Request.Body.Close()
+	if ctx.Req.Request.Body != nil {
+		body, err := ioutil.ReadAll(ctx.Req.Request.Body)
+		if err != nil {
+			log.Error(3, "unable to read requst body. %s", err)
+		}
+		metrics := make([]*schema.MetricData, 0)
+		err = json.Unmarshal(body, &metrics)
+		if err != nil {
+			ctx.JSON(400, fmt.Sprintf("unable to parse request body. %s", err))
+			return
+		}
+		if !ctx.IsAdmin {
+			for _, m := range metrics {
+				m.OrgId = int(ctx.OrgId)
+				m.SetId()
+			}
+		}
+
+		err = metric_publish.Publish(metrics)
+		if err != nil {
+			log.Error(3, "failed to publush metrics. %s", err)
+			ctx.JSON(500, err)
+			return
+		}
+		ctx.JSON(200, "ok")
+		return
+	}
+	ctx.JSON(400, "no data included in request.")
 }
 
 func metricsBinary(ctx *Context) {
@@ -31,6 +61,8 @@ func metricsBinary(ctx *Context) {
 		body, err := ioutil.ReadAll(ctx.Req.Request.Body)
 		if err != nil {
 			log.Error(3, "unable to read requst body. %s", err)
+			ctx.JSON(500, err)
+			return
 		}
 		ms, err := msg.MetricDataFromMsg(body)
 		if err != nil {
