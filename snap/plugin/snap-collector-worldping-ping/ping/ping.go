@@ -3,13 +3,13 @@ package ping
 import (
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/intelsdi-x/snap/control/plugin"
 	"github.com/intelsdi-x/snap/control/plugin/cpolicy"
 	"github.com/intelsdi-x/snap/core"
 	"github.com/intelsdi-x/snap/core/ctypes"
-	"github.com/raintank/go-pinger"
 )
 
 const (
@@ -29,7 +29,8 @@ type StateCache struct {
 func (s *StateCache) Get(key string) (int, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.Checks[key]
+	val, ok := s.Checks[key]
+	return val, ok
 }
 func (s *StateCache) Set(key string, value int) {
 	s.mu.Lock()
@@ -163,7 +164,7 @@ func ping(checkId, agentName, endpoint, host string, mts []plugin.PluginMetricTy
 		mt := plugin.PluginMetricType{
 			Data_:      message,
 			Namespace_: []string{"worlding", "event", "monitor_state", stat},
-			tags_:      map[string]string{"endpoint": endpoint, "probe": agentName, "monitor_type": "ping"},
+			Tags_:      map[string]string{"endpoint": endpoint, "probe": agentName, "monitor_type": "ping"},
 			Source_:    hostname,
 			Timestamp_: time.Now(),
 			Version_:   mts[0].Version(),
