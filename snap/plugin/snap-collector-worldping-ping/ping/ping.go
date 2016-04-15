@@ -21,10 +21,29 @@ const (
 	Type = plugin.CollectorPluginType
 )
 
-// make sure that we actually satisify requierd interface
-var _ plugin.CollectorPlugin = (*Ping)(nil)
+type StateCache struct {
+	mu     sync.Mutex
+	Checks map[string]int
+}
+
+func (s *StateCache) Get(key string) (int, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.Checks[key]
+}
+func (s *StateCache) Set(key string, value int) {
+	s.mu.Lock()
+	s.Checks[key] = value
+	s.mu.Unlock()
+	return
+}
 
 var (
+	// make sure that we actually satisify requierd interface
+	_ plugin.CollectorPlugin = (*Ping)(nil)
+
+	stateCache *StateCache
+
 	metricNames = []string{
 		"avg",
 		"min",
@@ -36,7 +55,7 @@ var (
 )
 
 func init() {
-	GlobalPinger = pinger.NewPinger()
+	stateCache = &StateCache{Checks: make(map[string]int)}
 }
 
 type Ping struct {
@@ -50,6 +69,10 @@ func (p *Ping) CollectMetrics(mts []plugin.PluginMetricType) ([]plugin.PluginMet
 		return nil, fmt.Errorf("only 1 pluginMetricType supported.")
 	}
 	conf := mts[0].Config().Table()
+	checkId, ok := conf["checkId"]
+	if !ok || checkId.(ctypes.ConfigValueStr).Value == "" {
+		return nil, fmt.Errorf("checkId missing from config, %v", conf)
+	}
 	hostname, ok := conf["hostname"]
 	if !ok || hostname.(ctypes.ConfigValueStr).Value == "" {
 		return nil, fmt.Errorf("hostname missing from config, %v", conf)
@@ -63,7 +86,7 @@ func (p *Ping) CollectMetrics(mts []plugin.PluginMetricType) ([]plugin.PluginMet
 		return nil, fmt.Errorf("raintank_agent_name missing from config, %v", conf)
 	}
 
-	metrics, err := ping(agentName.(ctypes.ConfigValueStr).Value, hostname.(ctypes.ConfigValueStr).Value, hostname.(ctypes.ConfigValueStr).Value, mts)
+	metrics, err := ping(checkId.(ctypes.ConfigValueStr).Value, agentName.(ctypes.ConfigValueStr).Value, endpoint.(ctypes.ConfigValueStr).Value, hostname.(ctypes.ConfigValueStr).Value, mts)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +94,7 @@ func (p *Ping) CollectMetrics(mts []plugin.PluginMetricType) ([]plugin.PluginMet
 	return metrics, nil
 }
 
-func ping(agentName, endpoint, host string, mts []plugin.PluginMetricType) ([]plugin.PluginMetricType, error) {
+func ping(checkId, agentName, endpoint, host string, mts []plugin.PluginMetricType) ([]plugin.PluginMetricType, error) {
 	hostname, _ := os.Hostname()
 	check := &RaintankProbePing{
 		Hostname: host,
@@ -107,8 +130,42 @@ func ping(agentName, endpoint, host string, mts []plugin.PluginMetricType) ([]pl
 			Data_:      value,
 			Namespace_: []string{"worlding", agentName, endpoint, "ping", stat},
 			Source_:    hostname,
+			Tags_:      map[string]string{"target_type": "gauage"},
 			Timestamp_: time.Now(),
 			Labels_:    mts[0].Labels(),
+			Version_:   mts[0].Version(),
+		}
+		metrics = append(metrics, mt)
+	}
+
+	//check if state has changed.
+	state := 0
+	if check.Result.Error != nil {
+		state = 1
+	}
+
+	lastState, ok := stateCache.Get(checkId)
+	if !ok {
+		lastState = -1
+	}
+	stateCache.Set(checkId, state)
+
+	if state != lastState {
+		var stat, message string
+
+		if state == 0 {
+			message = "Monitor now OK"
+			stat = "OK"
+		} else {
+			message = *check.Result.Error
+			stat = "ERROR"
+		}
+		mt := plugin.PluginMetricType{
+			Data_:      message,
+			Namespace_: []string{"worlding", "event", "monitor_state", stat},
+			tags_:      map[string]string{"endpoint": endpoint, "probe": agentName, "monitor_type": "ping"},
+			Source_:    hostname,
+			Timestamp_: time.Now(),
 			Version_:   mts[0].Version(),
 		}
 		metrics = append(metrics, mt)
@@ -132,11 +189,13 @@ func (p *Ping) GetMetricTypes(cfg plugin.PluginConfigType) ([]plugin.PluginMetri
 //GetConfigPolicy returns a ConfigPolicyTree for testing
 func (p *Ping) GetConfigPolicy() (*cpolicy.ConfigPolicy, error) {
 	c := cpolicy.New()
-	rule, _ := cpolicy.NewStringRule("endpoint", true)
+	rule0, _ := cpolicy.NewStringRule("checkId", true)
+	rule1, _ := cpolicy.NewStringRule("endpoint", true)
 	rule2, _ := cpolicy.NewStringRule("raintank_agent_name", true)
 	rule3, _ := cpolicy.NewStringRule("hostname", true)
 	cp := cpolicy.NewPolicyNode()
-	cp.Add(rule)
+	cp.Add(rule0)
+	cp.Add(rule1)
 	cp.Add(rule2)
 	cp.Add(rule3)
 	c.Add([]string{"worldping"}, cp)
