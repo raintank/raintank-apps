@@ -10,6 +10,7 @@ func InitRoutes(m *macaron.Macaron, adminKey string) {
 
 	m.Get("/", index)
 	m.Post("/metrics", Metrics)
+	m.Post("/events", Events)
 	m.Any("/graphite/*", GraphiteProxy)
 	m.Any("/elasticsearch/*", ElasticsearchProxy)
 }

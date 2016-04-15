@@ -15,6 +15,7 @@ import (
 	"github.com/raintank/met/helper"
 	"github.com/raintank/raintank-apps/tsdb/api"
 	"github.com/raintank/raintank-apps/tsdb/elasticsearch"
+	"github.com/raintank/raintank-apps/tsdb/event_publish"
 	"github.com/raintank/raintank-apps/tsdb/graphite"
 	"github.com/raintank/raintank-apps/tsdb/metric_publish"
 	"github.com/rakyll/globalconf"
@@ -26,9 +27,11 @@ var (
 	logLevel    = flag.Int("log-level", 2, "log level. 0=TRACE|1=DEBUG|2=INFO|3=WARN|4=ERROR|5=CRITICAL|6=FATAL")
 	confFile    = flag.String("config", "/etc/raintank/tsdb.ini", "configuration file path")
 
-	metricTopic    = flag.String("metric-topic", "metrics", "NSQ topic")
 	nsqdAddr       = flag.String("nsqd-addr", "localhost:4150", "nsqd service address")
+	metricTopic    = flag.String("metric-topic", "metrics", "NSQ topic for metrics")
 	publishMetrics = flag.Bool("publish-metrics", false, "enable metric publishing")
+	eventTopic     = flag.String("event-topic", "metrics", "NSQ topic for events")
+	publishEvents  = flag.Bool("publish-events", false, "enable event publishing")
 
 	addr = flag.String("addr", "localhost:80", "http service address")
 
@@ -88,6 +91,7 @@ func main() {
 	}
 
 	metric_publish.Init(stats, *metricTopic, *nsqdAddr, *publishMetrics)
+	event_publish.Init(stats, *eventTopic, *nsqdAddr, *publishEvents)
 
 	m := macaron.Classic()
 	m.Use(macaron.Logger())
