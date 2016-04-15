@@ -19,8 +19,8 @@ for VAR in task-server task-agent tsdb; do
 
 	if [ $VAR == 'task-agent' ]; then
 		# also add the plugins
-		mkdir -p ${NSQ_BUILD}/var/lib/task-agent/plugins
-		cp ${BUILD}/plugins/* ${NSQ_BUILD}/var/lib/task-agent/plugins/
+		mkdir -p ${NSQ_BUILD}/var/lib/snap/plugins
+		cp ${BUILD}/plugins/* ${NSQ_BUILD}/var/lib/snap/plugins/
 	fi
 
 	cp ${BASE}/etc/${VAR}.ini ${NSQ_BUILD}/etc/raintank/
