@@ -20,4 +20,5 @@ func AddMigrations(mg *Migrator) {
 
 	addRouteByIdIndexMigrations(mg)
 	addRouteByTagIndexMigrations(mg)
+	addRouteByAnyIndexMigrations(mg)
 }

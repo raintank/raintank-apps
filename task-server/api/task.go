@@ -38,11 +38,7 @@ func GetTasks(ctx *Context, query model.GetTasksQuery) {
 
 func AddTask(ctx *Context, task model.TaskDTO) {
 	task.OrgId = ctx.OrgId
-	if task.Route.Type == model.RouteAny {
-		// need to schedule the task to an agent.
-		//TDOD: lookup least loded agent.
-		task.Route.Config = map[string]interface{}{"id": int64(1)}
-	}
+
 	ok, err := task.Route.Validate()
 	if err != nil {
 		log.Error(3, err.Error())

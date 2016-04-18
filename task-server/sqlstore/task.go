@@ -390,7 +390,7 @@ func addTaskRoute(sess *session, t *model.TaskDTO) error {
 	case model.RouteAny:
 		idx := model.RouteByAnyIndex{
 			TaskId:  t.Id,
-			AgentId: t.Route.Config["id"].(int64),
+			AgentId: 1,
 			Created: time.Now(),
 		}
 		if _, err := sess.Insert(&idx); err != nil {
