@@ -59,6 +59,11 @@ func AddTask(ctx *Context, task model.TaskDTO) {
 		ctx.JSON(200, rbody.ErrResp(400, err))
 	}
 
+	err = sqlstore.ValidateTaskRouteConfig(&task)
+	if err != nil {
+		ctx.JSON(200, rbody.ErrResp(400, err))
+	}
+
 	err = sqlstore.AddTask(&task)
 	if err != nil {
 		log.Error(3, err.Error())

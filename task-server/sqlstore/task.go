@@ -532,3 +532,9 @@ func deleteTask(sess *session, id int64, orgId int64) (*model.TaskDTO, error) {
 	}
 	return existing, nil
 }
+
+func ValidateTaskRouteConfig(task *model.TaskDTO) error {
+	//need to make sure that that the metrics listed in the task
+	// can be executed by the agents specified by the route config.
+	return nil
+}
