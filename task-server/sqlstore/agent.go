@@ -315,8 +315,8 @@ func getAgentsForTask(sess *session, t *model.TaskDTO) ([]*AgentId, error) {
 	agents := make([]*AgentId, 0)
 	switch t.Route.Type {
 	case model.RouteAny:
-		agents = append(agents, &AgentId{Id: t.Route.Config["id"].(int64)})
-		return agents, nil
+		err := sess.Sql("SELECT agent_id FROM route_by_any_index where task_id=? AND org_id=?", t.Id, t.OrgId).Find(&agents)
+		return agents, err
 	case model.RouteByTags:
 		tags := make([]string, len(t.Route.Config["tags"].([]string)))
 		for i, tag := range t.Route.Config["tags"].([]string) {

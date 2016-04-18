@@ -388,7 +388,7 @@ func updateTask(sess *session, t *model.TaskDTO) error {
 func addTaskRoute(sess *session, t *model.TaskDTO) error {
 	switch t.Route.Type {
 	case model.RouteAny:
-		idx := model.RouteByIdIndex{
+		idx := model.RouteByAnyIndex{
 			TaskId:  t.Id,
 			AgentId: t.Route.Config["id"].(int64),
 			Created: time.Now(),
@@ -430,6 +430,7 @@ func deleteTaskRoute(sess *session, t *model.TaskDTO) error {
 	deletes := []string{
 		"DELETE from route_by_id_index where task_id = ?",
 		"DELETE from route_by_tag_index where task_id = ?",
+		"DELETE from route_by_any_index where task_id = ?",
 	}
 	for _, sql := range deletes {
 		_, err := sess.Exec(sql, t.Id)
@@ -462,9 +463,9 @@ func getAgentTasks(sess *session, agent *model.AgentDTO) ([]*model.TaskDTO, erro
 		TaskId int64
 	}
 	taskIds := make([]*taskIdRow, 0)
-	rawQuery := "SELECT task_id FROM route_by_id_index where agent_id = ?"
+	rawQuery := "SELECT task_id FROM route_by_id_index where agent_id = ? UNION SELECT task_id from route_by_any_index where agent_id = ?"
 	rawParams := make([]interface{}, 0)
-	rawParams = append(rawParams, agent.Id)
+	rawParams = append(rawParams, agent.Id, agent.Id)
 	if len(agent.Tags) > 0 {
 		p := make([]string, len(agent.Tags))
 		for i, t := range agent.Tags {
@@ -520,6 +521,7 @@ func deleteTask(sess *session, id int64, orgId int64) (*model.TaskDTO, error) {
 		"DELETE FROM task_metric WHERE task_id = ?",
 		"DELETE from route_by_id_index where task_id = ?",
 		"DELETE from route_by_tag_index where task_id = ?",
+		"DELETE from route_by_any_index where task_id = ?",
 	}
 
 	for _, sql := range deletes {

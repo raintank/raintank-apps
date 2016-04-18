@@ -52,6 +52,9 @@ func deleteAgentSession(sess *session, a *model.AgentSession) error {
 	if err != nil {
 		return err
 	}
+
+	// we query here to prevent race conditions when agents dicsonnect from one task-server node
+	// and connect to another.  The new connection may establish before the old connection times out.
 	total, err := sess.Where("agent_session.agent_id=?", a.AgentId).Count(&model.AgentSession{})
 	if err != nil {
 		return err

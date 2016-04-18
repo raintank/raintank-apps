@@ -17,3 +17,10 @@ type RouteByTagIndex struct {
 	Tag     string
 	Created time.Time
 }
+
+type RouteByAnyIndex struct {
+	Id      int64
+	TaskId  int64
+	AgentId int64
+	Created time.Time
+}

@@ -58,7 +58,7 @@ var (
 
 type TaskRoute struct {
 	Type   RouteType              `json:"type" binding:"Required"`
-	Config map[string]interface{} `json:"config" binding:"Required"`
+	Config map[string]interface{} `json:"config"`
 }
 
 func (t *TaskRoute) UnmarshalJSON(body []byte) error {
@@ -77,14 +77,7 @@ func (t *TaskRoute) UnmarshalJSON(body []byte) error {
 	t.Type = firstPass.Type
 	switch firstPass.Type {
 	case RouteAny:
-		c := make(map[string]int64)
-		err = json.Unmarshal(firstPass.Config, &c)
-		if err != nil {
-			return err
-		}
-		for k, v := range c {
-			config[k] = v
-		}
+		//do nothing.
 	case RouteByTags:
 		c := make(map[string][]string)
 		err = json.Unmarshal(firstPass.Config, &c)
@@ -114,10 +107,7 @@ func (t *TaskRoute) UnmarshalJSON(body []byte) error {
 func (r *TaskRoute) Validate() (bool, error) {
 	switch r.Type {
 	case RouteAny:
-		if len(r.Config) != 1 {
-			return false, InvalidRouteConfig
-		}
-		if _, ok := r.Config["id"]; !ok {
+		if len(r.Config) != 0 {
 			return false, InvalidRouteConfig
 		}
 	case RouteByTags:
