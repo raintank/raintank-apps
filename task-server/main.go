@@ -13,6 +13,7 @@ import (
 	"github.com/grafana/grafana/pkg/log"
 	"github.com/raintank/met/helper"
 	"github.com/raintank/raintank-apps/task-server/api"
+	"github.com/raintank/raintank-apps/task-server/event"
 	"github.com/raintank/raintank-apps/task-server/sqlstore"
 	"github.com/rakyll/globalconf"
 )
@@ -30,6 +31,9 @@ var (
 	statsEnabled = flag.Bool("stats-enabled", false, "enable statsd metrics")
 	statsdAddr   = flag.String("statsd-addr", "localhost:8125", "statsd address")
 	statsdType   = flag.String("statsd-type", "standard", "statsd type: standard or datadog")
+
+	exchange    = flag.String("exchange", "events", "Rabbitmq Topic Exchange")
+	rabbitmqUrl = flag.String("rabbitmq-url", "amqp://guest:guest@localhost:5672/", "rabbitmq Url")
 
 	adminKey = flag.String("admin-key", "not_very_secret_key", "Admin Secret Key")
 )
@@ -90,6 +94,11 @@ func main() {
 	}
 
 	m := api.NewApi(*adminKey, stats)
+
+	err = event.Init(*rabbitmqUrl, *exchange)
+	if err != nil {
+		log.Fatal(4, "failed to init event PubSub. %s", err)
+	}
 
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
