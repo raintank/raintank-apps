@@ -3,6 +3,7 @@ package snap
 import (
 	"fmt"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/grafana/grafana/pkg/log"
@@ -24,7 +25,8 @@ type Client struct {
 }
 
 func NewClient(nodeName, tsdbAddr, apiKey string, u *url.URL) (*Client, error) {
-	c, err := client.New(u.String(), "v1", false)
+	addr := strings.TrimSuffix(u.String(), "/")
+	c, err := client.New(addr, "v1", false)
 	if err != nil {
 		return nil, err
 	}
@@ -40,10 +42,12 @@ func NewClient(nodeName, tsdbAddr, apiKey string, u *url.URL) (*Client, error) {
 }
 
 func (c *Client) Run() {
+	log.Info("running SnapClient supervisor.")
 	ticker := time.NewTicker(time.Second)
 	for range ticker.C {
 		conf, err := c.GetSnapGlobalConfig()
 		if err != nil {
+			log.Debug("Snap server is unreachable. %s", err.Error())
 			if c.connected {
 				log.Error(3, "Snap server unreachable. %s", err.Error())
 				c.connected = false
