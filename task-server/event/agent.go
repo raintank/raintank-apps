@@ -60,3 +60,37 @@ func (a *AgentUpdated) Timestamp() time.Time {
 func (a *AgentUpdated) Body() ([]byte, error) {
 	return json.Marshal(a.Payload)
 }
+
+type AgentOnline struct {
+	Ts      time.Time
+	Payload *model.AgentDTO
+}
+
+func (a *AgentOnline) Type() string {
+	return "agent.online"
+}
+
+func (a *AgentOnline) Timestamp() time.Time {
+	return a.Ts
+}
+
+func (a *AgentOnline) Body() ([]byte, error) {
+	return json.Marshal(a.Payload)
+}
+
+type AgentOffline struct {
+	Ts      time.Time
+	Payload *model.AgentDTO
+}
+
+func (a *AgentOffline) Type() string {
+	return "agent.offline"
+}
+
+func (a *AgentOffline) Timestamp() time.Time {
+	return a.Ts
+}
+
+func (a *AgentOffline) Body() ([]byte, error) {
+	return json.Marshal(a.Payload)
+}

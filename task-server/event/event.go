@@ -2,6 +2,7 @@ package event
 
 import (
 	"encoding/json"
+	"os"
 	"sync"
 	"time"
 
@@ -18,7 +19,8 @@ type RawEvent struct {
 	Type      string          `json:"type"`
 	Timestamp time.Time       `json:"timestamp"`
 	Body      json.RawMessage `json:"payload"`
-	Attempts  int             `json:"attempts"`
+	Source    string
+	Attempts  int `json:"attempts"`
 }
 
 type Handlers struct {
@@ -74,9 +76,11 @@ func Publish(e Event, attempts int) error {
 	if err != nil {
 		return err
 	}
+	hostname, _ := os.Hostname()
 	raw := &RawEvent{
 		Type:      e.Type(),
 		Timestamp: e.Timestamp(),
+		Source:    hostname,
 		Body:      payload,
 	}
 	body, err := json.Marshal(raw)
