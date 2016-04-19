@@ -64,27 +64,28 @@ func metricsBinary(ctx *Context) {
 			ctx.JSON(500, err)
 			return
 		}
-		ms, err := msg.MetricDataFromMsg(body)
+		metricData := new(msg.MetricData)
+		err = metricData.InitFromMsg(body)
 		if err != nil {
-			log.Error(3, "event payload not metricData. %s", err)
+			log.Error(3, "payload not metricData. %s", err)
 			ctx.JSON(500, err)
 			return
 		}
 
-		err = ms.DecodeMetricData()
+		err = metricData.DecodeMetricData()
 		if err != nil {
 			log.Error(3, "failed to unmarshal metricData. %s", err)
 			ctx.JSON(500, err)
 			return
 		}
 		if !ctx.IsAdmin {
-			for _, m := range ms.Metrics {
+			for _, m := range metricData.Metrics {
 				m.OrgId = int(ctx.OrgId)
 				m.SetId()
 			}
 		}
 
-		err = metric_publish.Publish(ms.Metrics)
+		err = metric_publish.Publish(metricData.Metrics)
 		if err != nil {
 			log.Error(3, "failed to publush metrics. %s", err)
 			ctx.JSON(500, err)
