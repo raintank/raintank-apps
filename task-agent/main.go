@@ -90,6 +90,7 @@ func main() {
 	if err != nil {
 		log.Fatal(4, err.Error())
 	}
+	go snapClient.Run()
 	InitTaskCache(snapClient)
 
 	interrupt := make(chan os.Signal, 1)
