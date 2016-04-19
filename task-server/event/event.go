@@ -96,8 +96,8 @@ func Publish(e Event, attempts int) error {
 }
 
 func handleMessages(c chan Message) {
-	for msg := range c {
-		go func() {
+	for m := range c {
+		go func(msg Message) {
 			e := RawEvent{}
 			err := json.Unmarshal(msg.Payload, &e)
 			if err != nil {
@@ -108,6 +108,6 @@ func handleMessages(c chan Message) {
 			for _, ch := range handlers.GetListeners(e.Type) {
 				ch <- e
 			}
-		}()
+		}(m)
 	}
 }
