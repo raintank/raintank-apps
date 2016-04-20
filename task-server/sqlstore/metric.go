@@ -2,6 +2,7 @@ package sqlstore
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/raintank/raintank-apps/task-server/model"
@@ -17,9 +18,10 @@ func ValidateMetrics(orgId int64, metrics map[string]int64) error {
 
 func validateMetrics(sess *session, orgId int64, metrics map[string]int64) error {
 	for namespace, ver := range metrics {
-		//validate metrics
+		// for SQL "like" query, "%" is the wildcard character.
+		ns := strings.Replace(namespace, "*", "%", -1)
 		mQuery := &model.GetMetricsQuery{
-			Namespace: namespace,
+			Namespace: ns,
 			OrgId:     orgId,
 			Version:   ver,
 		}
