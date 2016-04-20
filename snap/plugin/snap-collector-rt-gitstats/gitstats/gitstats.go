@@ -44,9 +44,6 @@ type Gitstats struct {
 func (f *Gitstats) CollectMetrics(mts []plugin.PluginMetricType) ([]plugin.PluginMetricType, error) {
 	var err error
 
-	if len(mts) != 1 {
-		return nil, fmt.Errorf("only 1 pluginMetricType supported.")
-	}
 	conf := mts[0].Config().Table()
 	fmt.Printf("%v", conf)
 	accessToken, ok := conf["access_token"]
@@ -106,16 +103,19 @@ func gitStats(accessToken, owner, repo string, mts []plugin.PluginMetricType) ([
 	}
 
 	metrics := make([]plugin.PluginMetricType, 0, len(stats))
-	for stat, value := range stats {
-		mt := plugin.PluginMetricType{
-			Data_:      value,
-			Namespace_: []string{"raintank", "apps", "gitstats", owner, repo, stat},
-			Source_:    hostname,
-			Timestamp_: time.Now(),
-			Labels_:    mts[0].Labels(),
-			Version_:   mts[0].Version(),
+	for _, m := range mts {
+		stat := m.Namespace()[5]
+		if value, ok := stats[stat]; ok {
+			mt := plugin.PluginMetricType{
+				Data_:      value,
+				Namespace_: []string{"raintank", "apps", "gitstats", owner, repo, stat},
+				Source_:    hostname,
+				Timestamp_: time.Now(),
+				Labels_:    m.Labels(),
+				Version_:   m.Version(),
+			}
+			metrics = append(metrics, mt)
 		}
-		metrics = append(metrics, mt)
 	}
 
 	return metrics, nil

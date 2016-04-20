@@ -66,9 +66,6 @@ type Ping struct {
 func (p *Ping) CollectMetrics(mts []plugin.PluginMetricType) ([]plugin.PluginMetricType, error) {
 	var err error
 
-	if len(mts) != 1 {
-		return nil, fmt.Errorf("only 1 pluginMetricType supported.")
-	}
 	conf := mts[0].Config().Table()
 	checkId, ok := conf["checkId"]
 	if !ok || checkId.(ctypes.ConfigValueStr).Value == "" {
@@ -126,17 +123,19 @@ func ping(checkId, agentName, endpoint, host string, mts []plugin.PluginMetricTy
 	}
 
 	metrics := make([]plugin.PluginMetricType, 0, len(stats))
-	for stat, value := range stats {
-		mt := plugin.PluginMetricType{
-			Data_:      value,
-			Namespace_: []string{"worlding", agentName, endpoint, "ping", stat},
-			Source_:    hostname,
-			Tags_:      map[string]string{"target_type": "gauage"},
-			Timestamp_: time.Now(),
-			Labels_:    mts[0].Labels(),
-			Version_:   mts[0].Version(),
+	for _, m := range mts {
+		stat := m.Namespace()[4]
+		if value, ok := stats[stat]; ok {
+			mt := plugin.PluginMetricType{
+				Data_:      value,
+				Namespace_: []string{"worlding", agentName, endpoint, "ping", stat},
+				Source_:    hostname,
+				Timestamp_: time.Now(),
+				Labels_:    m.Labels(),
+				Version_:   m.Version(),
+			}
+			metrics = append(metrics, mt)
 		}
-		metrics = append(metrics, mt)
 	}
 
 	//check if state has changed.
