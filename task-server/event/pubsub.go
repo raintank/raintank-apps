@@ -50,25 +50,30 @@ func redial(ctx context.Context, url, exchange string) chan chan session {
 			var ch *amqp.Channel
 			var err error
 			for !connected {
+				log.Debug("dialing amqp url: %s", url)
 				conn, err = amqp.Dial(url)
 				if err != nil {
 					log.Error(3, "cannot (re)dial: %v: %q", err, url)
 					time.Sleep(time.Second)
 					continue
 				}
+				log.Debug("connected to %s", url)
 
-				ch, err := conn.Channel()
+				log.Debug("creating new channel on AMQP connection.")
+				ch, err = conn.Channel()
 				if err != nil {
 					log.Error(3, "cannot create channel: %v", err)
 					conn.Close()
 					time.Sleep(time.Second)
 					continue
 				}
+				log.Debug("Ensuring that %s topic exchange exists on AMQP server.", exchange)
 				if err := ch.ExchangeDeclare(exchange, "topic", true, false, false, false, nil); err != nil {
 					log.Error(3, "cannot declare topic exchange: %v", err)
 					conn.Close()
 					time.Sleep(time.Second)
 				}
+				log.Debug("Successfully connected to RabbitMQ.")
 				connected = true
 			}
 
@@ -95,6 +100,7 @@ func publish(sessions chan chan session, exchange string, messages <-chan Messag
 	)
 
 	for session := range sessions {
+		log.Debug("waiting for new session to be established.")
 		pub := <-session
 
 		// publisher confirms for this channel/connection
@@ -143,8 +149,10 @@ func publish(sessions chan chan session, exchange string, messages <-chan Messag
 // subscribe consumes deliveries from an exclusive queue from a fanout exchange and sends to the application specific messages chan.
 func subscribe(sessions chan chan session, exchange string, messages chan<- Message) {
 	for session := range sessions {
+		log.Debug("waiting for new session to be established.")
 		sub := <-session
 
+		log.Debug("declaring new ephemeral Queue %v", sub)
 		q, err := sub.QueueDeclare("", false, true, true, false, nil)
 		if err != nil {
 			log.Error(3, "cannot consume from exclusive: %v", err)
@@ -152,6 +160,7 @@ func subscribe(sessions chan chan session, exchange string, messages chan<- Mess
 			continue
 		}
 
+		log.Debug("binding queue %s to routingKey #", q.Name)
 		routingKey := "#"
 		if err := sub.QueueBind(q.Name, routingKey, exchange, false, nil); err != nil {
 			log.Error(3, "cannot consume without a binding to exchange: %q, %v", exchange, err)
@@ -166,9 +175,10 @@ func subscribe(sessions chan chan session, exchange string, messages chan<- Mess
 			continue
 		}
 
-		log.Info("subscribed...")
+		log.Info("subscribed to rabbitmq %s exchange...", exchange)
 
 		for msg := range deliveries {
+			log.Debug("new message received from rabbitmq")
 			messages <- Message{RoutingKey: msg.RoutingKey, Payload: msg.Body}
 			sub.Ack(msg.DeliveryTag, false)
 		}
