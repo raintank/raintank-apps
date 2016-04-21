@@ -3,6 +3,7 @@ package sqlstore
 import (
 	"time"
 
+	"github.com/grafana/grafana/pkg/log"
 	"github.com/raintank/raintank-apps/task-server/model"
 )
 
@@ -60,6 +61,7 @@ func deleteAgentSession(sess *session, a *model.AgentSession) error {
 		return err
 	}
 	if total == 0 {
+		log.Info("AgentId %d has no sessions. Marking as offline.", a.AgentId)
 		rawSql := "UPDATE agent set online=0, online_change=? where id=?"
 		_, err := sess.Exec(rawSql, a.AgentId, time.Now())
 		if err != nil {
