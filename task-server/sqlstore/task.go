@@ -533,8 +533,78 @@ func deleteTask(sess *session, id int64, orgId int64) (*model.TaskDTO, error) {
 	return existing, nil
 }
 
+// need to make sure that that the metrics listed in the task
+// can be executed by the agents specified by the route config.
 func ValidateTaskRouteConfig(task *model.TaskDTO) error {
-	//need to make sure that that the metrics listed in the task
-	// can be executed by the agents specified by the route config.
+	sess, err := newSession(true, "task")
+	if err != nil {
+		return err
+	}
+	defer sess.Cleanup()
+	err = validateTaskRouteConfig(sess, task)
+	if err != nil {
+		return err
+	}
+	sess.Complete()
+	return nil
+}
+
+func validateTaskRouteConfig(sess *session, task *model.TaskDTO) error {
+	metricsByAgent := make(map[int64][]string)
+	agentsById := make(map[int64]*model.AgentDTO)
+	for ns, _ := range task.Metrics {
+		agentsQuery := model.GetAgentsQuery{
+			OrgId:  task.OrgId,
+			Metric: ns,
+		}
+
+		if task.Route.Type == model.RouteByTags {
+			agentsQuery.Tag = task.Route.Config["tags"].([]string)
+		}
+		agents, err := getAgents(sess, &agentsQuery)
+		if err != nil {
+			return err
+		}
+		for _, a := range agents {
+			if _, ok := metricsByAgent[a.Id]; !ok {
+				metricsByAgent[a.Id] = make([]string, 0)
+			}
+			metricsByAgent[a.Id] = append(metricsByAgent[a.Id], ns)
+			if _, ok := agentsById[a.Id]; !ok {
+				agentsById[a.Id] = a
+			}
+		}
+	}
+
+	switch task.Route.Type {
+	case model.RouteAny:
+		// need to make sure at least 1 agent can serve all metrics.
+		for _, metrics := range metricsByAgent {
+			if len(metrics) == len(task.Metrics) {
+				//found a agent that can handle all metrics.
+				return nil
+			}
+		}
+		return fmt.Errorf("No agent found that can provide all requested metrics.")
+	case model.RouteByTags:
+		// we need to make sure that there is at least 1 agent which can handle all specificed metrics.
+		for _, metrics := range metricsByAgent {
+			if len(metrics) == len(task.Metrics) {
+				//found a agent that can handle all metrics.
+				return nil
+			}
+		}
+		return fmt.Errorf("No agent found that can provide all requested metrics.")
+	case model.RouteByIds:
+		// Need to make sure that every agentId listed is able to handle all metrics requested.
+		for _, id := range task.Route.Config["ids"].([]int64) {
+			metrics, ok := metricsByAgent[id]
+			if !ok || len(metrics) != len(task.Metrics) {
+				return fmt.Errorf("Not all agents listed can return all metrics requested.")
+			}
+		}
+		return nil
+	}
+
 	return nil
 }
