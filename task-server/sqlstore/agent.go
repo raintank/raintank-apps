@@ -1,6 +1,7 @@
 package sqlstore
 
 import (
+	"bytes"
 	"fmt"
 	"strconv"
 	"strings"
@@ -25,6 +26,10 @@ func (rows agentWithTags) ToAgentDTO() []*model.AgentDTO {
 	for _, r := range rows {
 		a, ok := agentsById[r.Agent.Id]
 		if !ok {
+			tags := make([]string, 0)
+			if r.AgentTag.Tag != "" {
+				tags = append(tags, r.AgentTag.Tag)
+			}
 			agentsById[r.Agent.Id] = &model.AgentDTO{
 				Id:            r.Agent.Id,
 				Name:          r.Agent.Name,
@@ -36,9 +41,9 @@ func (rows agentWithTags) ToAgentDTO() []*model.AgentDTO {
 				OnlineChange:  r.Agent.OnlineChange,
 				Created:       r.Agent.Created,
 				Updated:       r.Agent.Updated,
-				Tags:          []string{r.AgentTag.Tag},
+				Tags:          tags,
 			}
-		} else {
+		} else if r.Tag != "" {
 			a.Tags = append(a.Tags, r.Tag)
 		}
 	}
@@ -61,29 +66,57 @@ func GetAgents(query *model.GetAgentsQuery) ([]*model.AgentDTO, error) {
 
 func getAgents(sess *session, query *model.GetAgentsQuery) ([]*model.AgentDTO, error) {
 	var a agentWithTags
+	var rawSQL bytes.Buffer
+	args := make([]interface{}, 0)
+
+	var where bytes.Buffer
+	whereArgs := make([]interface{}, 0)
+	prefix := "WHERE"
+
+	fmt.Fprint(&rawSQL, "SELECT agent.*, agent_tag.* FROM agent LEFT JOIN agent_tag ON  agent.id = agent_tag.agent_id ")
+	if query.Tag != "" {
+		fmt.Fprint(&rawSQL, "INNER JOIN agent_tag as at ON agent.id = at.agent_id ")
+		fmt.Fprintf(&where, "%s at.tag=? ", prefix)
+		whereArgs = append(whereArgs, query.Tag)
+		prefix = "AND"
+	}
+
+	if query.Metric != "" {
+		sess.Join("INNER", "agent_metric", "agent_metric.agent_id = agent.id").Where("agent_metric.namespace LIKE ?", query.Metric)
+		fmt.Fprint(&rawSQL, "INNER JOIN (SELECT DISTINCT(agent_id) FROM agent_metric where namespace like ?) AS am ON am.agent_id = agent.id ")
+		args = append(args, query.Metric)
+	}
 	if query.Name != "" {
-		sess.Where("agent.name = ?", query.Name)
+		fmt.Fprintf(&where, "%s agent.name=? ", prefix)
+		whereArgs = append(whereArgs, query.Name)
+		prefix = "AND"
 	}
 	if query.Enabled != "" {
 		enabled, err := strconv.ParseBool(query.Enabled)
 		if err != nil {
 			return nil, err
 		}
-		sess.Where("agent.enabled=?", enabled)
+		fmt.Fprintf(&where, "%s agent.enabled=? ", prefix)
+		whereArgs = append(whereArgs, enabled)
+		prefix = "AND"
 	}
 	if query.Public != "" {
 		public, err := strconv.ParseBool(query.Public)
 		if err != nil {
 			return nil, err
 		}
-		sess.Where("agent.public=?", public)
-	}
-	if query.Tag != "" {
-		sess.Join("INNER", []string{"agent_tag", "at"}, "agent.id = at.agent_id").Where("at.tag=?", query.Tag)
-	}
-
-	if query.Metric != "" {
-		sess.Join("INNER", "agent_metric", "agent_metric.agent_id = agent.id").Where("agent_metric.namespace=?", query.Metric)
+		if public {
+			fmt.Fprintf(&where, "%s agent.public=1 ", prefix)
+			prefix = "AND"
+		} else {
+			fmt.Fprintf(&where, "%s (agent.public=0 AND agent.org_id=?) ", prefix)
+			whereArgs = append(whereArgs, query.OrgId)
+			prefix = "AND"
+		}
+	} else {
+		fmt.Fprintf(&where, "%s (agent.org_id=? OR agent.public=1) ", prefix)
+		whereArgs = append(whereArgs, query.OrgId)
+		prefix = "AND"
 	}
 
 	if query.OrderBy == "" {
@@ -95,8 +128,13 @@ func getAgents(sess *session, query *model.GetAgentsQuery) ([]*model.AgentDTO, e
 	if query.Page == 0 {
 		query.Page = 1
 	}
-	sess.Asc(query.OrderBy).Limit(query.Limit, (query.Page-1)*query.Limit)
-	err := sess.Join("LEFT", "agent_tag", "agent.id = agent_tag.agent_id").Find(&a)
+
+	fmt.Fprint(&rawSQL, where.String())
+	args = append(args, whereArgs...)
+	fmt.Fprintf(&rawSQL, "ORDER BY `%s` ASC LIMIT %d, %d", query.OrderBy, (query.Page-1)*query.Limit, query.Limit)
+
+	err := sess.Sql(rawSQL.String(), args...).Find(&a)
+
 	if err != nil {
 		return nil, err
 	}
@@ -318,6 +356,7 @@ func getAgentsForTask(sess *session, t *model.TaskDTO) ([]*AgentId, error) {
 		err := sess.Sql("SELECT agent_id FROM route_by_any_index where task_id=? AND org_id=?", t.Id, t.OrgId).Find(&agents)
 		return agents, err
 	case model.RouteByTags:
+		//TODO: this list needs to be filtered by agents that support the metrics listed in the task.
 		tags := make([]string, len(t.Route.Config["tags"].([]string)))
 		for i, tag := range t.Route.Config["tags"].([]string) {
 			tags[i] = tag
