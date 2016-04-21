@@ -2,10 +2,8 @@ package client
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
-	"os"
 	"testing"
 	"time"
 
@@ -27,15 +25,7 @@ func startApi(done chan struct{}) string {
 		panic(fmt.Errorf("failed to initialize statsd. %s", err))
 	}
 
-	// initialize DB
-	tmpfile, err := ioutil.TempFile("", "example")
-	if err != nil {
-		panic(err.Error())
-	}
-	dbpath := tmpfile.Name()
-	tmpfile.Close()
-	fmt.Printf("dbpath: %s\n", dbpath)
-	sqlstore.NewEngine("sqlite3", dbpath, false)
+	sqlstore.NewEngine("sqlite3", ":memory:", true)
 
 	m := api.NewApi(adminKey, stats)
 
@@ -49,7 +39,6 @@ func startApi(done chan struct{}) string {
 	go func() {
 		<-done
 		l.Close()
-		os.Remove(dbpath)
 	}()
 
 	return fmt.Sprintf("http://%s/", l.Addr().String())
