@@ -336,17 +336,12 @@ type AgentId struct {
 }
 
 func GetAgentsForTask(task *model.TaskDTO) ([]*AgentId, error) {
-	sess, err := newSession(true, "agent")
+	sess, err := newSession(false, "agent")
 	if err != nil {
 		return nil, err
 	}
-	defer sess.Cleanup()
-	agents, err := getAgentsForTask(sess, task)
-	if err != nil {
-		return nil, err
-	}
-	sess.Complete()
-	return agents, nil
+
+	return getAgentsForTask(sess, task)
 }
 
 func getAgentsForTask(sess *session, t *model.TaskDTO) ([]*AgentId, error) {
