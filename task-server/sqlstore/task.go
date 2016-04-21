@@ -467,12 +467,20 @@ func getAgentTasks(sess *session, agent *model.AgentDTO) ([]*model.TaskDTO, erro
 	rawParams := make([]interface{}, 0)
 	rawParams = append(rawParams, agent.Id, agent.Id)
 	if len(agent.Tags) > 0 {
+		rawParams = append(rawParams, agent.Id)
 		p := make([]string, len(agent.Tags))
 		for i, t := range agent.Tags {
 			p[i] = "?"
 			rawParams = append(rawParams, t)
 		}
-		rawQuery = fmt.Sprintf("%s UNION SELECT task_id FROM route_by_tag_index where tag IN (%s)", rawQuery, strings.Join(p, ","))
+		q := fmt.Sprintf(`SELECT 
+                           DISTINCT(idx.task_id)
+                        FROM route_by_tag_index AS idx 
+                        JOIN  task_metric on task_metric.task_id = idx.task_id 
+                        INNER join (SELECT namespace from agent_metric where agent_id=?) ns ON ns.namespace like REPLACE(task_metric.namespace, "*", "%")
+                        WHERE idx.tag IN (%s)`, strings.Join(p, ","))
+
+		rawQuery = fmt.Sprintf("%s UNION %s", rawQuery, q)
 	}
 	err := sess.Sql(rawQuery, rawParams...).Find(&taskIds)
 	if err != nil {
