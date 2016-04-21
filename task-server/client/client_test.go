@@ -200,6 +200,27 @@ func TestApiClient(t *testing.T) {
 				So(len(agentsWithMetric), ShouldEqual, 1)
 				So(agentsWithMetric[0].Id, ShouldEqual, agents[0].Id)
 			})
+			Convey("When getting agent with Metric wildcard", func() {
+				q := &model.GetAgentsQuery{
+					Metric: "/testing/demo/*",
+				}
+				agentsWithMetric, err := c.GetAgents(q)
+				So(err, ShouldBeNil)
+				So(agentsWithMetric, ShouldNotBeNil)
+				So(agentsWithMetric, ShouldHaveSameTypeAs, []*model.AgentDTO{})
+				So(len(agentsWithMetric), ShouldEqual, 1)
+				So(agentsWithMetric[0].Id, ShouldEqual, agents[0].Id)
+			})
+			Convey("When getting agent with Metric wildcard that doesnt match", func() {
+				q := &model.GetAgentsQuery{
+					Metric: "/not-found/demo/*",
+				}
+				agentsWithMetric, err := c.GetAgents(q)
+				So(err, ShouldBeNil)
+				So(agentsWithMetric, ShouldNotBeNil)
+				So(agentsWithMetric, ShouldHaveSameTypeAs, []*model.AgentDTO{})
+				So(len(agentsWithMetric), ShouldEqual, 0)
+			})
 		})
 
 		Convey("When getting list of tasks", func() {
