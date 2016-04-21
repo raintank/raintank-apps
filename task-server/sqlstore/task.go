@@ -625,7 +625,7 @@ func ValidateTaskRouteConfig(task *model.TaskDTO) error {
 func validateTaskRouteConfig(sess *session, task *model.TaskDTO) error {
 	metricsByAgent := make(map[int64][]string)
 	agentsById := make(map[int64]*model.AgentDTO)
-	for ns, _ := range task.Metrics {
+	for ns := range task.Metrics {
 		agentsQuery := model.GetAgentsQuery{
 			OrgId:  task.OrgId,
 			Metric: ns,
