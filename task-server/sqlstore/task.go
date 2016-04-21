@@ -2,10 +2,12 @@ package sqlstore
 
 import (
 	"fmt"
+	"math/rand"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/grafana/grafana/pkg/log"
 	"github.com/raintank/raintank-apps/task-server/model"
 )
 
@@ -185,6 +187,21 @@ func addTask(sess *session, t *model.TaskDTO) error {
 
 }
 
+func taskRouteAnyCandidates(sess *session, tid int64) ([]int64, error) {
+	// get Candidate Agents.
+	candidates := make([]struct{ AgentId int64 }, 0)
+	err := sess.Sql("SELECT DISTINCT(agent_id) from agent_metric INNER JOIN task_metric on agent_metric.namespace like REPLACE(task_metric.namespace, '*', '%') WHERE task_metric.task_id=?", tid).Find(&candidates)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := make([]int64, len(candidates))
+	for i, c := range candidates {
+		resp[i] = c.AgentId
+	}
+	return resp, nil
+}
+
 func UpdateTask(t *model.TaskDTO) error {
 	sess, err := newSession(true, "task")
 	if err != nil {
@@ -263,11 +280,13 @@ func updateTask(sess *session, t *model.TaskDTO) error {
 			return err
 		}
 	}
+	newMetrics := false
 	if len(metricsToAdd) > 0 {
 		_, err := sess.Insert(&metricsToAdd)
 		if err != nil {
 			return err
 		}
+		newMetrics = true
 	}
 
 	// handle task routes.
@@ -281,7 +300,46 @@ func updateTask(sess *session, t *model.TaskDTO) error {
 	} else {
 		switch t.Route.Type {
 		case model.RouteAny:
-			//no need to do anything.
+			// we only need to consider changing the agent this task is allocated to
+			// if new metrics have been added.
+			if newMetrics {
+				currentAgent := struct{ AgentId int64 }{}
+				found, err := sess.Sql("SELECT agent_id from route_by_any_index where task_id = ?", t.Id).Get(&currentAgent)
+				if err != nil {
+					return err
+				}
+				if !found {
+					log.Error(3, "no entry for task %d found in route_by_any_index", t.Id)
+				}
+
+				candidates, err := taskRouteAnyCandidates(sess, t.Id)
+				if err != nil {
+					return err
+				}
+				if len(candidates) == 0 {
+					return fmt.Errorf("No agent found that can provide all requested metrics.")
+				}
+				for _, id := range candidates {
+					if id == currentAgent.AgentId {
+						// no need to change the assigned agent.
+						break
+					}
+				}
+				// need to assign a new agent.
+				_, err = sess.Exec("DELETE from route_by_any_index where task_id = ?", t.Id)
+				if err != nil {
+					return err
+				}
+
+				idx := model.RouteByAnyIndex{
+					TaskId:  t.Id,
+					AgentId: candidates[rand.Intn(len(candidates))],
+					Created: time.Now(),
+				}
+				if _, err := sess.Insert(&idx); err != nil {
+					return err
+				}
+			}
 		case model.RouteByTags:
 			existingTags := make(map[string]struct{})
 			tagsToAdd := make([]string, 0)
@@ -388,9 +446,17 @@ func updateTask(sess *session, t *model.TaskDTO) error {
 func addTaskRoute(sess *session, t *model.TaskDTO) error {
 	switch t.Route.Type {
 	case model.RouteAny:
+		candidates, err := taskRouteAnyCandidates(sess, t.Id)
+		if err != nil {
+			return err
+		}
+		if len(candidates) == 0 {
+			return fmt.Errorf("No agent found that can provide all requested metrics.")
+		}
+
 		idx := model.RouteByAnyIndex{
 			TaskId:  t.Id,
-			AgentId: 1,
+			AgentId: candidates[rand.Intn(len(candidates))],
 			Created: time.Now(),
 		}
 		if _, err := sess.Insert(&idx); err != nil {
@@ -458,7 +524,6 @@ func GetAgentTasks(agent *model.AgentDTO) ([]*model.TaskDTO, error) {
 func getAgentTasks(sess *session, agent *model.AgentDTO) ([]*model.TaskDTO, error) {
 	var tasks taskWithMetrics
 
-	// Get taskIds (we could do this with an INNER join on a subquery, but xorm makes that hard to do.)
 	type taskIdRow struct {
 		TaskId int64
 	}
@@ -476,7 +541,7 @@ func getAgentTasks(sess *session, agent *model.AgentDTO) ([]*model.TaskDTO, erro
 		q := fmt.Sprintf(`SELECT 
                            DISTINCT(idx.task_id)
                         FROM route_by_tag_index AS idx 
-                        JOIN  task_metric on task_metric.task_id = idx.task_id 
+                        INNER JOIN task_metric on task_metric.task_id = idx.task_id 
                         INNER join (SELECT namespace from agent_metric where agent_id=?) ns ON ns.namespace like REPLACE(task_metric.namespace, "*", "%")
                         WHERE idx.tag IN (%s)`, strings.Join(p, ","))
 
