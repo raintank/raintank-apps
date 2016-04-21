@@ -542,7 +542,7 @@ func getAgentTasks(sess *session, agent *model.AgentDTO) ([]*model.TaskDTO, erro
                            DISTINCT(idx.task_id)
                         FROM route_by_tag_index AS idx 
                         INNER JOIN task_metric on task_metric.task_id = idx.task_id 
-                        INNER join (SELECT namespace from agent_metric where agent_id=?) ns ON ns.namespace like REPLACE(task_metric.namespace, "*", "%")
+                        INNER join (SELECT namespace from agent_metric where agent_id=?) ns ON ns.namespace like REPLACE(task_metric.namespace, '*', '%%')
                         WHERE idx.tag IN (%s)`, strings.Join(p, ","))
 
 		rawQuery = fmt.Sprintf("%s UNION %s", rawQuery, q)
