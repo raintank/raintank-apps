@@ -74,18 +74,26 @@ func getAgents(sess *session, query *model.GetAgentsQuery) ([]*model.AgentDTO, e
 	prefix := "WHERE"
 
 	fmt.Fprint(&rawSQL, "SELECT agent.*, agent_tag.* FROM agent LEFT JOIN agent_tag ON  agent.id = agent_tag.agent_id ")
-	if query.Tag != "" {
+	if len(query.Tag) > 0 {
 		fmt.Fprint(&rawSQL, "INNER JOIN agent_tag as at ON agent.id = at.agent_id ")
-		fmt.Fprintf(&where, "%s at.tag=? ", prefix)
-		whereArgs = append(whereArgs, query.Tag)
+		p := make([]string, len(query.Tag))
+		for i, tag := range query.Tag {
+			p[i] = "?"
+			whereArgs = append(whereArgs, tag)
+		}
+		filter := fmt.Sprintf("at.tag IN (%s)", strings.Join(p, ","))
+
+		fmt.Fprintf(&where, "%s %s ", prefix, filter)
 		prefix = "AND"
 	}
 
 	if query.Metric != "" {
 		sess.Join("INNER", "agent_metric", "agent_metric.agent_id = agent.id").Where("agent_metric.namespace LIKE ?", query.Metric)
 		fmt.Fprint(&rawSQL, "INNER JOIN (SELECT DISTINCT(agent_id) FROM agent_metric where namespace like ?) AS am ON am.agent_id = agent.id ")
-		args = append(args, query.Metric)
+		ns := strings.Replace(query.Metric, "*", "%", -1)
+		args = append(args, ns)
 	}
+
 	if query.Name != "" {
 		fmt.Fprintf(&where, "%s agent.name=? ", prefix)
 		whereArgs = append(whereArgs, query.Name)

@@ -69,13 +69,13 @@ func (a *AgentDTO) ValidName() bool {
 // "url" tag is used by github.com/google/go-querystring/query
 // "form" tag is used by is ued by github.com/go-macaron/binding
 type GetAgentsQuery struct {
-	Name    string `form:"name" url:"name,omitempty"`
-	Metric  string `form:"metric" url:"metric,omitempty"`
-	Enabled string `form:"enabled" url:"enabled,omitempty"`
-	Public  string `form:"public" url:"public,omitempty"`
-	Tag     string `form:"tag" url:"tag,omitempty"`
-	OrderBy string `form:"orderBy" url:"orderBy,omitempty"`
-	Limit   int    `form:"limit" url:"limit,omitempty"`
-	Page    int    `form:"page" url:"page,omitempty"`
-	OrgId   int64  `form:"-" url:"-"`
+	Name    string   `form:"name" url:"name,omitempty"`
+	Metric  string   `form:"metric" url:"metric,omitempty"`
+	Enabled string   `form:"enabled" url:"enabled,omitempty"`
+	Public  string   `form:"public" url:"public,omitempty"`
+	Tag     []string `form:"tag" url:"tag,omitempty"`
+	OrderBy string   `form:"orderBy" url:"orderBy,omitempty"`
+	Limit   int      `form:"limit" url:"limit,omitempty"`
+	Page    int      `form:"page" url:"page,omitempty"`
+	OrgId   int64    `form:"-" url:"-"`
 }
