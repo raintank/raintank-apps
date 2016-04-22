@@ -44,8 +44,8 @@ func (a *TaskDeleted) Body() ([]byte, error) {
 type TaskUpdated struct {
 	Ts      time.Time
 	Payload struct {
-		Old *model.TaskDTO `json:"old"`
-		New *model.TaskDTO `json:"new"`
+		Last    *model.TaskDTO `json:"old"`
+		Current *model.TaskDTO `json:"new"`
 	}
 }
 
