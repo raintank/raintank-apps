@@ -68,7 +68,6 @@ func AddTask(ctx *Context, task model.TaskDTO) {
 		ctx.JSON(200, rbody.ErrResp(500, err))
 		return
 	}
-	ActiveSockets.EmitTask(&task, "taskAdd")
 	taskCreate.Inc(1)
 	ctx.JSON(200, rbody.OkResp("task", task))
 }

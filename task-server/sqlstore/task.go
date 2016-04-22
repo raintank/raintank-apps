@@ -144,6 +144,7 @@ func AddTask(t *model.TaskDTO) error {
 		return err
 	}
 	sess.Complete()
+	event.Publish(&event.TaskCreated{Ts: time.Now(), Payload: t}, 0)
 	return nil
 }
 
@@ -214,21 +215,25 @@ func UpdateTask(t *model.TaskDTO) error {
 		return err
 	}
 	defer sess.Cleanup()
-	err = updateTask(sess, t)
+	events, err := updateTask(sess, t)
 	if err != nil {
 		return err
 	}
 	sess.Complete()
+	for _, e := range events {
+		event.Publish(e, 0)
+	}
 	return nil
 }
 
-func updateTask(sess *session, t *model.TaskDTO) error {
+func updateTask(sess *session, t *model.TaskDTO) ([]event.Event, error) {
+	events := make([]event.Event, 0)
 	existing, err := getTaskById(sess, t.Id, t.OrgId)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if existing == nil {
-		return model.TaskNotFound
+		return nil, model.TaskNotFound
 	}
 	task := model.Task{
 		Id:       t.Id,
@@ -244,7 +249,7 @@ func updateTask(sess *session, t *model.TaskDTO) error {
 	sess.UseBool("enabled")
 	_, err = sess.Id(task.Id).Update(&task)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	t.Updated = task.Updated
 
@@ -283,14 +288,14 @@ func updateTask(sess *session, t *model.TaskDTO) error {
 	if len(metricsToDel) > 0 {
 		_, err := sess.Delete(&metricsToDel)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 	newMetrics := false
 	if len(metricsToAdd) > 0 {
 		_, err := sess.Insert(&metricsToAdd)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		newMetrics = true
 	}
@@ -298,10 +303,10 @@ func updateTask(sess *session, t *model.TaskDTO) error {
 	// handle task routes.
 	if existing.Route.Type != t.Route.Type {
 		if err := deleteTaskRoute(sess, existing); err != nil {
-			return err
+			return nil, err
 		}
 		if err := addTaskRoute(sess, t); err != nil {
-			return err
+			return nil, err
 		}
 	} else {
 		switch t.Route.Type {
@@ -312,7 +317,7 @@ func updateTask(sess *session, t *model.TaskDTO) error {
 				currentAgent := struct{ AgentId int64 }{}
 				found, err := sess.Sql("SELECT agent_id from route_by_any_index where task_id = ?", t.Id).Get(&currentAgent)
 				if err != nil {
-					return err
+					return nil, err
 				}
 				if !found {
 					log.Error(3, "no entry for task %d found in route_by_any_index", t.Id)
@@ -320,10 +325,10 @@ func updateTask(sess *session, t *model.TaskDTO) error {
 
 				candidates, err := taskRouteAnyCandidates(sess, t.Id)
 				if err != nil {
-					return err
+					return nil, err
 				}
 				if len(candidates) == 0 {
-					return fmt.Errorf("No agent found that can provide all requested metrics.")
+					return nil, fmt.Errorf("No agent found that can provide all requested metrics.")
 				}
 				for _, id := range candidates {
 					if id == currentAgent.AgentId {
@@ -334,7 +339,7 @@ func updateTask(sess *session, t *model.TaskDTO) error {
 				// need to assign a new agent.
 				_, err = sess.Exec("DELETE from route_by_any_index where task_id = ?", t.Id)
 				if err != nil {
-					return err
+					return nil, err
 				}
 
 				idx := model.RouteByAnyIndex{
@@ -343,7 +348,7 @@ func updateTask(sess *session, t *model.TaskDTO) error {
 					Created: time.Now(),
 				}
 				if _, err := sess.Insert(&idx); err != nil {
-					return err
+					return nil, err
 				}
 			}
 		case model.RouteByTags:
@@ -376,7 +381,7 @@ func updateTask(sess *session, t *model.TaskDTO) error {
 				}
 				_, err := sess.Delete(&tagRoutes)
 				if err != nil {
-					return err
+					return nil, err
 				}
 			}
 			if len(tagsToAdd) > 0 {
@@ -390,7 +395,7 @@ func updateTask(sess *session, t *model.TaskDTO) error {
 				}
 				_, err := sess.Insert(&tagRoutes)
 				if err != nil {
-					return err
+					return nil, err
 				}
 			}
 
@@ -424,7 +429,7 @@ func updateTask(sess *session, t *model.TaskDTO) error {
 				}
 				_, err := sess.Delete(&idRoutes)
 				if err != nil {
-					return err
+					return nil, err
 				}
 			}
 			if len(idsToAdd) > 0 {
@@ -438,15 +443,19 @@ func updateTask(sess *session, t *model.TaskDTO) error {
 				}
 				_, err := sess.Insert(&idRoutes)
 				if err != nil {
-					return err
+					return nil, err
 				}
 			}
 		default:
-			return model.UnknownRouteType
+			return nil, model.UnknownRouteType
 		}
 	}
-
-	return nil
+	e := new(event.TaskUpdated)
+	e.Ts = time.Now()
+	e.Payload.Last = t
+	e.Payload.Current = t
+	events = append(events, e)
+	return events, nil
 }
 
 func addTaskRoute(sess *session, t *model.TaskDTO) error {
@@ -638,6 +647,9 @@ func DeleteTask(id int64, orgId int64) (*model.TaskDTO, error) {
 		return nil, err
 	}
 	sess.Complete()
+
+	event.Publish(&event.TaskDeleted{Ts: time.Now(), Payload: existing}, 0)
+
 	return existing, nil
 }
 

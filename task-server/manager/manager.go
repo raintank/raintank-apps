@@ -7,15 +7,20 @@ import (
 	"time"
 
 	"github.com/grafana/grafana/pkg/log"
+	"github.com/raintank/raintank-apps/task-server/api"
 	"github.com/raintank/raintank-apps/task-server/event"
 	"github.com/raintank/raintank-apps/task-server/model"
 	"github.com/raintank/raintank-apps/task-server/sqlstore"
 )
 
 func Init() {
-	c := make(chan event.RawEvent, 100)
-	event.Subscribe("agent.offline", c)
-	go HandleAgentOfflineEvents(c)
+	agentOfflineChan := make(chan event.RawEvent, 100)
+	event.Subscribe("agent.offline", agentOfflineChan)
+	go HandleAgentOfflineEvents(agentOfflineChan)
+
+	taskCreatedChan := make(chan event.RawEvent, 100)
+	event.Subscribe("task.created", taskCreatedChan)
+	go HandleTaskCreatedEvent(taskCreatedChan)
 }
 
 func HandleAgentOfflineEvents(c chan event.RawEvent) {
@@ -57,4 +62,17 @@ func handleAgentOffline(source string, a *model.AgentDTO) {
 		log.Error(3, "Failed to relocated agents Tasks. %s", err)
 	}
 
+}
+
+func HandleTaskCreatedEvent(c chan event.RawEvent) {
+	for event := range c {
+		task := new(model.TaskDTO)
+		err := json.Unmarshal(event.Body, task)
+		if err != nil {
+			log.Error(3, "Unable to unmarshal agentOffline event. %s", err)
+			continue
+		}
+
+		go api.ActiveSockets.EmitTask(task, "taskAdd")
+	}
 }
