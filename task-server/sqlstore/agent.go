@@ -358,7 +358,7 @@ type AgentId struct {
 	Id int64
 }
 
-func GetAgentsForTask(task *model.TaskDTO) ([]*AgentId, error) {
+func GetAgentsForTask(task *model.TaskDTO) ([]int64, error) {
 	sess, err := newSession(false, "agent")
 	if err != nil {
 		return nil, err
@@ -367,12 +367,14 @@ func GetAgentsForTask(task *model.TaskDTO) ([]*AgentId, error) {
 	return getAgentsForTask(sess, task)
 }
 
-func getAgentsForTask(sess *session, t *model.TaskDTO) ([]*AgentId, error) {
+func getAgentsForTask(sess *session, t *model.TaskDTO) ([]int64, error) {
 	agents := make([]*AgentId, 0)
 	switch t.Route.Type {
 	case model.RouteAny:
-		err := sess.Sql("SELECT agent_id FROM route_by_any_index where task_id=? AND org_id=?", t.Id, t.OrgId).Find(&agents)
-		return agents, err
+		err := sess.Sql("SELECT agent_id as id FROM route_by_any_index where task_id=?", t.Id).Find(&agents)
+		if err != nil {
+			return nil, err
+		}
 	case model.RouteByTags:
 		//TODO: this list needs to be filtered by agents that support the metrics listed in the task.
 		tags := make([]string, len(t.Route.Config["tags"].([]string)))
@@ -384,16 +386,21 @@ func getAgentsForTask(sess *session, t *model.TaskDTO) ([]*AgentId, error) {
 		sess.In("agent_tag.tag", tags)
 		sess.Cols("agent.id")
 		err := sess.Find(&agents)
-		return agents, err
-	case model.RouteByIds:
-		agents := make([]*AgentId, len(t.Route.Config["ids"].([]int64)))
-		for i, id := range t.Route.Config["ids"].([]int64) {
-			agents[i] = &AgentId{Id: id}
+		if err != nil {
+			return nil, err
 		}
-		return agents, nil
+	case model.RouteByIds:
+		for _, id := range t.Route.Config["ids"].([]int64) {
+			agents = append(agents, &AgentId{Id: id})
+		}
 	default:
 		return nil, fmt.Errorf("unknown routeType")
 	}
+	agentIds := make([]int64, len(agents))
+	for i, a := range agents {
+		agentIds[i] = a.Id
+	}
+	return agentIds, nil
 }
 
 func DeleteAgent(id int64, orgId int64) error {

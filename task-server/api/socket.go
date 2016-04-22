@@ -30,7 +30,9 @@ func (s *socketList) CloseAll() {
 }
 
 func (s *socketList) EmitTask(task *model.TaskDTO, event string) error {
+	log.Debug("sending %s task event to connected agents.", event)
 	agents, err := sqlstore.GetAgentsForTask(task)
+	log.Debug("Task has %d agents. %v", len(agents), agents)
 	if err != nil {
 		return err
 	}
@@ -42,14 +44,22 @@ func (s *socketList) EmitTask(task *model.TaskDTO, event string) error {
 		Event:   event,
 		Payload: body,
 	}
+	sent := false
 	s.Lock()
-	for _, agent := range agents {
-		if as, ok := s.Sockets[agent.Id]; ok {
-			log.Debug("sending %s event to agent %d", event, agent.Id)
+
+	for _, id := range agents {
+		if as, ok := s.Sockets[id]; ok {
+			log.Debug("sending %s event to agent %d", event, id)
 			as.SocketSession.Emit(e)
+			sent = true
+		} else {
+			log.Debug("agent %d is not connected to this server.", id)
 		}
 	}
 	s.Unlock()
+	if !sent {
+		log.Debug("no connected agents for task %d.", task.Id)
+	}
 	return nil
 }
 
@@ -60,6 +70,7 @@ func (s *socketList) NewSocket(a *agent_session.AgentSession) {
 		log.Debug("new connection for agent %d - %s, closing existing session", a.Agent.Id, a.Agent.Name)
 		existing.Close()
 	}
+	log.Debug("Agent %d is connected to this server.", a.Agent.Id)
 	s.Sockets[a.Agent.Id] = a
 	s.Unlock()
 }
@@ -75,6 +86,7 @@ func (s *socketList) CloseSocket(a *agent_session.AgentSession) {
 	existing, ok := s.Sockets[a.Agent.Id]
 	if ok {
 		existing.Close()
+		log.Debug("removing session for Agent %d from socketList.", a.Agent.Id)
 		delete(s.Sockets, a.Agent.Id)
 	}
 	s.Unlock()
@@ -85,6 +97,7 @@ func (s *socketList) CloseSocketByAgentId(id int64) {
 	existing, ok := s.Sockets[id]
 	if ok {
 		existing.Close()
+		log.Debug("removing session for Agent %d from socketList.", id)
 		delete(s.Sockets, id)
 	}
 	s.Unlock()
