@@ -59,10 +59,10 @@ func (t *TaskCache) addTask(task *model.TaskDTO) error {
 	return nil
 }
 
-func (t *TaskCache) Sync() {
-	t.Lock()
+func (t *TaskCache) UpdateTasks(tasks []*model.TaskDTO) {
 	seenTaskIds := make(map[int64]struct{})
-	for _, task := range t.Tasks {
+	t.Lock()
+	for _, task := range tasks {
 		seenTaskIds[task.Id] = struct{}{}
 		err := t.addTask(task)
 		if err != nil {
@@ -85,24 +85,60 @@ func (t *TaskCache) Sync() {
 	}
 }
 
+func (t *TaskCache) Sync() {
+	tasksByName := make(map[string]*model.TaskDTO)
+	t.Lock()
+	for _, task := range t.Tasks {
+		name := fmt.Sprintf("raintank-apps:%d", task.Id)
+		tasksByName[name] = task
+		log.Debug("seen %s", name)
+		err := t.addTask(task)
+		if err != nil {
+			log.Error(3, err.Error())
+		}
+	}
+
+	for name := range t.SnapTasks {
+		if _, ok := tasksByName[name]; !ok {
+			log.Info("%s not in taskList. removing from snap.")
+			if err := t.removeSnapTask(name); err != nil {
+				log.Error(3, "failed to remove snapTask. %s", name)
+			}
+		}
+	}
+	t.Unlock()
+
+}
+
 func (t *TaskCache) RemoveTask(task *model.TaskDTO) error {
 	t.Lock()
 	defer t.Unlock()
 	snapTaskName := fmt.Sprintf("raintank-apps:%d", task.Id)
-	snapTask, ok := t.SnapTasks[snapTaskName]
-	if !ok {
-		log.Debug("task to remove not in cache. %s", snapTaskName)
-	} else {
-		if err := t.c.RemoveSnapTask(snapTask); err != nil {
-			return err
-		}
-		delete(t.SnapTasks, snapTaskName)
+	log.Debug("removing snap task %s", snapTaskName)
+	if err := t.removeSnapTask(snapTaskName); err != nil {
+		return err
 	}
+
 	delete(t.Tasks, task.Id)
 	return nil
 }
 
+func (t *TaskCache) removeSnapTask(taskName string) error {
+	snapTask, ok := t.SnapTasks[taskName]
+	if !ok {
+		log.Debug("task to remove not in cache. %s", taskName)
+	} else {
+		if err := t.c.RemoveSnapTask(snapTask); err != nil {
+			return err
+		}
+		delete(t.SnapTasks, taskName)
+	}
+
+	return nil
+}
+
 func (t *TaskCache) IndexSnapTasks() error {
+	log.Debug("running indexSnapTasks")
 	tasks, err := t.c.GetSnapTasks()
 	if err != nil {
 		return err
@@ -130,7 +166,7 @@ func InitTaskCache(snapClient *snap.Client) {
 	}
 }
 
-func HandleTaskUpdate() interface{} {
+func HandleTaskList() interface{} {
 	return func(data []byte) {
 		tasks := make([]*model.TaskDTO, 0)
 		err := json.Unmarshal(data, &tasks)
@@ -139,10 +175,21 @@ func HandleTaskUpdate() interface{} {
 			return
 		}
 		log.Debug("TaskList. %s", data)
-		for _, t := range tasks {
-			if err := GlobalTaskCache.AddTask(t); err != nil {
-				log.Error(3, "failed to add task to cache. %s", err)
-			}
+		GlobalTaskCache.UpdateTasks(tasks)
+	}
+}
+
+func HandleTaskUpdate() interface{} {
+	return func(data []byte) {
+		task := model.TaskDTO{}
+		err := json.Unmarshal(data, &task)
+		if err != nil {
+			log.Error(3, "failed to decode taskUpdate payload. %s", err)
+			return
+		}
+		log.Debug("TaskUpdate. %s", data)
+		if err := GlobalTaskCache.AddTask(&task); err != nil {
+			log.Error(3, "failed to add task to cache. %s", err)
 		}
 	}
 }

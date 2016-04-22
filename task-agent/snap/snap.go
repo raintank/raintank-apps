@@ -54,15 +54,15 @@ func (c *Client) Run() {
 			}
 			continue
 		}
-		if !c.connected {
-			log.Info("connected to snap server.")
-			c.connected = true
-		}
 		if _, ok := conf.Table()["raintank_agent_name"]; !ok {
 			err := c.SetSnapGlobalConfig()
 			if err != nil {
 				continue
 			}
+		}
+		if !c.connected {
+			log.Info("connected to snap server.")
+			c.connected = true
 			c.ConnectChan <- struct{}{}
 		}
 	}

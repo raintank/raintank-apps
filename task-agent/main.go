@@ -139,6 +139,7 @@ func main() {
 		log.Debug("recieved heartbeat event. %s", body)
 	})
 
+	sess.On("taskList", HandleTaskList())
 	sess.On("taskUpdate", HandleTaskUpdate())
 	sess.On("taskAdd", HandleTaskAdd())
 	sess.On("taskRemove", HandleTaskRemove())

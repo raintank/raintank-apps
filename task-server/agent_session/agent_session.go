@@ -61,8 +61,8 @@ func (a *AgentSession) Start() error {
 
 	// run background tasks for this session.
 	go a.sendHeartbeat()
-	go a.sendTaskUpdates()
-	a.sendTaskUpdate()
+	go a.sendTaskListPeriodically()
+	a.sendTaskList()
 	return nil
 }
 
@@ -160,20 +160,20 @@ func (a *AgentSession) sendHeartbeat() {
 	}
 }
 
-func (a *AgentSession) sendTaskUpdates() {
+func (a *AgentSession) sendTaskListPeriodically() {
 	ticker := time.NewTicker(time.Second * 60)
 	for {
 		select {
 		case <-a.Shutdown:
-			log.Debug("session ended stopping taskUpdates.")
+			log.Debug("session ended stopping taskListPeriodically.")
 			return
 		case <-ticker.C:
-			a.sendTaskUpdate()
+			a.sendTaskList()
 		}
 	}
 }
 
-func (a *AgentSession) sendTaskUpdate() {
+func (a *AgentSession) sendTaskList() {
 	log.Debug("sending TaskUpdate to %s", a.SocketSession.Id)
 	tasks, err := sqlstore.GetAgentTasks(a.Agent)
 	if err != nil {
@@ -185,9 +185,9 @@ func (a *AgentSession) sendTaskUpdate() {
 		log.Error(3, "failed to Marshal task list to json. %s", err)
 		return
 	}
-	e := &message.Event{Event: "taskUpdate", Payload: body}
+	e := &message.Event{Event: "taskList", Payload: body}
 	err = a.SocketSession.Emit(e)
 	if err != nil {
-		log.Error(3, "failed to emit taskUpdate event. %s", err)
+		log.Error(3, "failed to emit taskList event. %s", err)
 	}
 }
