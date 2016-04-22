@@ -57,11 +57,26 @@ func (t *TaskCache) addTask(task *model.TaskDTO) error {
 
 func (t *TaskCache) Sync() {
 	t.Lock()
-	defer t.Unlock()
+	seenTaskIds := make(map[int64]struct{})
 	for _, task := range t.Tasks {
+		seenTaskIds[task.Id] = struct{}{}
 		err := t.addTask(task)
 		if err != nil {
 			log.Error(3, err.Error())
+		}
+	}
+	tasksToDel := make([]*model.TaskDTO, 0)
+	for id, task := range t.Tasks {
+		if _, ok := seenTaskIds[id]; !ok {
+			tasksToDel = append(tasksToDel, task)
+		}
+	}
+	t.Unlock()
+	if len(tasksToDel) > 0 {
+		for _, task := range tasksToDel {
+			if err := t.RemoveTask(task); err != nil {
+				log.Error(3, "Failed to remove task %d", task.Id)
+			}
 		}
 	}
 }
