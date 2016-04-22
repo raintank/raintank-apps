@@ -14,6 +14,7 @@ import (
 	"github.com/raintank/met/helper"
 	"github.com/raintank/raintank-apps/task-server/api"
 	"github.com/raintank/raintank-apps/task-server/event"
+	"github.com/raintank/raintank-apps/task-server/manager"
 	"github.com/raintank/raintank-apps/task-server/sqlstore"
 	"github.com/rakyll/globalconf"
 )
@@ -99,6 +100,8 @@ func main() {
 	if err != nil {
 		log.Fatal(4, "failed to init event PubSub. %s", err)
 	}
+
+	manager.Init()
 
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
