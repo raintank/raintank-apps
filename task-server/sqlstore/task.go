@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/grafana/grafana/pkg/log"
+	"github.com/raintank/raintank-apps/task-server/event"
 	"github.com/raintank/raintank-apps/task-server/model"
 )
 
@@ -190,7 +191,12 @@ func addTask(sess *session, t *model.TaskDTO) error {
 func taskRouteAnyCandidates(sess *session, tid int64) ([]int64, error) {
 	// get Candidate Agents.
 	candidates := make([]struct{ AgentId int64 }, 0)
-	err := sess.Sql("SELECT DISTINCT(agent_id) from agent_metric INNER JOIN task_metric on agent_metric.namespace like REPLACE(task_metric.namespace, '*', '%') WHERE task_metric.task_id=?", tid).Find(&candidates)
+	err := sess.Sql(`SELECT
+                            DISTINCT(agent_metric.agent_id)
+                        FROM agent_metric 
+                        INNER JOIN agent on agent_metric.agent_id = agent.id AND agent.online=1
+                        INNER JOIN task_metric on agent_metric.namespace like REPLACE(task_metric.namespace, '*', '%')
+                        WHERE task_metric.task_id=?`, tid).Find(&candidates)
 	if err != nil {
 		return nil, err
 	}
@@ -507,18 +513,68 @@ func deleteTaskRoute(sess *session, t *model.TaskDTO) error {
 	return nil
 }
 
-func GetAgentTasks(agent *model.AgentDTO) ([]*model.TaskDTO, error) {
+func RelocateRouteAnyTasks(agent *model.AgentDTO) error {
 	sess, err := newSession(true, "task")
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer sess.Cleanup()
-	tasks, err := getAgentTasks(sess, agent)
+	events, err := relocateRouteAnyTasks(sess, agent)
+	if err != nil {
+		return err
+	}
+	sess.Complete()
+	for _, e := range events {
+		event.Publish(e, 0)
+	}
+	return nil
+}
+
+func relocateRouteAnyTasks(sess *session, agent *model.AgentDTO) ([]event.Event, error) {
+	events := make([]event.Event, 0)
+	// get list of tasks.
+	var twm taskWithMetrics
+	sess.Join("LEFT", "task_metric", "task.id = task_metric.task_id")
+	sess.Join("INNER", "route_by_any_index", "route_by_any_index.task_id = task.id").Where("route_by_any_index.agent_id=?", agent.Id)
+	sess.Cols("`task_metric`.*", "`task`.*")
+	err := sess.Find(&twm)
 	if err != nil {
 		return nil, err
 	}
-	sess.Complete()
-	return tasks, nil
+	tasks := twm.ToTaskDTO()
+	if len(tasks) == 0 {
+		return nil, nil
+	}
+	for _, t := range tasks {
+		candidates, err := taskRouteAnyCandidates(sess, t.Id)
+		if err != nil {
+			return nil, err
+		}
+		if len(candidates) == 0 {
+			log.Error(3, "Cant re-locate task %d, no online agents capable of providing requested metrics.", t.Id)
+			continue
+		}
+		newAgent := candidates[rand.Intn(len(candidates))]
+		_, err = sess.Exec("UPDATE route_by_any_index set agent_id=? where task_id=?", newAgent, t.Id)
+		if err != nil {
+			return nil, err
+		}
+		log.Info("Task %d rescheduled to agent %d", t.Id, newAgent)
+		e := new(event.TaskUpdated)
+		e.Ts = time.Now()
+		e.Payload.Last = t
+		e.Payload.Current = t
+		events = append(events, e)
+	}
+	return events, nil
+}
+
+func GetAgentTasks(agent *model.AgentDTO) ([]*model.TaskDTO, error) {
+	sess, err := newSession(false, "task")
+	if err != nil {
+		return nil, err
+	}
+	return getAgentTasks(sess, agent)
 }
 
 func getAgentTasks(sess *session, agent *model.AgentDTO) ([]*model.TaskDTO, error) {
@@ -639,6 +695,9 @@ func validateTaskRouteConfig(sess *session, task *model.TaskDTO) error {
 			return err
 		}
 		for _, a := range agents {
+			if !a.Online {
+				continue
+			}
 			if _, ok := metricsByAgent[a.Id]; !ok {
 				metricsByAgent[a.Id] = make([]string, 0)
 			}
