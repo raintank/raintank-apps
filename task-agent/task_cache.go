@@ -14,9 +14,10 @@ import (
 
 type TaskCache struct {
 	sync.RWMutex
-	c         *snap.Client
-	Tasks     map[int64]*model.TaskDTO
-	SnapTasks map[string]*rbody.ScheduledTask
+	c           *snap.Client
+	Tasks       map[int64]*model.TaskDTO
+	SnapTasks   map[string]*rbody.ScheduledTask
+	initialized bool
 }
 
 func (t *TaskCache) AddTask(task *model.TaskDTO) error {
@@ -27,6 +28,9 @@ func (t *TaskCache) AddTask(task *model.TaskDTO) error {
 
 func (t *TaskCache) addTask(task *model.TaskDTO) error {
 	t.Tasks[task.Id] = task
+	if !t.initialized {
+		return nil
+	}
 	snapTaskName := fmt.Sprintf("raintank-apps:%d", task.Id)
 	snapTask, ok := t.SnapTasks[snapTaskName]
 	if !ok {
@@ -98,11 +102,18 @@ func (t *TaskCache) RemoveTask(task *model.TaskDTO) error {
 	return nil
 }
 
-func (t *TaskCache) IndexSnapTasks(tasks []*rbody.ScheduledTask) error {
+func (t *TaskCache) IndexSnapTasks() error {
+	tasks, err := t.c.GetSnapTasks()
+	if err != nil {
+		return err
+	}
 	t.Lock()
 	t.SnapTasks = make(map[string]*rbody.ScheduledTask)
 	for _, task := range tasks {
 		t.SnapTasks[task.Name] = task
+	}
+	if !t.initialized {
+		t.initialized = true
 	}
 	t.Unlock()
 	t.Sync()

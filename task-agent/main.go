@@ -168,15 +168,11 @@ func SendCatalog(sess *session.Session, snapClient *snap.Client, shutdownStart c
 		case <-ticker.C:
 			emitMetrics(sess, snapClient)
 		case <-snapClient.ConnectChan:
-			emitMetrics(sess, snapClient)
-			taskList, err := snapClient.GetSnapTasks()
-			if err != nil {
-				log.Error(3, err.Error())
-				continue
-			}
-			if err := GlobalTaskCache.IndexSnapTasks(taskList); err != nil {
+			log.Debug("connected to SNAP. re-indexing task list")
+			if err := GlobalTaskCache.IndexSnapTasks(); err != nil {
 				log.Error(3, "failed to add task to cache. %s", err)
 			}
+			emitMetrics(sess, snapClient)
 		}
 	}
 }
