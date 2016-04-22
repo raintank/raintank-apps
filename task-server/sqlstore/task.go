@@ -555,6 +555,10 @@ func relocateRouteAnyTasks(sess *session, agent *model.AgentDTO) ([]event.Event,
 			continue
 		}
 		newAgent := candidates[rand.Intn(len(candidates))]
+		if newAgent == agent.Id {
+			log.Debug("No need to re-allocated task as the agent it was running on is back online")
+			continue
+		}
 		_, err = sess.Exec("UPDATE route_by_any_index set agent_id=? where task_id=?", newAgent, t.Id)
 		if err != nil {
 			return nil, err
