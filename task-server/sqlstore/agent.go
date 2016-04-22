@@ -149,6 +149,21 @@ func getAgents(sess *session, query *model.GetAgentsQuery) ([]*model.AgentDTO, e
 	return a.ToAgentDTO(), nil
 }
 
+func onlineAgentsWithNoSession(sess *session) ([]*model.AgentDTO, error) {
+	sess.Table("agent")
+	sess.Join("LEFT", "agent_tag", "agent.id=agent_tag.agent_id")
+	sess.Join("LEFT", "agent_session", "agent.id = agent_session.agent_id")
+	sess.Where("agent.online=1").And("agent_session.id is NULL")
+	sess.Cols("`agent`.*", "`agent_tag`.*")
+	var a agentWithTags
+	err := sess.Find(&a)
+	if err != nil {
+		return nil, err
+	}
+
+	return a.ToAgentDTO(), nil
+}
+
 func GetAgentById(id int64, orgId int64) (*model.AgentDTO, error) {
 	sess, err := newSession(false, "agent")
 	if err != nil {

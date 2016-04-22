@@ -82,6 +82,7 @@ func Publish(e Event, attempts int) error {
 		Timestamp: e.Timestamp(),
 		Source:    hostname,
 		Body:      payload,
+		Attempts:  attempts + 1,
 	}
 	body, err := json.Marshal(raw)
 	if err != nil {

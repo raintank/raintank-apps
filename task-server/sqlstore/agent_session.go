@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/grafana/grafana/pkg/log"
+	"github.com/raintank/raintank-apps/task-server/event"
 	"github.com/raintank/raintank-apps/task-server/model"
 )
 
@@ -61,10 +62,20 @@ func deleteAgentSession(sess *session, a *model.AgentSession) error {
 		return err
 	}
 	if total == 0 {
-		log.Info("AgentId %d has no sessions. Marking as offline.", a.AgentId)
-		rawSql := "UPDATE agent set online=0, online_change=? where id=?"
-		_, err := sess.Exec(rawSql, a.AgentId, time.Now())
+		agent, err := getAgentById(sess, a.AgentId, 0)
 		if err != nil {
+			return err
+		}
+		log.Info("Agent %s has no sessions. Marking as offline.", agent.Name)
+		agent.Online = false
+		agent.OnlineChange = time.Now()
+		sess.Table("agent")
+		sess.UseBool("online")
+		_, err = sess.Id(agent.Id).Update(agent)
+		if err != nil {
+			return err
+		}
+		if err := event.Publish(&event.AgentOffline{Ts: time.Now(), Payload: agent}, 0); err != nil {
 			return err
 		}
 	}
@@ -91,18 +102,33 @@ func deleteAgentSessionsByServer(sess *session, server string) error {
 		return err
 	}
 
-	// set the online state for all agents that now have no sessions.
-	rawSql = `UPDATE agent set online=0, online_change=? where id IN (SELECT t.id 
-	FROM (SELECT id from agent WHERE agent.online=1) as t LEFT JOIN agent_session ON t.id = agent_session.agent_id
-	WHERE agent_session.id is NULL)`
-	_, err = sess.Exec(rawSql, time.Now())
+	// Get agents that are now offline.
+	nowOffline, err := onlineAgentsWithNoSession(sess)
 	if err != nil {
 		return err
+	}
+	if len(nowOffline) > 0 {
+		agentIds := make([]int64, len(nowOffline))
+		for i, a := range nowOffline {
+			a.Online = false
+			a.OnlineChange = time.Now()
+			agentIds[i] = a.Id
+			log.Info("Agent %s has no sessions. Marking as offline.", a.Name)
+		}
+		sess.UseBool("online")
+		update := map[string]interface{}{"online": false, "online_change": time.Now()}
+		_, err = sess.Table("agent").In("id", agentIds).Update(update)
+		if err != nil {
+			return err
+		}
+		for _, a := range nowOffline {
+			event.Publish(&event.AgentOffline{Ts: time.Now(), Payload: a}, 0)
+		}
 	}
 	return nil
 }
 
-func GetAgentSessionsByServer(server string) ([]*model.AgentSession, error) {
+func GetAgentSessionsByServer(server string) ([]model.AgentSession, error) {
 	sess, err := newSession(false, "agent_session")
 	if err != nil {
 		return nil, err
@@ -110,8 +136,8 @@ func GetAgentSessionsByServer(server string) ([]*model.AgentSession, error) {
 	return getAgentSessionsByServer(sess, server)
 }
 
-func getAgentSessionsByServer(sess *session, server string) ([]*model.AgentSession, error) {
-	agentSessions := make([]*model.AgentSession, 0)
+func getAgentSessionsByServer(sess *session, server string) ([]model.AgentSession, error) {
+	agentSessions := make([]model.AgentSession, 0)
 	err := sess.Where("server=?", server).Find(&agentSessions)
 	if err != nil {
 		return nil, err
@@ -119,7 +145,7 @@ func getAgentSessionsByServer(sess *session, server string) ([]*model.AgentSessi
 	return agentSessions, nil
 }
 
-func GetAgentSessionsByAgentId(agentId int64) ([]*model.AgentSession, error) {
+func GetAgentSessionsByAgentId(agentId int64) ([]model.AgentSession, error) {
 	sess, err := newSession(false, "agent_session")
 	if err != nil {
 		return nil, err
@@ -127,8 +153,8 @@ func GetAgentSessionsByAgentId(agentId int64) ([]*model.AgentSession, error) {
 	return getAgentSessionsByAgentId(sess, agentId)
 }
 
-func getAgentSessionsByAgentId(sess *session, agentId int64) ([]*model.AgentSession, error) {
-	agentSessions := make([]*model.AgentSession, 0)
+func getAgentSessionsByAgentId(sess *session, agentId int64) ([]model.AgentSession, error) {
+	agentSessions := make([]model.AgentSession, 0)
 	err := sess.Where("agent_id=?", agentId).Find(&agentSessions)
 	if err != nil {
 		return nil, err
