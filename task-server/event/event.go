@@ -54,9 +54,11 @@ var (
 	handlers *Handlers
 	pubChan  chan Message
 	subChan  chan Message
+	enabled  bool
 )
 
 func Init(rabbitmqUrl, exchange string) error {
+	enabled = true
 	handlers = &Handlers{
 		Listeners: make(map[string][]chan<- RawEvent),
 	}
@@ -72,6 +74,9 @@ func Subscribe(t string, channel chan<- RawEvent) {
 }
 
 func Publish(e Event, attempts int) error {
+	if !enabled {
+		return nil
+	}
 	payload, err := e.Body()
 	if err != nil {
 		return err
@@ -105,6 +110,7 @@ func handleMessages(c chan Message) {
 				log.Error(3, "unable to unmarshal event Message. %s", err)
 				return
 			}
+			log.Debug("processing event of type %s", e.Type)
 			//broadcast the event to listeners.
 			for _, ch := range handlers.GetListeners(e.Type) {
 				ch <- e
