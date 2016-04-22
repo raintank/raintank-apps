@@ -41,45 +41,47 @@ func DeleteAgentSession(a *model.AgentSession) error {
 		return err
 	}
 	defer sess.Cleanup()
-	if err = deleteAgentSession(sess, a); err != nil {
+	events, err := deleteAgentSession(sess, a)
+	if err != nil {
 		return err
 	}
 	sess.Complete()
+	for _, e := range events {
+		event.Publish(e, 0)
+	}
 	return nil
 }
 
-func deleteAgentSession(sess *session, a *model.AgentSession) error {
+func deleteAgentSession(sess *session, a *model.AgentSession) ([]event.Event, error) {
+	events := make([]event.Event, 0)
 	var rawSql = "DELETE FROM agent_session WHERE id=?"
 	_, err := sess.Exec(rawSql, a.Id)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// we query here to prevent race conditions when agents dicsonnect from one task-server node
 	// and connect to another.  The new connection may establish before the old connection times out.
 	total, err := sess.Where("agent_session.agent_id=?", a.AgentId).Count(&model.AgentSession{})
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if total == 0 {
 		agent, err := getAgentById(sess, a.AgentId, 0)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		log.Info("Agent %s has no sessions. Marking as offline.", agent.Name)
 		agent.Online = false
 		agent.OnlineChange = time.Now()
-		sess.Table("agent")
 		sess.UseBool("online")
 		_, err = sess.Id(agent.Id).Update(agent)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		if err := event.Publish(&event.AgentOffline{Ts: time.Now(), Payload: agent}, 0); err != nil {
-			return err
-		}
+		events = append(events, &event.AgentOffline{Ts: time.Now(), Payload: agent})
 	}
-	return nil
+	return events, nil
 }
 
 func DeleteAgentSessionsByServer(server string) error {
@@ -88,24 +90,29 @@ func DeleteAgentSessionsByServer(server string) error {
 		return err
 	}
 	defer sess.Cleanup()
-	if err = deleteAgentSessionsByServer(sess, server); err != nil {
+	events, err := deleteAgentSessionsByServer(sess, server)
+	if err != nil {
 		return err
 	}
 	sess.Complete()
+	for _, e := range events {
+		event.Publish(e, 0)
+	}
 	return nil
 }
 
-func deleteAgentSessionsByServer(sess *session, server string) error {
+func deleteAgentSessionsByServer(sess *session, server string) ([]event.Event, error) {
+	events := make([]event.Event, 0)
 	var rawSql = "DELETE FROM agent_session WHERE server=?"
 	_, err := sess.Exec(rawSql, server)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Get agents that are now offline.
 	nowOffline, err := onlineAgentsWithNoSession(sess)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if len(nowOffline) > 0 {
 		agentIds := make([]int64, len(nowOffline))
@@ -117,15 +124,15 @@ func deleteAgentSessionsByServer(sess *session, server string) error {
 		}
 		sess.UseBool("online")
 		update := map[string]interface{}{"online": false, "online_change": time.Now()}
-		_, err = sess.Table("agent").In("id", agentIds).Update(update)
+		_, err = sess.Table(&model.Agent{}).In("id", agentIds).Update(update)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		for _, a := range nowOffline {
-			event.Publish(&event.AgentOffline{Ts: time.Now(), Payload: a}, 0)
+			events = append(events, &event.AgentOffline{Ts: time.Now(), Payload: a})
 		}
 	}
-	return nil
+	return events, nil
 }
 
 func GetAgentSessionsByServer(server string) ([]model.AgentSession, error) {
