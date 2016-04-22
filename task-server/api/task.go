@@ -53,11 +53,13 @@ func AddTask(ctx *Context, task model.TaskDTO) {
 	err = sqlstore.ValidateMetrics(task.OrgId, task.Metrics)
 	if err != nil {
 		ctx.JSON(200, rbody.ErrResp(400, err))
+		return
 	}
 
 	err = sqlstore.ValidateTaskRouteConfig(&task)
 	if err != nil {
 		ctx.JSON(200, rbody.ErrResp(400, err))
+		return
 	}
 
 	err = sqlstore.AddTask(&task)
@@ -88,11 +90,13 @@ func UpdateTask(ctx *Context, task model.TaskDTO) {
 	err = sqlstore.ValidateMetrics(task.OrgId, task.Metrics)
 	if err != nil {
 		ctx.JSON(200, rbody.ErrResp(400, err))
+		return
 	}
 
 	err = sqlstore.ValidateTaskRouteConfig(&task)
 	if err != nil {
 		ctx.JSON(200, rbody.ErrResp(400, err))
+		return
 	}
 
 	err = sqlstore.UpdateTask(&task)
