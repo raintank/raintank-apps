@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/codeskyblue/go-uuid"
+	"github.com/grafana/grafana/pkg/log"
 	"github.com/intelsdi-x/snap/mgmt/rest/rbody"
 	"github.com/raintank/met/helper"
 	"github.com/raintank/raintank-apps/task-server/api"
@@ -20,6 +22,7 @@ var (
 )
 
 func startApi(done chan struct{}) string {
+	log.NewLogger(0, "console", fmt.Sprintf(`{"level": %d, "formatting":true}`, 1))
 	stats, err := helper.New(false, "localhost:8125", "standard", "task-server", "default")
 	if err != nil {
 		panic(fmt.Errorf("failed to initialize statsd. %s", err))
@@ -79,6 +82,17 @@ func addTestMetrics(agent *model.AgentDTO) {
 		},
 	}
 	err := sqlstore.AddMissingMetricsForAgent(agent, metrics)
+	if err != nil {
+		panic(err)
+	}
+	err = sqlstore.AddAgentSession(&model.AgentSession{
+		Id:       uuid.NewUUID().String(),
+		AgentId:  agent.Id,
+		Version:  1,
+		RemoteIp: "127.0.0.1",
+		Server:   "localhost",
+		Created:  time.Now(),
+	})
 	if err != nil {
 		panic(err)
 	}
@@ -273,6 +287,27 @@ func TestApiClient(t *testing.T) {
 				So(t.Created, ShouldHappenBefore, pre)
 				So(t.Updated, ShouldHappenAfter, pre)
 				So(t.Updated, ShouldHappenAfter, t.Created)
+			})
+			Convey("When Adding new Task with no valid agents", func() {
+				err := sqlstore.DeleteAgentSessionsByServer("localhost")
+				So(err, ShouldBeNil)
+
+				t := &model.TaskDTO{
+					Name:     "task should fail",
+					Interval: 60,
+					Config: map[string]map[string]interface{}{"/": {
+						"user":   "test",
+						"passwd": "test",
+					}},
+					Metrics: map[string]int64{"/testing/demo/demo1": 0},
+					Route: &model.TaskRoute{
+						Type: "any",
+					},
+					Enabled: true,
+				}
+				err = c.AddTask(t)
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldEqual, "400: No agent found that can provide all requested metrics.")
 			})
 		})
 	})
