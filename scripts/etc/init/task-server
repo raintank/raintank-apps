@@ -7,7 +7,6 @@ post-stop exec sleep 5
 umask 022
 #nice 
 #chroot /
-chdir /usr/share/worldping-api
 #limit core <softlimit> <hardlimit>
 #limit cpu <softlimit> <hardlimit>
 #limit data <softlimit> <hardlimit>
