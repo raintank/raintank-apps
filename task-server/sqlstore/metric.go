@@ -120,7 +120,7 @@ func addMissingMetricsForAgent(sess *session, agent *model.AgentDTO, metrics []*
 	}
 	existingMap := make(map[string]*model.Metric)
 	seenMap := make(map[string]*model.Metric)
-	inserts := make([]*model.Metric, 0)
+
 	agentMetrics := make([]*model.AgentMetric, 0)
 	for _, m := range existing {
 		key := fmt.Sprintf("%s:%d", m.Namespace, m.Version)
@@ -138,7 +138,6 @@ func addMissingMetricsForAgent(sess *session, agent *model.AgentDTO, metrics []*
 				}
 			}
 		} else {
-			inserts = append(inserts, m)
 			agentMetrics = append(agentMetrics, &model.AgentMetric{
 				AgentId:   agent.Id,
 				Namespace: m.Namespace,
@@ -157,14 +156,32 @@ func addMissingMetricsForAgent(sess *session, agent *model.AgentDTO, metrics []*
 		}
 	}
 
-	if len(inserts) > 0 {
-		if _, err := sess.Insert(&inserts); err != nil {
-			return err
-		}
-	}
 	if len(agentMetrics) > 0 {
 		if _, err := sess.Insert(agentMetrics); err != nil {
 			return err
+		}
+
+		sess.Table("agent_metric")
+		sess.Join("LEFT", "metric", "agent_metric.namespace = metric.namespace AND agent_metric.version = metric.version")
+		sess.Where("agent_metric.agent_id=?", agent.Id).And("metric.id IS NULL")
+		sess.Cols("`agent_metric`.*")
+		needed := make([]model.AgentMetric, 0)
+		if err := sess.Find(&needed); err != nil {
+			return err
+		}
+		if len(needed) > 0 {
+			inserts := make([]*model.Metric, 0)
+			for _, m := range needed {
+				key := fmt.Sprintf("%s:%d", m.Namespace, m.Version)
+				if metric, ok := seenMap[key]; ok {
+					inserts = append(inserts, metric)
+				}
+			}
+			if len(inserts) > 0 {
+				if _, err := sess.Insert(inserts); err != nil {
+					return err
+				}
+			}
 		}
 	}
 
