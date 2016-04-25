@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gosimple/slug"
+	. "github.com/intelsdi-x/snap-plugin-utilities/logger"
 	"github.com/intelsdi-x/snap/control/plugin"
 	"github.com/intelsdi-x/snap/control/plugin/cpolicy"
 	"github.com/intelsdi-x/snap/core"
@@ -44,20 +45,23 @@ func (n *Ns1) CollectMetrics(mts []plugin.PluginMetricType) ([]plugin.PluginMetr
 	conf := mts[0].Config().Table()
 	apiKey, ok := conf["ns1_key"]
 	if !ok || apiKey.(ctypes.ConfigValueStr).Value == "" {
+		LogError("ns1_key missing from config.")
 		return nil, fmt.Errorf("ns1_key missing from config, %v", conf)
 	}
 	client, err := NewClient("https://api.nsone.net/", apiKey.(ctypes.ConfigValueStr).Value, false)
 	if err != nil {
+		LogError("failed to create NS1 api client.", "error", err)
 		return nil, err
 	}
+	LogDebug("request to collect metrics", "metric_count", len(mts))
 	zoneMts := make([]plugin.PluginMetricType, 0)
 	monitorMts := make([]plugin.PluginMetricType, 0)
 	for _, metricType := range mts {
 		ns := metricType.Namespace()
-		if len(ns) > 4 && ns[4] == "zones" {
+		if len(ns) > 4 && ns[3] == "zones" {
 			zoneMts = append(zoneMts, metricType)
 		}
-		if len(ns) > 4 && ns[4] == "monitoring" {
+		if len(ns) > 4 && ns[3] == "monitoring" {
 			monitorMts = append(monitorMts, metricType)
 		}
 	}
@@ -65,6 +69,7 @@ func (n *Ns1) CollectMetrics(mts []plugin.PluginMetricType) ([]plugin.PluginMetr
 	if len(zoneMts) > 0 {
 		resp, err := n.ZoneMetrics(client, zoneMts)
 		if err != nil {
+			LogError("failed to collect metrics.", "error", err)
 			return nil, err
 		}
 		metrics = append(metrics, resp...)
@@ -72,15 +77,17 @@ func (n *Ns1) CollectMetrics(mts []plugin.PluginMetricType) ([]plugin.PluginMetr
 	if len(monitorMts) > 0 {
 		resp, err := n.MonitorsMetrics(client, monitorMts)
 		if err != nil {
+			LogError("failed to collect metrics.", "error", err)
 			return nil, err
 		}
 		metrics = append(metrics, resp...)
 	}
 
 	if err != nil {
+		LogError("failed to collect metrics.", "error", err)
 		return nil, err
 	}
-
+	LogDebug("collecting metrics completed", "metric_count", len(metrics))
 	return metrics, nil
 }
 
