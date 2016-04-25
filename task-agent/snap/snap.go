@@ -115,7 +115,7 @@ func (c *Client) CreateSnapTask(t *model.TaskDTO, name string) (*rbody.Scheduled
 		}
 	}
 	publisher := getPublisher(
-		1, //TODO: replace with actual orgId
+		t.OrgId,
 		t.Interval,
 		token,
 	)
