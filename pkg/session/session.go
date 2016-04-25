@@ -7,11 +7,9 @@ import (
 
 	"github.com/codeskyblue/go-uuid"
 	"github.com/gorilla/websocket"
-	"github.com/op/go-logging"
+	"github.com/grafana/grafana/pkg/log"
 	"github.com/raintank/raintank-apps/pkg/message"
 )
-
-var log = logging.MustGetLogger("default")
 
 type Handler interface {
 	HandleMessage(message *message.Event)
@@ -89,7 +87,7 @@ func (s *Session) Close() {
 	select {
 	case <-s.wDone:
 	case <-time.After(time.Second * 2):
-		log.Warningf("socketWriter taking too long. Closing connectio now. %d messages in queue will be lost.", len(s.writeMessageChan)+1)
+		log.Warn("socketWriter taking too long. Closing connectio now. %d messages in queue will be lost.", len(s.writeMessageChan)+1)
 	}
 	s.Conn.Close()
 }
@@ -115,13 +113,13 @@ func (s *Session) socketReader(done chan struct{}) {
 	for {
 		mtype, body, err := s.Conn.ReadMessage()
 		if err != nil {
-			log.Errorf("read: %s", err)
+			log.Error(3, "read: %s", err)
 			return
 		}
 		msg := &message.Message{MessageType: mtype, Body: body}
 		e, err := msg.ToEvent()
 		if err != nil {
-			log.Error("Error: failed to decode message to Event.")
+			log.Error(3, "Error: failed to decode message to Event.")
 		}
 		s.Lock()
 		h, ok := s.EventHandlers[e.Event]
@@ -129,7 +127,7 @@ func (s *Session) socketReader(done chan struct{}) {
 		if ok {
 			h.Call(e.Payload)
 		} else {
-			log.Warningf("no handler for event: %s", e.Event)
+			log.Warn("no handler for event: %s", e.Event)
 		}
 	}
 }
@@ -139,7 +137,7 @@ func (s *Session) socketWriter(done chan struct{}) {
 	defer close(done)
 
 	for msg := range s.writeMessageChan {
-		log.Debugf("socket %s sending message", s.Id)
+		log.Debug("socket %s sending message", s.Id)
 		err := s.Conn.WriteMessage(msg.MessageType, msg.Body)
 		retryDelay := time.Millisecond * 25
 		for err != nil {
@@ -149,7 +147,7 @@ func (s *Session) socketWriter(done chan struct{}) {
 			if closing {
 				return
 			}
-			log.Errorf("write: %s", err)
+			log.Error(3, "unable to write to websocket: %s", err)
 			if retryDelay < time.Second {
 				retryDelay = retryDelay * 2
 			}
