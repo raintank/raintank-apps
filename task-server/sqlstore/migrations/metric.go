@@ -10,7 +10,7 @@ func addMetricMigrations(mg *migrator.Migrator) {
 	metricV1 := migrator.Table{
 		Name: "metric",
 		Columns: []*migrator.Column{
-			{Name: "id", Type: migrator.DB_BigInt, Length: 255, IsPrimaryKey: true},
+			{Name: "id", Type: migrator.DB_BigInt, IsPrimaryKey: true, IsAutoIncrement: true},
 			{Name: "namespace", Type: migrator.DB_NVarchar, Length: 255},
 			{Name: "org_id", Type: migrator.DB_BigInt, Nullable: false},
 			{Name: "public", Type: migrator.DB_Bool},
