@@ -33,7 +33,7 @@ type TaskMetric struct {
 type TaskDTO struct {
 	Id       int64                             `json:"id"`
 	Name     string                            `json:"name" binding:"Required"`
-	OrgId    int64                             `json:"-"`
+	OrgId    int64                             `json:"orgId"`
 	Config   map[string]map[string]interface{} `json:"config"`
 	Interval int64                             `json:"interval" binding:"Required"`
 	Route    *TaskRoute                        `json:"route" binding:"Required"`
