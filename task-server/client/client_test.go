@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"sync"
 	"testing"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 
 var (
 	adminKey = "changeme"
+	lock     sync.RWMutex
 )
 
 func startApi(done chan struct{}) string {
@@ -81,10 +83,13 @@ func addTestMetrics(agent *model.AgentDTO) {
 			Policy:    nil,
 		},
 	}
+	lock.Lock()
 	err := sqlstore.AddMissingMetricsForAgent(agent, metrics)
+	lock.Unlock()
 	if err != nil {
 		panic(err)
 	}
+
 	err = sqlstore.AddAgentSession(&model.AgentSession{
 		Id:       uuid.NewUUID().String(),
 		AgentId:  agent.Id,
