@@ -42,6 +42,11 @@ func NewClient(nodeName, tsdbAddr, apiKey string, u *url.URL) (*Client, error) {
 }
 
 func (c *Client) Run() {
+	go c.watchSnapServer()
+	go c.watchTasks()
+}
+
+func (c *Client) watchSnapServer() {
 	log.Info("running SnapClient supervisor.")
 	ticker := time.NewTicker(time.Second)
 	for range ticker.C {
@@ -68,6 +73,32 @@ func (c *Client) Run() {
 	}
 }
 
+func (c *Client) watchTasks() {
+	log.Info("running SnapClient task supervisor.")
+	ticker := time.NewTicker(time.Minute)
+
+	for range ticker.C {
+		tasks, err := c.GetSnapTasks()
+		if err != nil {
+			log.Error(3, "Failed get task list from snap server.")
+		}
+		syncNeeded := false
+		for _, t := range tasks {
+			if t.State == "Disabled" {
+				log.Info("task %s is marked as disabled. Removing it.", t.Name)
+				err = c.RemoveSnapTask(t)
+				if err != nil {
+					log.Error(3, "Failed to remove task. %s", err)
+				}
+				syncNeeded = true
+			}
+		}
+		if syncNeeded {
+			c.ConnectChan <- struct{}{}
+		}
+	}
+}
+
 func (c *Client) GetSnapMetrics() ([]*rbody.Metric, error) {
 	resp := c.c.GetMetricCatalog()
 	return resp.Catalog, resp.Err
@@ -86,6 +117,17 @@ func (c *Client) GetSnapTasks() ([]*rbody.ScheduledTask, error) {
 }
 
 func (c *Client) RemoveSnapTask(task *rbody.ScheduledTask) error {
+	resp := c.c.GetTask(task.ID)
+	if resp.Err != nil {
+		return resp.Err
+	}
+	if resp.State == "Disabled" {
+		// need to enable the task before stopping it.
+		enableResp := c.c.EnableTask(task.ID)
+		if enableResp.Err != nil {
+			return enableResp.Err
+		}
+	}
 	stopResp := c.c.StopTask(task.ID)
 	if stopResp.Err != nil {
 		return stopResp.Err
