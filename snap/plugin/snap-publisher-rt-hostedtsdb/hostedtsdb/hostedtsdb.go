@@ -222,7 +222,7 @@ func Meta() *plugin.PluginMeta {
 		pluginType,
 		[]string{plugin.SnapGOBContentType},
 		[]string{plugin.SnapGOBContentType},
-		plugin.Exclusive(true),
+		plugin.ConcurrencyCount(1000),
 	)
 }
 
