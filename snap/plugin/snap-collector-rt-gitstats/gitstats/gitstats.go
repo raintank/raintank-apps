@@ -2,7 +2,6 @@ package gitstats
 
 import (
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/google/go-github/github"
@@ -41,7 +40,7 @@ type Gitstats struct {
 }
 
 // CollectMetrics collects metrics for testing
-func (f *Gitstats) CollectMetrics(mts []plugin.PluginMetricType) ([]plugin.PluginMetricType, error) {
+func (f *Gitstats) CollectMetrics(mts []plugin.MetricType) ([]plugin.MetricType, error) {
 	var err error
 
 	conf := mts[0].Config().Table()
@@ -67,7 +66,7 @@ func (f *Gitstats) CollectMetrics(mts []plugin.PluginMetricType) ([]plugin.Plugi
 	return metrics, nil
 }
 
-func gitStats(accessToken, owner, repo string, mts []plugin.PluginMetricType) ([]plugin.PluginMetricType, error) {
+func gitStats(accessToken, owner, repo string, mts []plugin.MetricType) ([]plugin.MetricType, error) {
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: accessToken},
 	)
@@ -77,7 +76,6 @@ func gitStats(accessToken, owner, repo string, mts []plugin.PluginMetricType) ([
 	if err != nil {
 		return nil, err
 	}
-	hostname, _ := os.Hostname()
 	stats := make(map[string]int)
 
 	if resp.ForksCount != nil {
@@ -102,16 +100,14 @@ func gitStats(accessToken, owner, repo string, mts []plugin.PluginMetricType) ([
 		stats["size"] = *resp.Size
 	}
 
-	metrics := make([]plugin.PluginMetricType, 0, len(stats))
+	metrics := make([]plugin.MetricType, 0, len(stats))
 	for _, m := range mts {
-		stat := m.Namespace()[5]
+		stat := m.Namespace()[5].Value
 		if value, ok := stats[stat]; ok {
-			mt := plugin.PluginMetricType{
+			mt := plugin.MetricType{
 				Data_:      value,
-				Namespace_: []string{"raintank", "apps", "gitstats", owner, repo, stat},
-				Source_:    hostname,
+				Namespace_: core.NewNamespace([]string{"raintank", "apps", "gitstats", owner, repo, stat}),
 				Timestamp_: time.Now(),
-				Labels_:    m.Labels(),
 				Version_:   m.Version(),
 			}
 			metrics = append(metrics, mt)
@@ -122,12 +118,11 @@ func gitStats(accessToken, owner, repo string, mts []plugin.PluginMetricType) ([
 }
 
 //GetMetricTypes returns metric types for testing
-func (f *Gitstats) GetMetricTypes(cfg plugin.PluginConfigType) ([]plugin.PluginMetricType, error) {
-	mts := []plugin.PluginMetricType{}
+func (f *Gitstats) GetMetricTypes(cfg plugin.ConfigType) ([]plugin.MetricType, error) {
+	mts := []plugin.MetricType{}
 	for _, metricName := range metricNames {
-		mts = append(mts, plugin.PluginMetricType{
-			Namespace_: []string{"raintank", "apps", "gitstats", "*", "*", metricName},
-			Labels_:    []core.Label{{Index: 3, Name: "owner"}, {Index: 4, Name: "repo"}},
+		mts = append(mts, plugin.MetricType{
+			Namespace_: core.NewNamespace([]string{"raintank", "apps", "gitstats", "*", "*", metricName}),
 			Config_:    cfg.ConfigDataNode,
 		})
 	}

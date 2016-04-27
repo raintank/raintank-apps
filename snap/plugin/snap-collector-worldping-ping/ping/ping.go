@@ -2,7 +2,6 @@ package ping
 
 import (
 	"fmt"
-	"os"
 	"sync"
 	"time"
 
@@ -63,7 +62,7 @@ type Ping struct {
 }
 
 // CollectMetrics collects metrics for testing
-func (p *Ping) CollectMetrics(mts []plugin.PluginMetricType) ([]plugin.PluginMetricType, error) {
+func (p *Ping) CollectMetrics(mts []plugin.MetricType) ([]plugin.MetricType, error) {
 	var err error
 
 	conf := mts[0].Config().Table()
@@ -92,8 +91,7 @@ func (p *Ping) CollectMetrics(mts []plugin.PluginMetricType) ([]plugin.PluginMet
 	return metrics, nil
 }
 
-func ping(checkId, agentName, endpoint, host string, mts []plugin.PluginMetricType) ([]plugin.PluginMetricType, error) {
-	hostname, _ := os.Hostname()
+func ping(checkId, agentName, endpoint, host string, mts []plugin.MetricType) ([]plugin.MetricType, error) {
 	check := &RaintankProbePing{
 		Hostname: host,
 		Timeout:  10,
@@ -122,16 +120,14 @@ func ping(checkId, agentName, endpoint, host string, mts []plugin.PluginMetricTy
 		stats["loss"] = *check.Result.Loss
 	}
 
-	metrics := make([]plugin.PluginMetricType, 0, len(stats))
+	metrics := make([]plugin.MetricType, 0, len(stats))
 	for _, m := range mts {
-		stat := m.Namespace()[4]
+		stat := m.Namespace()[4].Value
 		if value, ok := stats[stat]; ok {
-			mt := plugin.PluginMetricType{
+			mt := plugin.MetricType{
 				Data_:      value,
-				Namespace_: []string{"worlding", agentName, endpoint, "ping", stat},
-				Source_:    hostname,
+				Namespace_: core.NewNamespace([]string{"worlding", agentName, endpoint, "ping", stat}),
 				Timestamp_: time.Now(),
-				Labels_:    m.Labels(),
 				Version_:   m.Version(),
 			}
 			metrics = append(metrics, mt)
@@ -160,11 +156,10 @@ func ping(checkId, agentName, endpoint, host string, mts []plugin.PluginMetricTy
 			message = *check.Result.Error
 			stat = "ERROR"
 		}
-		mt := plugin.PluginMetricType{
+		mt := plugin.MetricType{
 			Data_:      message,
-			Namespace_: []string{"worlding", "event", "monitor_state", stat},
+			Namespace_: core.NewNamespace([]string{"worlding", "event", "monitor_state", stat}),
 			Tags_:      map[string]string{"endpoint": endpoint, "probe": agentName, "monitor_type": "ping"},
-			Source_:    hostname,
 			Timestamp_: time.Now(),
 			Version_:   mts[0].Version(),
 		}
@@ -175,12 +170,11 @@ func ping(checkId, agentName, endpoint, host string, mts []plugin.PluginMetricTy
 }
 
 //GetMetricTypes returns metric types for testing
-func (p *Ping) GetMetricTypes(cfg plugin.PluginConfigType) ([]plugin.PluginMetricType, error) {
-	mts := []plugin.PluginMetricType{}
+func (p *Ping) GetMetricTypes(cfg plugin.ConfigType) ([]plugin.MetricType, error) {
+	mts := []plugin.MetricType{}
 	for _, metricName := range metricNames {
-		mts = append(mts, plugin.PluginMetricType{
-			Namespace_: []string{"worldping", "*", "*", "ping", metricName},
-			Labels_:    []core.Label{{Index: 1, Name: "endpoint"}, {Index: 2, Name: "probe"}},
+		mts = append(mts, plugin.MetricType{
+			Namespace_: core.NewNamespace([]string{"worldping", "*", "*", "ping", metricName}),
 		})
 	}
 	return mts, nil

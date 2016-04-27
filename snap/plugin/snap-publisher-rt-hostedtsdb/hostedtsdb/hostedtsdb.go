@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -112,7 +113,7 @@ func init() {
 
 func (f *HostedtsdbPublisher) Publish(contentType string, content []byte, config map[string]ctypes.ConfigValue) error {
 	log.Println("Publishing started")
-	var metrics []plugin.PluginMetricType
+	var metrics []plugin.MetricType
 
 	switch contentType {
 	case plugin.SnapGOBContentType:
@@ -200,7 +201,7 @@ func (f *HostedtsdbPublisher) Publish(contentType string, content []byte, config
 
 		metricsArray[i] = &schema.MetricData{
 			OrgId:      orgId,
-			Name:       strings.Join(m.Namespace(), "."),
+			Name:       m.Namespace().Key(),
 			Interval:   interval,
 			Value:      value,
 			Time:       m.Timestamp().Unix(),
@@ -267,8 +268,8 @@ func PostData(path, token string, body []byte) error {
 	return nil
 }
 
-func sendEvent(orgId int64, m *plugin.PluginMetricType) {
-	ns := m.Namespace()
+func sendEvent(orgId int64, m *plugin.MetricType) {
+	ns := m.Namespace().Strings()
 	if len(ns) != 4 {
 		log.Printf("Error: invalid event metric. Expected namesapce to be 4 fields.")
 		return
@@ -277,13 +278,13 @@ func sendEvent(orgId int64, m *plugin.PluginMetricType) {
 		log.Printf("Error: invalid event metrics.  Metrics hould begin with 'worldping.event'")
 		return
 	}
-
+	hostname, _ := os.Hostname()
 	id := time.Now().UnixNano()
 	event := &schema.ProbeEvent{
 		OrgId:     orgId,
 		EventType: ns[2],
 		Severity:  ns[3],
-		Source:    m.Source(),
+		Source:    hostname,
 		Timestamp: id / int64(time.Millisecond),
 		Message:   m.Data().(string),
 		Tags:      m.Tags(),

@@ -2,7 +2,6 @@ package ns1
 
 import (
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/gosimple/slug"
@@ -24,11 +23,9 @@ const (
 
 var (
 	statusMap = map[string]int{"up": 0, "down": 1}
-	hostname  = ""
 )
 
 func init() {
-	hostname, _ = os.Hostname()
 	slug.CustomSub = map[string]string{".": "_"}
 }
 
@@ -39,9 +36,9 @@ type Ns1 struct {
 }
 
 // CollectMetrics collects metrics for testing
-func (n *Ns1) CollectMetrics(mts []plugin.PluginMetricType) ([]plugin.PluginMetricType, error) {
+func (n *Ns1) CollectMetrics(mts []plugin.MetricType) ([]plugin.MetricType, error) {
 	var err error
-	metrics := make([]plugin.PluginMetricType, 0)
+	metrics := make([]plugin.MetricType, 0)
 	conf := mts[0].Config().Table()
 	apiKey, ok := conf["ns1_key"]
 	if !ok || apiKey.(ctypes.ConfigValueStr).Value == "" {
@@ -54,14 +51,14 @@ func (n *Ns1) CollectMetrics(mts []plugin.PluginMetricType) ([]plugin.PluginMetr
 		return nil, err
 	}
 	LogDebug("request to collect metrics", "metric_count", len(mts))
-	zoneMts := make([]plugin.PluginMetricType, 0)
-	monitorMts := make([]plugin.PluginMetricType, 0)
+	zoneMts := make([]plugin.MetricType, 0)
+	monitorMts := make([]plugin.MetricType, 0)
 	for _, metricType := range mts {
 		ns := metricType.Namespace()
-		if len(ns) > 4 && ns[3] == "zones" {
+		if len(ns) > 4 && ns[3].Value == "zones" {
 			zoneMts = append(zoneMts, metricType)
 		}
-		if len(ns) > 4 && ns[3] == "monitoring" {
+		if len(ns) > 4 && ns[3].Value == "monitoring" {
 			monitorMts = append(monitorMts, metricType)
 		}
 	}
@@ -91,8 +88,8 @@ func (n *Ns1) CollectMetrics(mts []plugin.PluginMetricType) ([]plugin.PluginMetr
 	return metrics, nil
 }
 
-func (n *Ns1) ZoneMetrics(client *Client, mts []plugin.PluginMetricType) ([]plugin.PluginMetricType, error) {
-	metrics := make([]plugin.PluginMetricType, 0)
+func (n *Ns1) ZoneMetrics(client *Client, mts []plugin.MetricType) ([]plugin.MetricType, error) {
+	metrics := make([]plugin.MetricType, 0)
 	zones, err := client.Zones()
 	if err != nil {
 		return nil, err
@@ -100,7 +97,7 @@ func (n *Ns1) ZoneMetrics(client *Client, mts []plugin.PluginMetricType) ([]plug
 	requestedZone := make(map[string]struct{})
 	allZones := false
 	for _, m := range mts {
-		ns := m.Namespace()
+		ns := m.Namespace().Strings()
 		if ns[4] == "*" {
 			allZones = true
 		} else {
@@ -120,20 +117,18 @@ func (n *Ns1) ZoneMetrics(client *Client, mts []plugin.PluginMetricType) ([]plug
 		if err != nil {
 			return nil, err
 		}
-		metrics = append(metrics, plugin.PluginMetricType{
+		metrics = append(metrics, plugin.MetricType{
 			Data_:      qps.Qps,
-			Namespace_: []string{"raintank", "apps", "ns1", "zones", zSlug, "qps"},
-			Source_:    hostname,
+			Namespace_: core.NewNamespace([]string{"raintank", "apps", "ns1", "zones", zSlug, "qps"}),
 			Timestamp_: time.Now(),
-			Labels_:    []core.Label{{Index: 4, Name: "zone"}},
 			Version_:   mts[0].Version(),
 		})
 	}
 	return metrics, nil
 }
 
-func (n *Ns1) MonitorsMetrics(client *Client, mts []plugin.PluginMetricType) ([]plugin.PluginMetricType, error) {
-	metrics := make([]plugin.PluginMetricType, 0)
+func (n *Ns1) MonitorsMetrics(client *Client, mts []plugin.MetricType) ([]plugin.MetricType, error) {
+	metrics := make([]plugin.MetricType, 0)
 	jobs, err := client.MonitoringJobs()
 	if err != nil {
 		return nil, err
@@ -141,7 +136,7 @@ func (n *Ns1) MonitorsMetrics(client *Client, mts []plugin.PluginMetricType) ([]
 	metricTree := make(map[string]map[string]map[string]struct{})
 
 	for _, m := range mts {
-		ns := m.Namespace()
+		ns := m.Namespace().Strings()
 		job := ns[4]
 		region := ns[5]
 		stat := ns[6]
@@ -180,12 +175,10 @@ func (n *Ns1) MonitorsMetrics(client *Client, mts []plugin.PluginMetricType) ([]
 				return nil, fmt.Errorf("Unknown monitor status")
 			}
 
-			metrics = append(metrics, plugin.PluginMetricType{
+			metrics = append(metrics, plugin.MetricType{
 				Data_:      data,
-				Namespace_: []string{"raintank", "apps", "ns1", "monitoring", jSlug, region, "state"},
-				Source_:    hostname,
+				Namespace_: core.NewNamespace([]string{"raintank", "apps", "ns1", "monitoring", jSlug, region, "state"}),
 				Timestamp_: time.Now(),
-				Labels_:    []core.Label{{Index: 4, Name: "job"}, {Index: 5, Name: "region"}},
 				Version_:   mts[0].Version(),
 			})
 		}
@@ -211,12 +204,10 @@ func (n *Ns1) MonitorsMetrics(client *Client, mts []plugin.PluginMetricType) ([]
 					continue
 				}
 
-				metrics = append(metrics, plugin.PluginMetricType{
+				metrics = append(metrics, plugin.MetricType{
 					Data_:      m.Avg,
-					Namespace_: []string{"raintank", "apps", "ns1", "monitoring", jSlug, jm.Region, stat},
-					Source_:    hostname,
+					Namespace_: core.NewNamespace([]string{"raintank", "apps", "ns1", "monitoring", jSlug, jm.Region, stat}),
 					Timestamp_: time.Now(),
-					Labels_:    []core.Label{{Index: 4, Name: "job"}, {Index: 5, Name: "region"}},
 					Version_:   mts[0].Version(),
 				})
 			}
@@ -226,32 +217,27 @@ func (n *Ns1) MonitorsMetrics(client *Client, mts []plugin.PluginMetricType) ([]
 }
 
 //GetMetricTypes returns metric types for testing
-func (n *Ns1) GetMetricTypes(cfg plugin.PluginConfigType) ([]plugin.PluginMetricType, error) {
-	mts := []plugin.PluginMetricType{}
+func (n *Ns1) GetMetricTypes(cfg plugin.ConfigType) ([]plugin.MetricType, error) {
+	mts := []plugin.MetricType{}
 
-	mts = append(mts, plugin.PluginMetricType{
-		Namespace_: []string{"raintank", "apps", "ns1", "zones", "*", "qps"},
-		Labels_:    []core.Label{{Index: 4, Name: "zone"}},
+	mts = append(mts, plugin.MetricType{
+		Namespace_: core.NewNamespace([]string{"raintank", "apps", "ns1", "zones", "*", "qps"}),
 		Config_:    cfg.ConfigDataNode,
 	})
-	mts = append(mts, plugin.PluginMetricType{
-		Namespace_: []string{"raintank", "apps", "ns1", "monitoring", "*", "*", "state"},
-		Labels_:    []core.Label{{Index: 4, Name: "job"}, {Index: 5, Name: "region"}},
+	mts = append(mts, plugin.MetricType{
+		Namespace_: core.NewNamespace([]string{"raintank", "apps", "ns1", "monitoring", "*", "*", "state"}),
 		Config_:    cfg.ConfigDataNode,
 	})
-	mts = append(mts, plugin.PluginMetricType{
-		Namespace_: []string{"raintank", "apps", "ns1", "monitoring", "*", "*", "rtt"},
-		Labels_:    []core.Label{{Index: 4, Name: "job"}, {Index: 5, Name: "region"}},
+	mts = append(mts, plugin.MetricType{
+		Namespace_: core.NewNamespace([]string{"raintank", "apps", "ns1", "monitoring", "*", "*", "rtt"}),
 		Config_:    cfg.ConfigDataNode,
 	})
-	mts = append(mts, plugin.PluginMetricType{
-		Namespace_: []string{"raintank", "apps", "ns1", "monitoring", "*", "*", "loss"},
-		Labels_:    []core.Label{{Index: 4, Name: "job"}, {Index: 5, Name: "region"}},
+	mts = append(mts, plugin.MetricType{
+		Namespace_: core.NewNamespace([]string{"raintank", "apps", "ns1", "monitoring", "*", "*", "loss"}),
 		Config_:    cfg.ConfigDataNode,
 	})
-	mts = append(mts, plugin.PluginMetricType{
-		Namespace_: []string{"raintank", "apps", "ns1", "monitoring", "*", "*", "connect"},
-		Labels_:    []core.Label{{Index: 4, Name: "job"}, {Index: 5, Name: "region"}},
+	mts = append(mts, plugin.MetricType{
+		Namespace_: core.NewNamespace([]string{"raintank", "apps", "ns1", "monitoring", "*", "*", "connect"}),
 		Config_:    cfg.ConfigDataNode,
 	})
 
