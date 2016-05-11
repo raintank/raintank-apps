@@ -106,7 +106,7 @@ func gitStats(accessToken, owner, repo string, mts []plugin.MetricType) ([]plugi
 		if value, ok := stats[stat]; ok {
 			mt := plugin.MetricType{
 				Data_:      value,
-				Namespace_: core.NewNamespace([]string{"raintank", "apps", "gitstats", owner, repo, stat}),
+				Namespace_: core.NewNamespace("raintank", "apps", "gitstats", owner, repo, stat),
 				Timestamp_: time.Now(),
 				Version_:   m.Version(),
 			}
@@ -122,7 +122,7 @@ func (f *Gitstats) GetMetricTypes(cfg plugin.ConfigType) ([]plugin.MetricType, e
 	mts := []plugin.MetricType{}
 	for _, metricName := range metricNames {
 		mts = append(mts, plugin.MetricType{
-			Namespace_: core.NewNamespace([]string{"raintank", "apps", "gitstats", "*", "*", metricName}),
+			Namespace_: core.NewNamespace("raintank", "apps", "gitstats", "*", "*", metricName),
 			Config_:    cfg.ConfigDataNode,
 		})
 	}

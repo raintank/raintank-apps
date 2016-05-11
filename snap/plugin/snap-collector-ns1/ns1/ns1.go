@@ -119,7 +119,7 @@ func (n *Ns1) ZoneMetrics(client *Client, mts []plugin.MetricType) ([]plugin.Met
 		}
 		metrics = append(metrics, plugin.MetricType{
 			Data_:      qps.Qps,
-			Namespace_: core.NewNamespace([]string{"raintank", "apps", "ns1", "zones", zSlug, "qps"}),
+			Namespace_: core.NewNamespace("raintank", "apps", "ns1", "zones", zSlug, "qps"),
 			Timestamp_: time.Now(),
 			Version_:   mts[0].Version(),
 		})
@@ -177,7 +177,7 @@ func (n *Ns1) MonitorsMetrics(client *Client, mts []plugin.MetricType) ([]plugin
 
 			metrics = append(metrics, plugin.MetricType{
 				Data_:      data,
-				Namespace_: core.NewNamespace([]string{"raintank", "apps", "ns1", "monitoring", jSlug, region, "state"}),
+				Namespace_: core.NewNamespace("raintank", "apps", "ns1", "monitoring", jSlug, region, "state"),
 				Timestamp_: time.Now(),
 				Version_:   mts[0].Version(),
 			})
@@ -206,7 +206,7 @@ func (n *Ns1) MonitorsMetrics(client *Client, mts []plugin.MetricType) ([]plugin
 
 				metrics = append(metrics, plugin.MetricType{
 					Data_:      m.Avg,
-					Namespace_: core.NewNamespace([]string{"raintank", "apps", "ns1", "monitoring", jSlug, jm.Region, stat}),
+					Namespace_: core.NewNamespace("raintank", "apps", "ns1", "monitoring", jSlug, jm.Region, stat),
 					Timestamp_: time.Now(),
 					Version_:   mts[0].Version(),
 				})
@@ -221,23 +221,23 @@ func (n *Ns1) GetMetricTypes(cfg plugin.ConfigType) ([]plugin.MetricType, error)
 	mts := []plugin.MetricType{}
 
 	mts = append(mts, plugin.MetricType{
-		Namespace_: core.NewNamespace([]string{"raintank", "apps", "ns1", "zones", "*", "qps"}),
+		Namespace_: core.NewNamespace("raintank", "apps", "ns1", "zones", "*", "qps"),
 		Config_:    cfg.ConfigDataNode,
 	})
 	mts = append(mts, plugin.MetricType{
-		Namespace_: core.NewNamespace([]string{"raintank", "apps", "ns1", "monitoring", "*", "*", "state"}),
+		Namespace_: core.NewNamespace("raintank", "apps", "ns1", "monitoring", "*", "*", "state"),
 		Config_:    cfg.ConfigDataNode,
 	})
 	mts = append(mts, plugin.MetricType{
-		Namespace_: core.NewNamespace([]string{"raintank", "apps", "ns1", "monitoring", "*", "*", "rtt"}),
+		Namespace_: core.NewNamespace("raintank", "apps", "ns1", "monitoring", "*", "*", "rtt"),
 		Config_:    cfg.ConfigDataNode,
 	})
 	mts = append(mts, plugin.MetricType{
-		Namespace_: core.NewNamespace([]string{"raintank", "apps", "ns1", "monitoring", "*", "*", "loss"}),
+		Namespace_: core.NewNamespace("raintank", "apps", "ns1", "monitoring", "*", "*", "loss"),
 		Config_:    cfg.ConfigDataNode,
 	})
 	mts = append(mts, plugin.MetricType{
-		Namespace_: core.NewNamespace([]string{"raintank", "apps", "ns1", "monitoring", "*", "*", "connect"}),
+		Namespace_: core.NewNamespace("raintank", "apps", "ns1", "monitoring", "*", "*", "connect"),
 		Config_:    cfg.ConfigDataNode,
 	})
 

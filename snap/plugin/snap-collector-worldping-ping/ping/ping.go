@@ -126,7 +126,7 @@ func ping(checkId, agentName, endpoint, host string, mts []plugin.MetricType) ([
 		if value, ok := stats[stat]; ok {
 			mt := plugin.MetricType{
 				Data_:      value,
-				Namespace_: core.NewNamespace([]string{"worlding", agentName, endpoint, "ping", stat}),
+				Namespace_: core.NewNamespace("worlding", agentName, endpoint, "ping", stat),
 				Timestamp_: time.Now(),
 				Version_:   m.Version(),
 			}
@@ -158,7 +158,7 @@ func ping(checkId, agentName, endpoint, host string, mts []plugin.MetricType) ([
 		}
 		mt := plugin.MetricType{
 			Data_:      message,
-			Namespace_: core.NewNamespace([]string{"worlding", "event", "monitor_state", stat}),
+			Namespace_: core.NewNamespace("worlding", "event", "monitor_state", stat),
 			Tags_:      map[string]string{"endpoint": endpoint, "probe": agentName, "monitor_type": "ping"},
 			Timestamp_: time.Now(),
 			Version_:   mts[0].Version(),
@@ -174,7 +174,7 @@ func (p *Ping) GetMetricTypes(cfg plugin.ConfigType) ([]plugin.MetricType, error
 	mts := []plugin.MetricType{}
 	for _, metricName := range metricNames {
 		mts = append(mts, plugin.MetricType{
-			Namespace_: core.NewNamespace([]string{"worldping", "*", "*", "ping", metricName}),
+			Namespace_: core.NewNamespace("worldping", "*", "*", "ping", metricName),
 		})
 	}
 	return mts, nil
