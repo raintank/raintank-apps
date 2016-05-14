@@ -183,7 +183,6 @@ func TestApiClient(t *testing.T) {
 
 				So(err, ShouldBeNil)
 				So(len(agents), ShouldEqual, agentCount)
-				So(agents[0].Name, ShouldEqual, "demo2")
 			})
 		})
 
@@ -195,14 +194,14 @@ func TestApiClient(t *testing.T) {
 			So(metrics, ShouldNotBeNil)
 			So(metrics, ShouldHaveSameTypeAs, []*model.Metric{})
 			So(len(metrics), ShouldEqual, metricsCount)
-			agents, err := c.GetAgents(&model.GetAgentsQuery{})
+			agent, err := c.GetAgentById(1)
 			if err != nil {
 				panic(err)
 			}
-			addTestMetrics(agents[0])
+			addTestMetrics(agent)
 			metricsCount = 2
 			Convey("When getting metrics for Agent", func() {
-				metrics, err := c.GetAgentMetrics(agents[0].Id)
+				metrics, err := c.GetAgentMetrics(agent.Id)
 				So(err, ShouldBeNil)
 				So(metrics, ShouldNotBeNil)
 				So(metrics, ShouldHaveSameTypeAs, []*model.Metric{})
@@ -217,7 +216,7 @@ func TestApiClient(t *testing.T) {
 				So(agentsWithMetric, ShouldNotBeNil)
 				So(agentsWithMetric, ShouldHaveSameTypeAs, []*model.AgentDTO{})
 				So(len(agentsWithMetric), ShouldEqual, 1)
-				So(agentsWithMetric[0].Id, ShouldEqual, agents[0].Id)
+				So(agentsWithMetric[0].Id, ShouldEqual, agent.Id)
 			})
 			Convey("When getting agent with Metric wildcard", func() {
 				q := &model.GetAgentsQuery{
@@ -228,7 +227,7 @@ func TestApiClient(t *testing.T) {
 				So(agentsWithMetric, ShouldNotBeNil)
 				So(agentsWithMetric, ShouldHaveSameTypeAs, []*model.AgentDTO{})
 				So(len(agentsWithMetric), ShouldEqual, 1)
-				So(agentsWithMetric[0].Id, ShouldEqual, agents[0].Id)
+				So(agentsWithMetric[0].Id, ShouldEqual, agent.Id)
 			})
 			Convey("When getting agent with Metric wildcard that doesnt match", func() {
 				q := &model.GetAgentsQuery{
