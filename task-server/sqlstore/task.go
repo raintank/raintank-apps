@@ -124,7 +124,14 @@ func GetTaskById(id int64, orgId int64) (*model.TaskDTO, error) {
 
 func getTaskById(sess *session, id int64, orgId int64) (*model.TaskDTO, error) {
 	var t taskWithMetrics
-	err := sess.Where("task.id=? AND org_id=?", id, orgId).Join("LEFT", "task_metric", "task.id = task_metric.task_id").Find(&t)
+	sess.Where("task.id=? AND org_id=?", id, orgId).Join("LEFT", "task_metric", "task.id = task_metric.task_id")
+	sess.Cols(
+		"`task`.*",
+		"task_metric.namespace",
+		"task_metric.version",
+	)
+
+	err := sess.Find(&t)
 	if err != nil {
 		return nil, err
 	}
