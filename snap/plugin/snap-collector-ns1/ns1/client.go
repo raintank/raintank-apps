@@ -36,12 +36,12 @@ type MonitoringJob struct {
 	Id        string                `json:"id"`
 	Name      string                `json:"name"`
 	Status    map[string]*JobStatus `json:"status"`
-	Frequency int                   `json:"frequency"`
+	Frequency json.Number           `json:"frequency"`
 }
 
 type JobStatus struct {
-	Since  int    `json:"since"`
-	Status string `json:"status"`
+	Since  json.Number `json:"since"`
+	Status string      `json:"status"`
 }
 
 type MonitoringMetric struct {
@@ -180,10 +180,14 @@ func (c *Client) Zones() ([]*Zone, error) {
 func (c *Client) Qps(zone string) (*Qps, error) {
 	path := "/stats/qps"
 	if zone != "" {
-		path = path + "/" + zone
+		// we need to escape twice as internally the path is stored in encoded
+		// form so it is not possible to tell if %2F or / were passed.
+		// see https://golang.org/pkg/net/url/#URL
+		path = path + "/" + url.QueryEscape(url.QueryEscape(zone))
 	}
 	body, err := c.get(path, nil)
 	if err != nil {
+		log.Printf("failed to get %s. %s", path, err)
 		return nil, err
 	}
 	qps := Qps{}
@@ -202,6 +206,8 @@ func (c *Client) MonitoringJobs() ([]*MonitoringJob, error) {
 	jobs := make([]*MonitoringJob, 0)
 	err = json.Unmarshal(body, &jobs)
 	if err != nil {
+		log.Printf("failed to unmarshal monitoringJob resp. %s", err)
+		log.Printf("--------\n%s\n--------\n", body)
 		return nil, err
 	}
 	return jobs, nil
