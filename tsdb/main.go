@@ -94,7 +94,6 @@ func main() {
 	event_publish.Init(stats, *eventTopic, *nsqdAddr, *publishEvents)
 
 	m := macaron.Classic()
-	m.Use(macaron.Logger())
 	m.Use(macaron.Renderer())
 
 	api.InitRoutes(m, *adminKey)
