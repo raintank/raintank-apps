@@ -53,22 +53,26 @@ func Publish(metrics []*schema.MetricData) error {
 		return nil
 	}
 
-	id := time.Now().UnixNano()
-	data, err := msg.CreateMsg(metrics, id, msg.FormatMetricDataArrayMsgp)
-	if err != nil {
-		log.Fatal(4, "Fatal error creating metric message: %s", err)
+	subslices := schema.Reslice(metrics, 3500)
+
+	for _, subslice := range subslices {
+		id := time.Now().UnixNano()
+		data, err := msg.CreateMsg(subslice, id, msg.FormatMetricDataArrayMsgp)
+		if err != nil {
+			log.Fatal(4, "Fatal error creating metric message: %s", err)
+		}
+		metricsPublished.Inc(int64(len(subslice)))
+		messagesPublished.Inc(1)
+		messagesSize.Value(int64(len(data)))
+		metricsPerMessage.Value(int64(len(subslice)))
+		pre := time.Now()
+		err = globalProducer.Publish(topic, data)
+		publishDuration.Value(time.Since(pre))
+		if err != nil {
+			log.Fatal(4, "can't publish to nsqd: %s", err)
+		}
+		log.Info("published metrics %d size=%d", id, len(data))
 	}
-	metricsPublished.Inc(int64(len(metrics)))
-	messagesPublished.Inc(1)
-	messagesSize.Value(int64(len(data)))
-	metricsPerMessage.Value(int64(len(metrics)))
-	pre := time.Now()
-	err = globalProducer.Publish(topic, data)
-	publishDuration.Value(time.Since(pre))
-	if err != nil {
-		log.Fatal(4, "can't publish to nsqd: %s", err)
-	}
-	log.Info("published metrics %d size=%d", id, len(data))
 
 	//globalProducer.Stop()
 	return nil
