@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"net"
@@ -33,7 +34,10 @@ var (
 	eventTopic     = flag.String("event-topic", "metrics", "NSQ topic for events")
 	publishEvents  = flag.Bool("publish-events", false, "enable event publishing")
 
-	addr = flag.String("addr", "localhost:80", "http service address")
+	addr     = flag.String("addr", "localhost:80", "http service address")
+	ssl      = flag.Bool("ssl", false, "use https")
+	certFile = flag.String("cert-file", "", "SSL certificate file")
+	keyFile  = flag.String("key-file", "", "SSL key file")
 
 	statsEnabled = flag.Bool("stats-enabled", false, "enable statsd metrics")
 	statsdAddr   = flag.String("statsd-addr", "localhost:8125", "statsd address")
@@ -83,6 +87,10 @@ func main() {
 		return
 	}
 
+	if *ssl && (*certFile == "" || *keyFile == "") {
+		log.Fatal(4, "cert-file and key-file must be set when using SSL")
+	}
+
 	hostname, _ := os.Hostname()
 
 	stats, err := helper.New(*statsEnabled, *statsdAddr, *statsdType, "raintank_tsdb", strings.Replace(hostname, ".", "_", -1))
@@ -116,7 +124,25 @@ func main() {
 	}
 	done := make(chan struct{})
 	go handleShutdown(done, interrupt, l)
-	err = http.Serve(l, m)
+	srv := http.Server{
+		Addr:    *addr,
+		Handler: m,
+	}
+	if *ssl {
+		cert, err := tls.LoadX509KeyPair(*certFile, *keyFile)
+		if err != nil {
+			log.Fatal(4, "Fail to start server: %v", err)
+		}
+		srv.TLSConfig = &tls.Config{
+			Certificates: []tls.Certificate{cert},
+			NextProtos:   []string{"http/1.1"},
+		}
+		tlsListener := tls.NewListener(l, srv.TLSConfig)
+		err = srv.Serve(tlsListener)
+	} else {
+		err = srv.Serve(l)
+	}
+
 	if err != nil {
 		log.Info(err.Error())
 	}
