@@ -638,7 +638,11 @@ func getAgentTasks(sess *session, agent *model.AgentDTO) ([]*model.TaskDTO, erro
 	sess.Table("task")
 	sess.Join("LEFT", "task_metric", "task.id = task_metric.task_id")
 	sess.In("task.id", tid)
-
+	sess.Cols(
+		"`task`.*",
+		"task_metric.namespace",
+		"task_metric.version",
+	)
 	err = sess.Find(&tasks)
 	return tasks.ToTaskDTO(), err
 }
