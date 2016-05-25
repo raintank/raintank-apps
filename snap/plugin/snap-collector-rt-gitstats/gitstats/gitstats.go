@@ -2,6 +2,7 @@ package gitstats
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/google/go-github/github"
@@ -55,7 +56,7 @@ func (f *Gitstats) CollectMetrics(mts []plugin.MetricType) ([]plugin.MetricType,
 	var err error
 
 	conf := mts[0].Config().Table()
-	fmt.Printf("%v", conf)
+	log.Printf("%v", conf)
 	accessToken, ok := conf["access_token"]
 	if !ok || accessToken.(ctypes.ConfigValueStr).Value == "" {
 		return nil, fmt.Errorf("access token missing from config, %v", conf)
@@ -73,7 +74,7 @@ func (f *Gitstats) CollectMetrics(mts []plugin.MetricType) ([]plugin.MetricType,
 	if err != nil {
 		return nil, err
 	}
-
+	log.Printf("fetched %d metrics for repo %s/%s", len(metrics), owner.(ctypes.ConfigValueStr).Value, repo.(ctypes.ConfigValueStr).Value)
 	return metrics, nil
 }
 
@@ -96,7 +97,7 @@ func gitStats(accessToken, owner, repo string, mts []plugin.MetricType) ([]plugi
 
 	metrics := make([]plugin.MetricType, 0)
 	for _, m := range mts {
-		stat := m.Namespace()[5].Value
+		stat := m.Namespace()[6].Value
 		if value, ok := repoStats[stat]; ok {
 			mt := plugin.MetricType{
 				Data_:      value,
