@@ -25,7 +25,7 @@ const (
 var _ plugin.CollectorPlugin = (*Gitstats)(nil)
 
 var (
-	metricNames = []string{
+	repoMetricNames = []string{
 		"forks",
 		"issues",
 		"network",
@@ -33,6 +33,17 @@ var (
 		"subscribers",
 		"watches",
 		"size",
+	}
+	userMetricNames = []string{
+		"public_repos",
+		"public_gists",
+		"followers",
+		"following",
+		"private_repos",
+		"private_gists",
+		"plan_private_repos",
+		"plan_seats",
+		"plan_filled_seats",
 	}
 )
 
@@ -72,6 +83,83 @@ func gitStats(accessToken, owner, repo string, mts []plugin.MetricType) ([]plugi
 	)
 	tc := oauth2.NewClient(oauth2.NoContext, ts)
 	client := github.NewClient(tc)
+
+	repoStats, err := getRepo(client, owner, repo)
+	if err != nil {
+		return nil, err
+	}
+
+	userStats, err := getUser(client, owner)
+	if err != nil {
+		return nil, err
+	}
+
+	metrics := make([]plugin.MetricType, 0)
+	for _, m := range mts {
+		stat := m.Namespace()[5].Value
+		if value, ok := repoStats[stat]; ok {
+			mt := plugin.MetricType{
+				Data_:      value,
+				Namespace_: core.NewNamespace("raintank", "apps", "gitstats", "repo", owner, repo, stat),
+				Timestamp_: time.Now(),
+				Version_:   m.Version(),
+			}
+			metrics = append(metrics, mt)
+		}
+		if value, ok := userStats[stat]; ok {
+			mt := plugin.MetricType{
+				Data_:      value,
+				Namespace_: core.NewNamespace("raintank", "apps", "gitstats", "owner", owner, stat),
+				Timestamp_: time.Now(),
+				Version_:   m.Version(),
+			}
+			metrics = append(metrics, mt)
+		}
+	}
+
+	return metrics, nil
+}
+
+func getUser(client *github.Client, owner string) (map[string]int, error) {
+	//get contributor stats, then traverse and count. https://api.github.com/repos/openstack/nova/stats/contributors
+	user, _, err := client.Users.Get(owner)
+	if err != nil {
+		return nil, err
+	}
+	stats := make(map[string]int)
+	if user.PublicRepos != nil {
+		stats["public_repos"] = *user.PublicRepos
+	}
+	if user.PublicGists != nil {
+		stats["public_gists"] = *user.PublicGists
+	}
+	if user.Followers != nil {
+		stats["followers"] = *user.Followers
+	}
+	if user.Following != nil {
+		stats["following"] = *user.Following
+	}
+
+	if *user.Type == "Organization" {
+		org, _, err := client.Organizations.Get(owner)
+		if err != nil {
+			return nil, err
+		}
+		if org.PrivateGists != nil {
+			stats["private_gists"] = *org.PrivateGists
+		}
+		if org.TotalPrivateRepos != nil {
+			stats["private_repos"] = *org.TotalPrivateRepos
+		}
+		if org.DiskUsage != nil {
+			stats["disk_usage"] = *org.DiskUsage
+		}
+	}
+
+	return stats, nil
+}
+
+func getRepo(client *github.Client, owner, repo string) (map[string]int, error) {
 	resp, _, err := client.Repositories.Get(owner, repo)
 	if err != nil {
 		return nil, err
@@ -99,30 +187,21 @@ func gitStats(accessToken, owner, repo string, mts []plugin.MetricType) ([]plugi
 	if resp.Size != nil {
 		stats["size"] = *resp.Size
 	}
-
-	metrics := make([]plugin.MetricType, 0, len(stats))
-	for _, m := range mts {
-		stat := m.Namespace()[5].Value
-		if value, ok := stats[stat]; ok {
-			mt := plugin.MetricType{
-				Data_:      value,
-				Namespace_: core.NewNamespace("raintank", "apps", "gitstats", owner, repo, stat),
-				Timestamp_: time.Now(),
-				Version_:   m.Version(),
-			}
-			metrics = append(metrics, mt)
-		}
-	}
-
-	return metrics, nil
+	return stats, nil
 }
 
 //GetMetricTypes returns metric types for testing
 func (f *Gitstats) GetMetricTypes(cfg plugin.ConfigType) ([]plugin.MetricType, error) {
 	mts := []plugin.MetricType{}
-	for _, metricName := range metricNames {
+	for _, metricName := range repoMetricNames {
 		mts = append(mts, plugin.MetricType{
-			Namespace_: core.NewNamespace("raintank", "apps", "gitstats", "*", "*", metricName),
+			Namespace_: core.NewNamespace("raintank", "apps", "gitstats", "repo", "*", "*", metricName),
+			Config_:    cfg.ConfigDataNode,
+		})
+	}
+	for _, metricName := range userMetricNames {
+		mts = append(mts, plugin.MetricType{
+			Namespace_: core.NewNamespace("raintank", "apps", "gitstats", "repo", "*", "*", metricName),
 			Config_:    cfg.ConfigDataNode,
 		})
 	}
