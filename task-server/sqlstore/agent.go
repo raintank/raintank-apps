@@ -259,7 +259,7 @@ func UpdateAgent(a *model.AgentDTO) error {
 }
 
 func updateAgent(sess *session, a *model.AgentDTO) error {
-	existing, err := getAgentById(sess, a.Id, a.OrgId)
+	existing, err := getAgentById(sess, a.Id, 0)
 	if err != nil {
 		return err
 	}
