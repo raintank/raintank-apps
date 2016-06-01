@@ -22,5 +22,4 @@ func AddMigrations(mg *Migrator) {
 	addRouteByTagIndexMigrations(mg)
 	addRouteByAnyIndexMigrations(mg)
 
-	addTaskMetricPolicyMigrations(mg)
 }
