@@ -263,7 +263,7 @@ func updateAgent(sess *session, a *model.AgentDTO) error {
 	if err != nil {
 		return err
 	}
-	if existing == nil {
+	if existing == nil || (a.OrgId != existing.OrgId && !existing.Public) {
 		return model.AgentNotFound
 	}
 	// If the OrgId is different, the only changes that can be made is to Tags.
