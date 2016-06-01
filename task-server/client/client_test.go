@@ -31,6 +31,9 @@ func startApi(done chan struct{}) string {
 	}
 
 	sqlstore.NewEngine("sqlite3", ":memory:", true)
+	//sqlstore.NewEngine("sqlite3", "file:/tmp/task-server-test.db?cache=shared&mode=rwc&_loc=Local", true)
+
+	addTestData()
 
 	m := api.NewApi(adminKey, stats)
 
@@ -47,6 +50,69 @@ func startApi(done chan struct{}) string {
 	}()
 
 	return fmt.Sprintf("http://%s/", l.Addr().String())
+}
+
+func addTestData() {
+	// add public agent
+
+	agent := &model.AgentDTO{
+		Name:    "publicTest",
+		Enabled: true,
+		OrgId:   1000,
+		Public:  true,
+	}
+	err := sqlstore.AddAgent(agent)
+	if err != nil {
+		panic(err.Error())
+	}
+	metrics := []*model.Metric{
+		{
+			OrgId:     1000,
+			Public:    true,
+			Namespace: "/testing/public/demo1",
+			Version:   1,
+			Policy: []rbody.PolicyTable{
+				{
+					Name:     "user",
+					Type:     "string",
+					Required: true,
+				},
+				{
+					Name:     "passwd",
+					Type:     "string",
+					Required: true,
+				},
+				{
+					Name:     "limit",
+					Type:     "integer",
+					Required: false,
+					Default:  10,
+				},
+			},
+		},
+		{
+			OrgId:     1000,
+			Public:    true,
+			Namespace: "/testing/demo2/demo",
+			Version:   2,
+			Policy:    nil,
+		},
+	}
+	err = sqlstore.AddMissingMetricsForAgent(agent, metrics)
+	if err != nil {
+		panic(err)
+	}
+	err = sqlstore.AddAgentSession(&model.AgentSession{
+		Id:       uuid.NewUUID().String(),
+		AgentId:  agent.Id,
+		Version:  1,
+		RemoteIp: "127.0.0.1",
+		Server:   "localhost",
+		Created:  time.Now(),
+	})
+	if err != nil {
+		panic(err)
+	}
 }
 
 func addTestMetrics(agent *model.AgentDTO) {
@@ -110,8 +176,8 @@ func TestApiClient(t *testing.T) {
 		time.Sleep(time.Second)
 	}()
 	url := startApi(done)
-	agentCount := 0
-	metricsCount := 0
+	agentCount := 1
+	metricsCount := 2
 	taskCount := 0
 	Convey("Client should exist", t, func() {
 		c, cerr := New(url, adminKey, false)
@@ -128,8 +194,8 @@ func TestApiClient(t *testing.T) {
 			a := model.AgentDTO{
 				Name:    fmt.Sprintf("demo%d", agentCount),
 				Enabled: true,
-				Public:  true,
-				Tags:    []string{"demo", "test"},
+				Public:  false,
+				Tags:    []string{"demo", "private"},
 			}
 
 			aErr := c.AddAgent(&a)
@@ -138,7 +204,7 @@ func TestApiClient(t *testing.T) {
 			So(a.Id, ShouldNotBeEmpty)
 			So(a.Name, ShouldEqual, fmt.Sprintf("demo%d", agentCount))
 			So(a.Enabled, ShouldEqual, true)
-			So(a.Public, ShouldEqual, true)
+			So(a.Public, ShouldEqual, false)
 			So(a.Created, ShouldHappenBefore, time.Now())
 			So(a.Created, ShouldHappenAfter, pre)
 			So(a.Created.Unix(), ShouldEqual, a.Updated.Unix())
@@ -160,7 +226,7 @@ func TestApiClient(t *testing.T) {
 					So(a.Id, ShouldNotBeEmpty)
 					So(a.Name, ShouldEqual, "test1")
 					So(a.Enabled, ShouldEqual, true)
-					So(a.Public, ShouldEqual, true)
+					So(a.Public, ShouldEqual, false)
 					So(a.Created, ShouldHappenBefore, pre)
 					So(a.Updated, ShouldHappenAfter, pre)
 				})
@@ -186,6 +252,29 @@ func TestApiClient(t *testing.T) {
 			})
 		})
 
+		Convey("When getting list of public agenst", func() {
+
+			query := model.GetAgentsQuery{Public: "true"}
+			agents, err := c.GetAgents(&query)
+
+			So(err, ShouldBeNil)
+			So(len(agents), ShouldEqual, 1)
+			So(agents[0].Id, ShouldEqual, 1)
+
+			Convey("When updating tags of public agent", func() {
+				a := new(model.AgentDTO)
+				*a = *agents[0]
+				a.Tags = []string{"foo", "demo"}
+				err := c.UpdateAgent(a)
+				So(err, ShouldBeNil)
+				So(a.Id, ShouldNotBeEmpty)
+				So(a.Name, ShouldEqual, "publicTest")
+				So(a.Enabled, ShouldEqual, true)
+				So(a.Public, ShouldEqual, true)
+				So(len(a.Tags), ShouldEqual, 2)
+			})
+		})
+
 		// Metric Tests
 		Convey("When getting metrics list", func() {
 			query := &model.GetMetricsQuery{}
@@ -194,12 +283,12 @@ func TestApiClient(t *testing.T) {
 			So(metrics, ShouldNotBeNil)
 			So(metrics, ShouldHaveSameTypeAs, []*model.Metric{})
 			So(len(metrics), ShouldEqual, metricsCount)
-			agent, err := c.GetAgentById(1)
+			agent, err := c.GetAgentById(2)
 			if err != nil {
 				panic(err)
 			}
 			addTestMetrics(agent)
-			metricsCount = 2
+			metricsCount = 3
 			Convey("When getting metrics for Agent", func() {
 				metrics, err := c.GetAgentMetrics(agent.Id)
 				So(err, ShouldBeNil)
@@ -220,14 +309,14 @@ func TestApiClient(t *testing.T) {
 			})
 			Convey("When getting agent with Metric wildcard", func() {
 				q := &model.GetAgentsQuery{
-					Metric: "/testing/demo/*",
+					Metric: "/testing/public/*",
 				}
 				agentsWithMetric, err := c.GetAgents(q)
 				So(err, ShouldBeNil)
 				So(agentsWithMetric, ShouldNotBeNil)
 				So(agentsWithMetric, ShouldHaveSameTypeAs, []*model.AgentDTO{})
 				So(len(agentsWithMetric), ShouldEqual, 1)
-				So(agentsWithMetric[0].Id, ShouldEqual, agent.Id)
+				So(agentsWithMetric[0].Id, ShouldEqual, 1)
 			})
 			Convey("When getting agent with Metric wildcard that doesnt match", func() {
 				q := &model.GetAgentsQuery{
@@ -291,6 +380,64 @@ func TestApiClient(t *testing.T) {
 				So(t.Created, ShouldHappenBefore, pre)
 				So(t.Updated, ShouldHappenAfter, pre)
 				So(t.Updated, ShouldHappenAfter, t.Created)
+			})
+			Convey("When Adding new Task with route by tag", func() {
+				t := &model.TaskDTO{
+					Name:     "task route by tags",
+					Interval: 60,
+					Config: map[string]map[string]interface{}{"/": {
+						"user":   "test",
+						"passwd": "test",
+					}},
+					Metrics: map[string]int64{"/testing/demo2/demo": 0},
+					Route: &model.TaskRoute{
+						Type:   model.RouteByTags,
+						Config: map[string]interface{}{"tags": []string{"demo"}},
+					},
+					Enabled: true,
+				}
+				taskCount++
+				err = c.AddTask(t)
+				So(err, ShouldBeNil)
+
+				Convey("When getting agentTasks", func() {
+					tasks, err := sqlstore.GetAgentTasks(&model.AgentDTO{Id: 1, OrgId: 1000})
+					So(err, ShouldBeNil)
+					So(len(tasks), ShouldEqual, 1)
+					So(tasks[0].Name, ShouldEqual, "task route by tags")
+					tasks, err = sqlstore.GetAgentTasks(&model.AgentDTO{Id: 2, OrgId: 1})
+					So(err, ShouldBeNil)
+					So(len(tasks), ShouldEqual, 3)
+				})
+			})
+			Convey("When Adding new Task with route by tag matching only private probes", func() {
+				t := &model.TaskDTO{
+					Name:     "task route by tags2",
+					Interval: 60,
+					Config: map[string]map[string]interface{}{"/": {
+						"user":   "test",
+						"passwd": "test",
+					}},
+					Metrics: map[string]int64{"/testing/demo2/demo": 0},
+					Route: &model.TaskRoute{
+						Type:   model.RouteByTags,
+						Config: map[string]interface{}{"tags": []string{"private"}},
+					},
+					Enabled: true,
+				}
+				taskCount++
+				err = c.AddTask(t)
+				So(err, ShouldBeNil)
+
+				Convey("When getting agentTasks", func() {
+					tasks, err := sqlstore.GetAgentTasks(&model.AgentDTO{Id: 1, OrgId: 1000})
+					So(err, ShouldBeNil)
+					So(len(tasks), ShouldEqual, 1)
+					So(tasks[0].Name, ShouldEqual, "task route by tags")
+					tasks, err = sqlstore.GetAgentTasks(&model.AgentDTO{Id: 2, OrgId: 1})
+					So(err, ShouldBeNil)
+					So(len(tasks), ShouldEqual, 4)
+				})
 			})
 			Convey("When Adding new Task with no valid agents", func() {
 				err := sqlstore.DeleteAgentSessionsByServer("localhost")

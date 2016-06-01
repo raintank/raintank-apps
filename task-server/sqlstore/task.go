@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math/rand"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/grafana/grafana/pkg/log"
@@ -491,6 +490,7 @@ func addTaskRoute(sess *session, t *model.TaskDTO) error {
 				TaskId:  t.Id,
 				Tag:     tag,
 				Created: time.Now(),
+				OrgId:   t.OrgId,
 			}
 		}
 		if _, err := sess.Insert(&tagRoutes); err != nil {
@@ -607,22 +607,17 @@ func getAgentTasks(sess *session, agent *model.AgentDTO) ([]*model.TaskDTO, erro
 	rawQuery := "SELECT task_id FROM route_by_id_index where agent_id = ? UNION SELECT task_id from route_by_any_index where agent_id = ?"
 	rawParams := make([]interface{}, 0)
 	rawParams = append(rawParams, agent.Id, agent.Id)
-	if len(agent.Tags) > 0 {
-		rawParams = append(rawParams, agent.Id)
-		p := make([]string, len(agent.Tags))
-		for i, t := range agent.Tags {
-			p[i] = "?"
-			rawParams = append(rawParams, t)
-		}
-		q := fmt.Sprintf(`SELECT 
-                           DISTINCT(idx.task_id)
-                        FROM route_by_tag_index AS idx 
-                        INNER JOIN task_metric on task_metric.task_id = idx.task_id 
-                        INNER join (SELECT namespace from agent_metric where agent_id=?) ns ON ns.namespace like REPLACE(task_metric.namespace, '*', '%%')
-                        WHERE idx.tag IN (%s)`, strings.Join(p, ","))
 
-		rawQuery = fmt.Sprintf("%s UNION %s", rawQuery, q)
-	}
+	q := `SELECT 
+	           DISTINCT(idx.task_id)
+	        FROM route_by_tag_index AS idx 
+	        INNER JOIN task_metric on task_metric.task_id = idx.task_id 
+	        INNER join (SELECT namespace from agent_metric where agent_id=?) ns ON ns.namespace like REPLACE(task_metric.namespace, '*', '%%')
+	        INNER JOIN agent_tag on idx.org_id=agent_tag.org_id and idx.tag = agent_tag.tag
+	        WHERE agent_tag.agent_id = ?`
+	rawParams = append(rawParams, agent.Id, agent.Id)
+	rawQuery = fmt.Sprintf("%s UNION %s", rawQuery, q)
+
 	err := sess.Sql(rawQuery, rawParams...).Find(&taskIds)
 	if err != nil {
 		return nil, err
