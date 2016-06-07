@@ -165,7 +165,7 @@ func (c *Client) CreateSnapTask(t *model.TaskDTO, name string) (*rbody.Scheduled
 		return nil, err
 	}
 
-	resp := c.c.CreateTask(s, wf, name, "10s", true)
+	resp := c.c.CreateTask(s, wf, name, "300s", true)
 	log.Debug("%v", resp)
 	var newTask rbody.ScheduledTask
 	if resp.Err == nil {
