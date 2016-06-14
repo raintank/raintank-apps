@@ -12,13 +12,13 @@ import (
 	"strings"
 
 	"github.com/Unknwon/macaron"
-	"github.com/grafana/grafana/pkg/log"
 	"github.com/raintank/met/helper"
 	"github.com/raintank/raintank-apps/tsdb/api"
 	"github.com/raintank/raintank-apps/tsdb/elasticsearch"
 	"github.com/raintank/raintank-apps/tsdb/event_publish"
 	"github.com/raintank/raintank-apps/tsdb/graphite"
 	"github.com/raintank/raintank-apps/tsdb/metric_publish"
+	"github.com/raintank/worldping-api/pkg/log"
 	"github.com/rakyll/globalconf"
 )
 

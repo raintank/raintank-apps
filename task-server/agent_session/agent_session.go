@@ -6,12 +6,12 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/grafana/grafana/pkg/log"
 	"github.com/intelsdi-x/snap/mgmt/rest/rbody"
 	"github.com/raintank/raintank-apps/pkg/message"
 	"github.com/raintank/raintank-apps/pkg/session"
 	"github.com/raintank/raintank-apps/task-server/model"
 	"github.com/raintank/raintank-apps/task-server/sqlstore"
+	"github.com/raintank/worldping-api/pkg/log"
 )
 
 type AgentSession struct {

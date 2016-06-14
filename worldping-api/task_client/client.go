@@ -1,8 +1,8 @@
 package task_client
 
 import (
-	"github.com/grafana/grafana/pkg/log"
 	"github.com/raintank/raintank-apps/task-server/client"
+	"github.com/raintank/worldping-api/pkg/log"
 )
 
 var Client *client.Client

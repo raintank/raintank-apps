@@ -6,11 +6,11 @@ import (
 	"os"
 	"time"
 
-	"github.com/grafana/grafana/pkg/log"
 	"github.com/raintank/raintank-apps/task-server/api"
 	"github.com/raintank/raintank-apps/task-server/event"
 	"github.com/raintank/raintank-apps/task-server/model"
 	"github.com/raintank/raintank-apps/task-server/sqlstore"
+	"github.com/raintank/worldping-api/pkg/log"
 )
 
 func Init() {

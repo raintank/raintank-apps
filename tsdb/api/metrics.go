@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/grafana/grafana/pkg/log"
 	"github.com/raintank/raintank-apps/tsdb/metric_publish"
 	msg "github.com/raintank/raintank-metric/msg"
 	"github.com/raintank/raintank-metric/schema"
+	"github.com/raintank/worldping-api/pkg/log"
 )
 
 func Metrics(ctx *Context) {

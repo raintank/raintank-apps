@@ -6,10 +6,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/grafana/grafana/pkg/log"
 	"github.com/intelsdi-x/snap/mgmt/rest/rbody"
 	"github.com/raintank/raintank-apps/task-agent/snap"
 	"github.com/raintank/raintank-apps/task-server/model"
+	"github.com/raintank/worldping-api/pkg/log"
 )
 
 type TaskCache struct {

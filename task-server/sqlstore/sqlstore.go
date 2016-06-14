@@ -6,8 +6,8 @@ import (
 	"path"
 
 	"github.com/go-xorm/xorm"
-	"github.com/grafana/grafana/pkg/log"
 	"github.com/raintank/raintank-apps/task-server/sqlstore/migrations"
+	"github.com/raintank/worldping-api/pkg/log"
 	"github.com/raintank/worldping-api/pkg/services/sqlstore/migrator"
 
 	_ "github.com/go-sql-driver/mysql"

@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/grafana/grafana/pkg/log"
 	"github.com/raintank/raintank-apps/task-server/event"
 	"github.com/raintank/raintank-apps/task-server/model"
+	"github.com/raintank/worldping-api/pkg/log"
 )
 
 type taskWithMetric struct {

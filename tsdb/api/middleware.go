@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"github.com/Unknwon/macaron"
-	"github.com/grafana/grafana/pkg/log"
 	"github.com/raintank/raintank-apps/pkg/auth"
+	"github.com/raintank/worldping-api/pkg/log"
 )
 
 type Context struct {

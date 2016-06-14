@@ -6,11 +6,11 @@ import (
 	"sync"
 
 	"github.com/gorilla/websocket"
-	"github.com/grafana/grafana/pkg/log"
 	"github.com/raintank/raintank-apps/pkg/message"
 	"github.com/raintank/raintank-apps/task-server/agent_session"
 	"github.com/raintank/raintank-apps/task-server/model"
 	"github.com/raintank/raintank-apps/task-server/sqlstore"
+	"github.com/raintank/worldping-api/pkg/log"
 )
 
 var upgrader = websocket.Upgrader{} // use default options

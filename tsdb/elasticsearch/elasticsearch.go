@@ -12,8 +12,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/grafana/grafana/pkg/log"
 	"github.com/raintank/raintank-apps/tsdb/util"
+	"github.com/raintank/worldping-api/pkg/log"
 )
 
 var (

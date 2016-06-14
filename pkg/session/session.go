@@ -7,8 +7,8 @@ import (
 
 	"github.com/codeskyblue/go-uuid"
 	"github.com/gorilla/websocket"
-	"github.com/grafana/grafana/pkg/log"
 	"github.com/raintank/raintank-apps/pkg/message"
+	"github.com/raintank/worldping-api/pkg/log"
 )
 
 type Handler interface {

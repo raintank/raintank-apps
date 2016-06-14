@@ -3,11 +3,11 @@ package api
 import (
 	"time"
 
-	"github.com/grafana/grafana/pkg/log"
 	"github.com/raintank/met"
 	"github.com/raintank/raintank-apps/worldping-api/endpoint_discovery"
 	"github.com/raintank/raintank-apps/worldping-api/model"
 	"github.com/raintank/raintank-apps/worldping-api/sqlstore"
+	"github.com/raintank/worldping-api/pkg/log"
 )
 
 var (

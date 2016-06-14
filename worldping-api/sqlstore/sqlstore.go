@@ -6,10 +6,10 @@ import (
 	"path"
 
 	"github.com/go-xorm/xorm"
-	"github.com/grafana/grafana/pkg/log"
 	"github.com/grafana/grafana/pkg/services/sqlstore/migrator"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/raintank/raintank-apps/worldping-api/sqlstore/migrations"
+	"github.com/raintank/worldping-api/pkg/log"
 )
 
 var (

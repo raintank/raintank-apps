@@ -13,10 +13,10 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/grafana/grafana/pkg/log"
 	"github.com/raintank/raintank-apps/pkg/message"
 	"github.com/raintank/raintank-apps/pkg/session"
 	"github.com/raintank/raintank-apps/task-agent/snap"
+	"github.com/raintank/worldping-api/pkg/log"
 	"github.com/rakyll/globalconf"
 )
 
@@ -45,14 +45,25 @@ func connect(u *url.URL) (*websocket.Conn, error) {
 
 func main() {
 	flag.Parse()
-	// Only try and parse the conf file if it exists
+	// Set 'cfile' here if *confFile exists, because we should only try and
+	// parse the conf file if it exists. If we try and parse the default
+	// conf file location when it's not there, we (unsurprisingly) get a
+	// panic.
+	var cfile string
 	if _, err := os.Stat(*confFile); err == nil {
-		conf, err := globalconf.NewWithOptions(&globalconf.Options{Filename: *confFile})
-		if err != nil {
-			panic(fmt.Sprintf("error with configuration file: %s", err))
-		}
-		conf.ParseAll()
+		cfile = *confFile
 	}
+
+	// Still parse globalconf, though, even if the config file doesn't exist
+	// because we want to be able to use environment variables.
+	conf, err := globalconf.NewWithOptions(&globalconf.Options{
+		Filename:  cfile,
+		EnvPrefix: "TASKAGENT_",
+	})
+	if err != nil {
+		panic(fmt.Sprintf("error with configuration file: %s", err))
+	}
+	conf.ParseAll()
 
 	log.NewLogger(0, "console", fmt.Sprintf(`{"level": %d, "formatting":true}`, *logLevel))
 	// workaround for https://github.com/grafana/grafana/issues/4055

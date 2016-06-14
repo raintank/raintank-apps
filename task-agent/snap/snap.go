@@ -6,12 +6,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/grafana/grafana/pkg/log"
 	"github.com/intelsdi-x/snap/core/ctypes"
 	"github.com/intelsdi-x/snap/mgmt/rest/client"
 	"github.com/intelsdi-x/snap/mgmt/rest/rbody"
 	"github.com/intelsdi-x/snap/scheduler/wmap"
 	"github.com/raintank/raintank-apps/task-server/model"
+	"github.com/raintank/worldping-api/pkg/log"
 )
 
 type Client struct {

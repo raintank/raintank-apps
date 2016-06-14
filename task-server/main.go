@@ -10,12 +10,12 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/grafana/grafana/pkg/log"
 	"github.com/raintank/met/helper"
 	"github.com/raintank/raintank-apps/task-server/api"
 	"github.com/raintank/raintank-apps/task-server/event"
 	"github.com/raintank/raintank-apps/task-server/manager"
 	"github.com/raintank/raintank-apps/task-server/sqlstore"
+	"github.com/raintank/worldping-api/pkg/log"
 	"github.com/rakyll/globalconf"
 )
 

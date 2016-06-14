@@ -10,8 +10,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/grafana/grafana/pkg/log"
 	"github.com/raintank/raintank-apps/worldping-api/model"
+	"github.com/raintank/worldping-api/pkg/log"
 )
 
 type Endpoint struct {

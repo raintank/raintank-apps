@@ -9,12 +9,12 @@ import (
 	"time"
 
 	"github.com/codeskyblue/go-uuid"
-	"github.com/grafana/grafana/pkg/log"
 	"github.com/intelsdi-x/snap/mgmt/rest/rbody"
 	"github.com/raintank/met/helper"
 	"github.com/raintank/raintank-apps/task-server/api"
 	"github.com/raintank/raintank-apps/task-server/model"
 	"github.com/raintank/raintank-apps/task-server/sqlstore"
+	"github.com/raintank/worldping-api/pkg/log"
 	. "github.com/smartystreets/goconvey/convey"
 )
 

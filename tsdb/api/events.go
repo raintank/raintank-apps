@@ -6,10 +6,10 @@ import (
 	"io/ioutil"
 
 	"github.com/codeskyblue/go-uuid"
-	"github.com/grafana/grafana/pkg/log"
 	"github.com/raintank/raintank-apps/tsdb/event_publish"
 	msg "github.com/raintank/raintank-metric/msg"
 	"github.com/raintank/raintank-metric/schema"
+	"github.com/raintank/worldping-api/pkg/log"
 )
 
 func Events(ctx *Context) {

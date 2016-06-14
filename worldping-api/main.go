@@ -10,11 +10,11 @@ import (
 	"strings"
 
 	"github.com/Unknwon/macaron"
-	"github.com/grafana/grafana/pkg/log"
 	"github.com/raintank/met/helper"
 	"github.com/raintank/raintank-apps/worldping-api/api"
 	"github.com/raintank/raintank-apps/worldping-api/sqlstore"
 	"github.com/raintank/raintank-apps/worldping-api/task_client"
+	"github.com/raintank/worldping-api/pkg/log"
 	"github.com/rakyll/globalconf"
 )
 

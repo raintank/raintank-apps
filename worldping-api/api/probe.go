@@ -1,11 +1,11 @@
 package api
 
 import (
-	"github.com/grafana/grafana/pkg/log"
 	"github.com/raintank/raintank-apps/task-server/api/rbody"
 	sModel "github.com/raintank/raintank-apps/task-server/model"
 	"github.com/raintank/raintank-apps/worldping-api/model"
 	"github.com/raintank/raintank-apps/worldping-api/task_client"
+	"github.com/raintank/worldping-api/pkg/log"
 )
 
 func GetProbes(ctx *Context, query model.GetProbesQuery) {

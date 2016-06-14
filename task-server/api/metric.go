@@ -1,10 +1,10 @@
 package api
 
 import (
-	"github.com/grafana/grafana/pkg/log"
 	"github.com/raintank/raintank-apps/task-server/api/rbody"
 	"github.com/raintank/raintank-apps/task-server/model"
 	"github.com/raintank/raintank-apps/task-server/sqlstore"
+	"github.com/raintank/worldping-api/pkg/log"
 )
 
 func GetMetrics(ctx *Context, query model.GetMetricsQuery) {
