@@ -632,6 +632,7 @@ func getAgentTasks(sess *session, agent *model.AgentDTO) ([]*model.TaskDTO, erro
 	}
 	sess.Table("task")
 	sess.Join("LEFT", "task_metric", "task.id = task_metric.task_id")
+	sess.Where("task.enabled=1")
 	sess.In("task.id", tid)
 	sess.Cols(
 		"`task`.*",
