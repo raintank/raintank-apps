@@ -81,7 +81,7 @@ func getTasks(sess *session, query *model.GetTasksQuery) ([]*model.TaskDTO, erro
 
 	if query.Metric != "" {
 		sess.Join("INNER", []string{"task_metric", "tm"}, "task.id = tm.task_id").
-			Where("tm.namespace like ?", strings.replace(query.Metric, "*", "%", -1))
+			Where("tm.namespace like ?", strings.Replace(query.Metric, "*", "%", -1))
 	}
 	if query.OrderBy == "" {
 		query.OrderBy = "name"
