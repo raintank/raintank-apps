@@ -67,7 +67,7 @@ func (f *Gitstats) CollectMetrics(mts []plugin.MetricType) ([]plugin.MetricType,
 	}
 	repo, ok := conf["repo"]
 	if !ok || repo.(ctypes.ConfigValueStr).Value == "" {
-		return nil, fmt.Errorf("repo missing from config")
+		repo = ""
 	}
 
 	metrics, err := gitStats(accessToken.(ctypes.ConfigValueStr).Value, owner.(ctypes.ConfigValueStr).Value, repo.(ctypes.ConfigValueStr).Value, mts)
@@ -84,10 +84,13 @@ func gitStats(accessToken, owner, repo string, mts []plugin.MetricType) ([]plugi
 	)
 	tc := oauth2.NewClient(oauth2.NoContext, ts)
 	client := github.NewClient(tc)
-
-	repoStats, err := getRepo(client, owner, repo)
-	if err != nil {
-		return nil, err
+	var repoStats map[string]int
+	var err error
+	if owner != "" {
+		repoStats, err = getRepo(client, owner, repo)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	userStats, err := getUser(client, owner)
@@ -214,7 +217,7 @@ func (f *Gitstats) GetConfigPolicy() (*cpolicy.ConfigPolicy, error) {
 	c := cpolicy.New()
 	rule, _ := cpolicy.NewStringRule("access_token", true)
 	rule2, _ := cpolicy.NewStringRule("owner", true)
-	rule3, _ := cpolicy.NewStringRule("repo", true)
+	rule3, _ := cpolicy.NewStringRule("repo", false, "")
 	p := cpolicy.NewPolicyNode()
 	p.Add(rule)
 	p.Add(rule2)
