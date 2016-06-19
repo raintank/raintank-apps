@@ -205,7 +205,7 @@ func (f *Gitstats) GetMetricTypes(cfg plugin.ConfigType) ([]plugin.MetricType, e
 	}
 	for _, metricName := range userMetricNames {
 		mts = append(mts, plugin.MetricType{
-			Namespace_: core.NewNamespace("raintank", "apps", "gitstats", "repo", "*", "*", metricName),
+			Namespace_: core.NewNamespace("raintank", "apps", "gitstats", "owner", "*", "*", metricName),
 			Config_:    cfg.ConfigDataNode,
 		})
 	}
