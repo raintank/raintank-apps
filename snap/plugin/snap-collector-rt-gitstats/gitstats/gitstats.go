@@ -67,7 +67,7 @@ func (f *Gitstats) CollectMetrics(mts []plugin.MetricType) ([]plugin.MetricType,
 	}
 	repo, ok := conf["repo"]
 	if !ok || repo.(ctypes.ConfigValueStr).Value == "" {
-		repo = ""
+		repo = ctypes.ConfigValueStr{Value: ""}
 	}
 
 	metrics, err := gitStats(accessToken.(ctypes.ConfigValueStr).Value, owner.(ctypes.ConfigValueStr).Value, repo.(ctypes.ConfigValueStr).Value, mts)
