@@ -2,10 +2,10 @@ package gitstats
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/google/go-github/github"
+	. "github.com/intelsdi-x/snap-plugin-utilities/logger"
 	"github.com/intelsdi-x/snap/control/plugin"
 	"github.com/intelsdi-x/snap/control/plugin/cpolicy"
 	"github.com/intelsdi-x/snap/core"
@@ -56,65 +56,160 @@ func (f *Gitstats) CollectMetrics(mts []plugin.MetricType) ([]plugin.MetricType,
 	var err error
 
 	conf := mts[0].Config().Table()
-	log.Printf("%v", conf)
 	accessToken, ok := conf["access_token"]
 	if !ok || accessToken.(ctypes.ConfigValueStr).Value == "" {
 		return nil, fmt.Errorf("access token missing from config, %v", conf)
 	}
-	owner, ok := conf["owner"]
-	if !ok || owner.(ctypes.ConfigValueStr).Value == "" {
-		return nil, fmt.Errorf("owner missing from config")
-	}
-	repo, ok := conf["repo"]
-	if !ok || repo.(ctypes.ConfigValueStr).Value == "" {
-		repo = ctypes.ConfigValueStr{Value: ""}
-	}
 
-	metrics, err := gitStats(accessToken.(ctypes.ConfigValueStr).Value, owner.(ctypes.ConfigValueStr).Value, repo.(ctypes.ConfigValueStr).Value, mts)
+	metrics, err := gitStats(accessToken.(ctypes.ConfigValueStr).Value, mts)
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("fetched %d metrics for repo %s/%s", len(metrics), owner.(ctypes.ConfigValueStr).Value, repo.(ctypes.ConfigValueStr).Value)
+
 	return metrics, nil
 }
 
-func gitStats(accessToken, owner, repo string, mts []plugin.MetricType) ([]plugin.MetricType, error) {
+type repoName struct {
+	Repo  string
+	Owner string
+}
+
+func gitStats(accessToken string, mts []plugin.MetricType) ([]plugin.MetricType, error) {
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: accessToken},
 	)
 	tc := oauth2.NewClient(oauth2.NoContext, ts)
 	client := github.NewClient(tc)
-	var repoStats map[string]int
-	var err error
-	if owner != "" {
-		repoStats, err = getRepo(client, owner, repo)
-		if err != nil {
-			return nil, err
-		}
-	}
+	collectionTime := time.Now()
+	repos := make(map[string]map[string]map[string]int)
+	users := make(map[string]map[string]int)
 
-	userStats, err := getUser(client, owner)
-	if err != nil {
-		return nil, err
-	}
+	userRepos := make(map[string]struct{})
 
+	authUser := ""
 	metrics := make([]plugin.MetricType, 0)
+
 	for _, m := range mts {
-		stat := m.Namespace()[6].Value
-		if value, ok := repoStats[stat]; ok {
-			mt := plugin.MetricType{
-				Data_:      value,
-				Namespace_: core.NewNamespace("raintank", "apps", "gitstats", "repo", owner, repo, stat),
-				Timestamp_: time.Now(),
-				Version_:   m.Version(),
+		ns := m.Namespace().Strings()
+		switch ns[3] {
+		case "repo":
+			user := ns[4]
+			repo := ns[5]
+			stat := ns[6]
+
+			if user == "*" {
+				//need to get user
+				if authUser == "" {
+					gitUser, _, err := client.Users.Get("")
+					if err != nil {
+						LogError("failed to get authenticated user.", err)
+						return nil, err
+					}
+					stats, err := userStats(gitUser, client)
+					if err != nil {
+						LogError("failed to get stats from user object.", err)
+						return nil, err
+					}
+					users[*gitUser.Login] = stats
+					authUser = *gitUser.Login
+				}
+				user = authUser
 			}
-			metrics = append(metrics, mt)
-		}
-		if value, ok := userStats[stat]; ok {
+			if repo == "*" {
+				// we only need to list a users repos once.
+				if _, ok := userRepos[user]; !ok {
+					repoList, _, err := client.Repositories.List(user, nil)
+					if err != nil {
+						LogError("failed to get repos owned by user.", err)
+						return nil, err
+					}
+					userRepos[user] = struct{}{}
+					if _, ok := repos[user]; !ok {
+						repos[user] = make(map[string]map[string]int)
+					}
+					for _, r := range repoList {
+						stats, err := repoStats(&r)
+						if err != nil {
+							LogError("failed to get stats from repo object.", err)
+							return nil, err
+						}
+						repos[user][*r.Name] = stats
+					}
+				}
+				for repo, stats := range repos[user] {
+					mt := plugin.MetricType{
+						Data_:      stats[stat],
+						Namespace_: core.NewNamespace("raintank", "apps", "gitstats", "repo", user, repo, stat),
+						Timestamp_: collectionTime,
+						Version_:   m.Version(),
+					}
+					metrics = append(metrics, mt)
+				}
+
+			} else {
+				if _, ok := repos[user]; !ok {
+					repos[user] = make(map[string]map[string]int)
+				}
+				if _, ok := repos[user][repo]; !ok {
+					r, _, err := client.Repositories.Get(user, repo)
+					if err != nil {
+						LogError("failed to user repos.", err)
+						return nil, err
+					}
+					stats, err := repoStats(r)
+					if err != nil {
+						LogError("failed to get stats from repo object.", err)
+						return nil, err
+					}
+					repos[user][repo] = stats
+				}
+				mt := plugin.MetricType{
+					Data_:      repos[user][repo][stat],
+					Namespace_: core.NewNamespace("raintank", "apps", "gitstats", "repo", user, repo, stat),
+					Timestamp_: collectionTime,
+					Version_:   m.Version(),
+				}
+				metrics = append(metrics, mt)
+			}
+
+		case "user":
+			user := ns[4]
+			stat := ns[5]
+			if user == "*" {
+				//need to get user
+				if authUser == "" {
+					gitUser, _, err := client.Users.Get(user)
+					if err != nil {
+						LogError("failed to get authenticated user.", err)
+						return nil, err
+					}
+					authUser = *gitUser.Login
+					stats, err := userStats(gitUser, client)
+					if err != nil {
+						LogError("failed to get stats from user object", err)
+						return nil, err
+					}
+					users[*gitUser.Login] = stats
+				}
+			} else {
+				if _, ok := users[user]; !ok {
+					u, _, err := client.Users.Get(user)
+					if err != nil {
+						LogError("failed to lookup user.", err)
+						return nil, err
+					}
+					stats, err := userStats(u, client)
+					if err != nil {
+						LogError("failed to get stats from user object.", err)
+						return nil, err
+					}
+					users[user] = stats
+				}
+			}
 			mt := plugin.MetricType{
-				Data_:      value,
-				Namespace_: core.NewNamespace("raintank", "apps", "gitstats", "owner", owner, stat),
-				Timestamp_: time.Now(),
+				Data_:      users[user][stat],
+				Namespace_: core.NewNamespace("raintank", "apps", "gitstats", "user", user, stat),
+				Timestamp_: collectionTime,
 				Version_:   m.Version(),
 			}
 			metrics = append(metrics, mt)
@@ -124,12 +219,7 @@ func gitStats(accessToken, owner, repo string, mts []plugin.MetricType) ([]plugi
 	return metrics, nil
 }
 
-func getUser(client *github.Client, owner string) (map[string]int, error) {
-	//get contributor stats, then traverse and count. https://api.github.com/repos/openstack/nova/stats/contributors
-	user, _, err := client.Users.Get(owner)
-	if err != nil {
-		return nil, err
-	}
+func userStats(user *github.User, client *github.Client) (map[string]int, error) {
 	stats := make(map[string]int)
 	if user.PublicRepos != nil {
 		stats["public_repos"] = *user.PublicRepos
@@ -145,8 +235,9 @@ func getUser(client *github.Client, owner string) (map[string]int, error) {
 	}
 
 	if *user.Type == "Organization" {
-		org, _, err := client.Organizations.Get(owner)
+		org, _, err := client.Organizations.Get(*user.Login)
 		if err != nil {
+			LogError("failed to lookup org data.", err)
 			return nil, err
 		}
 		if org.PrivateGists != nil {
@@ -163,11 +254,7 @@ func getUser(client *github.Client, owner string) (map[string]int, error) {
 	return stats, nil
 }
 
-func getRepo(client *github.Client, owner, repo string) (map[string]int, error) {
-	resp, _, err := client.Repositories.Get(owner, repo)
-	if err != nil {
-		return nil, err
-	}
+func repoStats(resp *github.Repository) (map[string]int, error) {
 	stats := make(map[string]int)
 
 	if resp.ForksCount != nil {
@@ -196,17 +283,22 @@ func getRepo(client *github.Client, owner, repo string) (map[string]int, error) 
 
 //GetMetricTypes returns metric types for testing
 func (f *Gitstats) GetMetricTypes(cfg plugin.ConfigType) ([]plugin.MetricType, error) {
-	mts := []plugin.MetricType{}
+	mts := make([]plugin.MetricType, 0)
 	for _, metricName := range repoMetricNames {
 		mts = append(mts, plugin.MetricType{
-			Namespace_: core.NewNamespace("raintank", "apps", "gitstats", "repo", "*", "*", metricName),
-			Config_:    cfg.ConfigDataNode,
+			Namespace_: core.NewNamespace("raintank", "apps", "gitstats", "repo").
+				AddDynamicElement("owner", "repository owner").
+				AddDynamicElement("repo", "repository name").
+				AddStaticElement(metricName),
+			Config_: cfg.ConfigDataNode,
 		})
 	}
 	for _, metricName := range userMetricNames {
 		mts = append(mts, plugin.MetricType{
-			Namespace_: core.NewNamespace("raintank", "apps", "gitstats", "owner", "*", "*", metricName),
-			Config_:    cfg.ConfigDataNode,
+			Namespace_: core.NewNamespace("raintank", "apps", "gitstats", "user").
+				AddDynamicElement("user", "user or orginisation name").
+				AddStaticElement(metricName),
+			Config_: cfg.ConfigDataNode,
 		})
 	}
 	return mts, nil
@@ -216,12 +308,8 @@ func (f *Gitstats) GetMetricTypes(cfg plugin.ConfigType) ([]plugin.MetricType, e
 func (f *Gitstats) GetConfigPolicy() (*cpolicy.ConfigPolicy, error) {
 	c := cpolicy.New()
 	rule, _ := cpolicy.NewStringRule("access_token", true)
-	rule2, _ := cpolicy.NewStringRule("owner", true)
-	rule3, _ := cpolicy.NewStringRule("repo", false, "")
 	p := cpolicy.NewPolicyNode()
 	p.Add(rule)
-	p.Add(rule2)
-	p.Add(rule3)
 	c.Add([]string{"raintank", "apps", "gitstats"}, p)
 	return c, nil
 }
