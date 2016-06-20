@@ -85,8 +85,18 @@ func gitStats(accessToken string, mts []plugin.MetricType) ([]plugin.MetricType,
 	users := make(map[string]map[string]int)
 
 	userRepos := make(map[string]struct{})
-
 	authUser := ""
+	useRepo := ""
+	conf := mts[0].Config().Table()
+	confUser, ok := conf["user"]
+	if ok && confUser.(ctypes.ConfigValueStr).Value != "" {
+		authUser = confUser.(ctypes.ConfigValueStr).Value
+	}
+	confRepo, ok := conf["repo"]
+	if ok && confRepo.(ctypes.ConfigValueStr).Value != "" {
+		useRepo = confRepo.(ctypes.ConfigValueStr).Value
+	}
+
 	metrics := make([]plugin.MetricType, 0)
 
 	for _, m := range mts {
@@ -115,8 +125,8 @@ func gitStats(accessToken string, mts []plugin.MetricType) ([]plugin.MetricType,
 				}
 				user = authUser
 			}
-			if repo == "*" {
-				// we only need to list a users repos once.
+			if repo == "*" && useRepo == "" {
+				// get list of all repos owned by the user.
 				if _, ok := userRepos[user]; !ok {
 					repoList, _, err := client.Repositories.List(user, nil)
 					if err != nil {
@@ -145,8 +155,10 @@ func gitStats(accessToken string, mts []plugin.MetricType) ([]plugin.MetricType,
 					}
 					metrics = append(metrics, mt)
 				}
-
 			} else {
+				if repo == "*" {
+					repo = useRepo
+				}
 				if _, ok := repos[user]; !ok {
 					repos[user] = make(map[string]map[string]int)
 				}
@@ -308,8 +320,13 @@ func (f *Gitstats) GetMetricTypes(cfg plugin.ConfigType) ([]plugin.MetricType, e
 func (f *Gitstats) GetConfigPolicy() (*cpolicy.ConfigPolicy, error) {
 	c := cpolicy.New()
 	rule, _ := cpolicy.NewStringRule("access_token", true)
+	rule1, _ := cpolicy.NewStringRule("user", false, "")
+	rule2, _ := cpolicy.NewStringRule("repo", false, "")
+
 	p := cpolicy.NewPolicyNode()
 	p.Add(rule)
+	p.Add(rule1)
+	p.Add(rule2)
 	c.Add([]string{"raintank", "apps", "gitstats"}, p)
 	return c, nil
 }
