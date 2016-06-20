@@ -128,7 +128,8 @@ func gitStats(accessToken string, mts []plugin.MetricType) ([]plugin.MetricType,
 			if repo == "*" && useRepo == "" {
 				// get list of all repos owned by the user.
 				if _, ok := userRepos[user]; !ok {
-					repoList, _, err := client.Repositories.List(user, nil)
+					opt := &github.RepositoryListOptions{Type: "owner"}
+					repoList, _, err := client.Repositories.List(user, opt)
 					if err != nil {
 						LogError("failed to get repos owned by user.", err)
 						return nil, err
