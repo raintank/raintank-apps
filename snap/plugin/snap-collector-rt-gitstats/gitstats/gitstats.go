@@ -128,7 +128,7 @@ func gitStats(accessToken string, mts []plugin.MetricType) ([]plugin.MetricType,
 						repos[user] = make(map[string]map[string]int)
 					}
 					for _, r := range repoList {
-						stats, err := repoStats(&r)
+						stats, err := repoStats(r)
 						if err != nil {
 							LogError("failed to get stats from repo object.", err)
 							return nil, err
