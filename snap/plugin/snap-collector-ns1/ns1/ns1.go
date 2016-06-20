@@ -90,129 +90,80 @@ func (n *Ns1) CollectMetrics(mts []plugin.MetricType) ([]plugin.MetricType, erro
 
 func (n *Ns1) ZoneMetrics(client *Client, mts []plugin.MetricType) ([]plugin.MetricType, error) {
 	metrics := make([]plugin.MetricType, 0)
-	zones, err := client.Zones()
+	conf := mts[0].Config().Table()
+	zone, ok := conf["zone"]
+	if !ok || zone.(ctypes.ConfigValueStr).Value == "" {
+		LogError("zone missing from config.")
+		return metrics, nil
+	}
+	zSlug := slug.Make(zone.(ctypes.ConfigValueStr).Value)
+
+	qps, err := client.Qps(zone.(ctypes.ConfigValueStr).Value)
 	if err != nil {
 		return nil, err
 	}
-	requestedZone := make(map[string]struct{})
-	allZones := false
-	for _, m := range mts {
-		ns := m.Namespace().Strings()
-		if ns[4] == "*" {
-			allZones = true
-		} else {
-			requestedZone[ns[4]] = struct{}{}
-		}
-	}
+	metrics = append(metrics, plugin.MetricType{
+		Data_:      qps.Qps,
+		Namespace_: core.NewNamespace("raintank", "apps", "ns1", "zones", zSlug, "qps"),
+		Timestamp_: time.Now(),
+		Version_:   mts[0].Version(),
+	})
 
-	for _, z := range zones {
-		zSlug := slug.Make(z.Zone)
-		if !allZones {
-			if _, ok := requestedZone[zSlug]; !ok {
-				// this zone was not requested.
-				continue
-			}
-		}
-		qps, err := client.Qps(z.Zone)
-		if err != nil {
-			return nil, err
-		}
-		metrics = append(metrics, plugin.MetricType{
-			Data_:      qps.Qps,
-			Namespace_: core.NewNamespace("raintank", "apps", "ns1", "zones", zSlug, "qps"),
-			Timestamp_: time.Now(),
-			Version_:   mts[0].Version(),
-		})
-	}
 	return metrics, nil
 }
 
 func (n *Ns1) MonitorsMetrics(client *Client, mts []plugin.MetricType) ([]plugin.MetricType, error) {
 	metrics := make([]plugin.MetricType, 0)
-	jobs, err := client.MonitoringJobs()
+	conf := mts[0].Config().Table()
+	jobId, ok := conf["jobId"]
+	if !ok || jobId.(ctypes.ConfigValueStr).Value == "" {
+		LogError("jobId missing from config.")
+		return metrics, nil
+	}
+	jobName, ok := conf["jobName"]
+	if !ok || jobName.(ctypes.ConfigValueStr).Value == "" {
+		LogError("jobName missing from config.")
+		return metrics, nil
+	}
+
+	jSlug := slug.Make(jobName.(ctypes.ConfigValueStr).Value)
+
+	j, err := client.MonitoringJobById(jobId.(ctypes.ConfigValueStr).Value)
+	if err != nil {
+		LogError("failed to query for job.", err)
+		return nil, err
+	}
+
+	for region, status := range j.Status {
+		data, ok := statusMap[status.Status]
+		if !ok {
+			return nil, fmt.Errorf("Unknown monitor status")
+		}
+
+		metrics = append(metrics, plugin.MetricType{
+			Data_:      data,
+			Namespace_: core.NewNamespace("raintank", "apps", "ns1", "monitoring", jSlug, region, "state"),
+			Timestamp_: time.Now(),
+			Version_:   mts[0].Version(),
+		})
+
+	}
+
+	jobMetrics, err := client.MonitoringMetics(j.Id)
 	if err != nil {
 		return nil, err
 	}
-	metricTree := make(map[string]map[string]map[string]struct{})
-
-	for _, m := range mts {
-		ns := m.Namespace().Strings()
-		job := ns[4]
-		region := ns[5]
-		stat := ns[6]
-
-		if _, ok := metricTree[job]; !ok {
-			metricTree[job] = make(map[string]map[string]struct{})
-		}
-
-		if _, ok := metricTree[job][region]; !ok {
-			metricTree[job][region] = make(map[string]struct{})
-		}
-
-		metricTree[job][region][stat] = struct{}{}
-	}
-	for _, j := range jobs {
-		jSlug := slug.Make(j.Name)
-
-		for region, status := range j.Status {
-			needStat := false
-			if _, ok := metricTree["*"]["*"]["state"]; ok {
-				needStat = true
-			} else if _, ok := metricTree["*"][region]["state"]; ok {
-				needStat = true
-			} else if _, ok := metricTree[jSlug]["*"]["state"]; ok {
-				needStat = true
-			} else if _, ok := metricTree[jSlug][region]["state"]; ok {
-				needStat = true
-			}
-
-			if !needStat {
-				continue
-			}
-
-			data, ok := statusMap[status.Status]
-			if !ok {
-				return nil, fmt.Errorf("Unknown monitor status")
-			}
-
+	for _, jm := range jobMetrics {
+		for stat, m := range jm.Metrics {
 			metrics = append(metrics, plugin.MetricType{
-				Data_:      data,
-				Namespace_: core.NewNamespace("raintank", "apps", "ns1", "monitoring", jSlug, region, "state"),
+				Data_:      m.Avg,
+				Namespace_: core.NewNamespace("raintank", "apps", "ns1", "monitoring", jSlug, jm.Region, stat),
 				Timestamp_: time.Now(),
 				Version_:   mts[0].Version(),
 			})
 		}
-
-		jobMetrics, err := client.MonitoringMetics(j.Id)
-		if err != nil {
-			return nil, err
-		}
-		for _, jm := range jobMetrics {
-			for stat, m := range jm.Metrics {
-				needStat := false
-				if _, ok := metricTree["*"]["*"][stat]; ok {
-					needStat = true
-				} else if _, ok := metricTree["*"][jm.Region][stat]; ok {
-					needStat = true
-				} else if _, ok := metricTree[jSlug]["*"][stat]; ok {
-					needStat = true
-				} else if _, ok := metricTree[jSlug][jm.Region][stat]; ok {
-					needStat = true
-				}
-
-				if !needStat {
-					continue
-				}
-
-				metrics = append(metrics, plugin.MetricType{
-					Data_:      m.Avg,
-					Namespace_: core.NewNamespace("raintank", "apps", "ns1", "monitoring", jSlug, jm.Region, stat),
-					Timestamp_: time.Now(),
-					Version_:   mts[0].Version(),
-				})
-			}
-		}
 	}
+
 	return metrics, nil
 }
 
@@ -248,8 +199,15 @@ func (n *Ns1) GetMetricTypes(cfg plugin.ConfigType) ([]plugin.MetricType, error)
 func (n *Ns1) GetConfigPolicy() (*cpolicy.ConfigPolicy, error) {
 	c := cpolicy.New()
 	rule, _ := cpolicy.NewStringRule("ns1_key", true)
+	rule2, _ := cpolicy.NewStringRule("zone", false, "")
+	rule3, _ := cpolicy.NewStringRule("jobId", false, "")
+	rule4, _ := cpolicy.NewStringRule("jobName", false, "")
 	p := cpolicy.NewPolicyNode()
 	p.Add(rule)
+	p.Add(rule2)
+	p.Add(rule3)
+	p.Add(rule4)
+
 	c.Add([]string{"raintank", "apps", "ns1"}, p)
 	return c, nil
 }

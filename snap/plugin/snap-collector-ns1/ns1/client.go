@@ -212,6 +212,20 @@ func (c *Client) MonitoringJobs() ([]*MonitoringJob, error) {
 	}
 	return jobs, nil
 }
+func (c *Client) MonitoringJobById(jobId string) (*MonitoringJob, error) {
+	body, err := c.get("/monitoring/jobs/"+jobId, nil)
+	if err != nil {
+		return nil, err
+	}
+	job := &MonitoringJob{}
+	err = json.Unmarshal(body, &job)
+	if err != nil {
+		log.Printf("failed to unmarshal monitoringJob resp. %s", err)
+		log.Printf("--------\n%s\n--------\n", body)
+		return nil, err
+	}
+	return job, nil
+}
 
 func (c *Client) MonitoringMetics(jobid string) ([]*MonitoringMetric, error) {
 	body, err := c.get("/monitoring/metrics/"+jobid, nil)
