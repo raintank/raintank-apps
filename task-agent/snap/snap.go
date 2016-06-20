@@ -127,10 +127,16 @@ func (c *Client) RemoveSnapTask(task *rbody.ScheduledTask) error {
 		if enableResp.Err != nil {
 			return enableResp.Err
 		}
+		resp = c.c.GetTask(task.ID)
+		if resp.Err != nil {
+			return resp.Err
+		}
 	}
-	stopResp := c.c.StopTask(task.ID)
-	if stopResp.Err != nil {
-		return stopResp.Err
+	if resp.State != "Stopped" {
+		stopResp := c.c.StopTask(task.ID)
+		if stopResp.Err != nil {
+			return stopResp.Err
+		}
 	}
 	removeResp := c.c.RemoveTask(task.ID)
 	return removeResp.Err
