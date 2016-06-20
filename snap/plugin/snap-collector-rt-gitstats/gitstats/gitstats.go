@@ -197,12 +197,13 @@ func gitStats(accessToken string, mts []plugin.MetricType) ([]plugin.MetricType,
 						return nil, err
 					}
 					authUser = *gitUser.Login
+					user = authUser
 					stats, err := userStats(gitUser, client)
 					if err != nil {
 						LogError("failed to get stats from user object", err)
 						return nil, err
 					}
-					users[*gitUser.Login] = stats
+					users[user] = stats
 				}
 			} else {
 				if _, ok := users[user]; !ok {
