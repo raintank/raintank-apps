@@ -14,8 +14,6 @@ import (
 	"github.com/google/go-querystring/query"
 )
 
-const ApiVersion = "v1"
-
 var (
 	ErrNotFound     = errors.New("Not Found")
 	ErrAuthFailure  = errors.New("Authentication failed")
@@ -23,69 +21,22 @@ var (
 	ErrNilResponse  = errors.New("Nil response")
 )
 
-type Zone struct {
-	Id   string `json:"id"`
-	Zone string `json:"zone"`
-}
-
-type Qps struct {
-	Qps float64 `json:"qps"`
-}
-
-type MonitoringJob struct {
-	Id        string                `json:"id"`
-	Name      string                `json:"name"`
-	Status    map[string]*JobStatus `json:"status"`
-	Frequency json.Number           `json:"frequency"`
-}
-
-type JobStatus struct {
-	Since  json.Number `json:"since"`
-	Status string      `json:"status"`
-}
-
-type MonitoringMetric struct {
-	JobId   string             `json:"jobid"`
-	Region  string             `json:"region"`
-	Metrics map[string]*Metric `json:"metrics"`
-}
-
-type Metric struct {
-	Avg   float64  `json:"avg"`
-	Graph []*Point `json:"graph"`
-}
-
-type Point struct {
-	Timestamp int
-	Value     float64
-}
-
-func (p *Point) UnmarshalJSON(data []byte) error {
-	tmp := make([]json.Number, 0)
-	err := json.Unmarshal(data, &tmp)
-	if err != nil {
-		return err
-	}
-	if len(tmp) != 2 {
-		return fmt.Errorf("data array should only have 2 values, [ts,val]")
-	}
-	ts, err := tmp[0].Int64()
-	if err != nil {
-		return err
-	}
-	p.Timestamp = int(ts)
-	p.Value, err = tmp[1].Float64()
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 type Client struct {
 	URL    *url.URL
 	http   *http.Client
 	ApiKey string
 	prefix string
+}
+
+type VoxChannels struct {
+	Inbound int
+	Outbound int
+}
+
+type Endpoint struct {
+	Name string
+	Channels VoxChannels
+	Registrations int
 }
 
 func NewClient(serverUrl, apiKey string, insecure bool) (*Client, error) {
@@ -96,7 +47,7 @@ func NewClient(serverUrl, apiKey string, insecure bool) (*Client, error) {
 	if u.Scheme != "http" && u.Scheme != "https" {
 		return nil, fmt.Errorf("URL %s is not in the format of http(s)://<ip>:<port>", serverUrl)
 	}
-	u.Path = path.Clean(u.Path + "/" + ApiVersion)
+	u.Path = path.Clean(u.Path)
 	c := &Client{
 		URL:    u,
 		ApiKey: apiKey,
@@ -125,7 +76,7 @@ func (c *Client) get(path string, query interface{}) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("X-NSONE-KEY", c.ApiKey)
+	req.Header.Set("X-API-KEY", c.ApiKey)
 	rsp, err := c.http.Do(req)
 	if err != nil {
 		return nil, err
@@ -164,78 +115,27 @@ func ToQueryString(q interface{}) (string, error) {
 	return v.Encode(), nil
 }
 
-func (c *Client) Zones() ([]*Zone, error) {
-	body, err := c.get("/zones", nil)
+func (c *Client) EndpointStats(customer string) ([]*Endpoint, error) {
+	body, err := c.get(fmt.Sprintf("/stats/%s", customer), nil)
 	if err != nil {
 		return nil, err
 	}
-	zones := make([]*Zone, 0)
-	err = json.Unmarshal(body, &zones)
+
+	raw := make(map[string]interface{})
+	err = json.Unmarshal(body, &raw)
 	if err != nil {
 		return nil, err
 	}
-	return zones, nil
+	endpoints := make([]*Endpoint, 0, len(raw))
+	for k, v := range raw {
+		e := new(Endpoint)
+		e.Name = k
+		e.Registrations = v.(map[string]interface{})["registrations"].(int)
+		e.Channels.Inbound = v.(map[string]interface{})["channels"].(map[string]int)["inbound"]
+		e.Channels.Outbound = v.(map[string]interface{})["channels"].(map[string]int)["outbound"]
+		endpoints = append(endpoints, e)
+	}
+	
+	return endpoints, nil
 }
 
-func (c *Client) Qps(zone string) (*Qps, error) {
-	path := "/stats/qps"
-	if zone != "" {
-		// we need to escape twice as internally the path is stored in encoded
-		// form so it is not possible to tell if %2F or / were passed.
-		// see https://golang.org/pkg/net/url/#URL
-		path = path + "/" + url.QueryEscape(url.QueryEscape(zone))
-	}
-	body, err := c.get(path, nil)
-	if err != nil {
-		log.Printf("failed to get %s. %s", path, err)
-		return nil, err
-	}
-	qps := Qps{}
-	err = json.Unmarshal(body, &qps)
-	if err != nil {
-		return nil, err
-	}
-	return &qps, nil
-}
-
-func (c *Client) MonitoringJobs() ([]*MonitoringJob, error) {
-	body, err := c.get("/monitoring/jobs", nil)
-	if err != nil {
-		return nil, err
-	}
-	jobs := make([]*MonitoringJob, 0)
-	err = json.Unmarshal(body, &jobs)
-	if err != nil {
-		log.Printf("failed to unmarshal monitoringJob resp. %s", err)
-		log.Printf("--------\n%s\n--------\n", body)
-		return nil, err
-	}
-	return jobs, nil
-}
-func (c *Client) MonitoringJobById(jobId string) (*MonitoringJob, error) {
-	body, err := c.get("/monitoring/jobs/"+jobId, nil)
-	if err != nil {
-		return nil, err
-	}
-	job := &MonitoringJob{}
-	err = json.Unmarshal(body, &job)
-	if err != nil {
-		log.Printf("failed to unmarshal monitoringJob resp. %s", err)
-		log.Printf("--------\n%s\n--------\n", body)
-		return nil, err
-	}
-	return job, nil
-}
-
-func (c *Client) MonitoringMetics(jobid string) ([]*MonitoringMetric, error) {
-	body, err := c.get("/monitoring/metrics/"+jobid, nil)
-	if err != nil {
-		return nil, err
-	}
-	metrics := make([]*MonitoringMetric, 0)
-	err = json.Unmarshal(body, &metrics)
-	if err != nil {
-		return nil, err
-	}
-	return metrics, nil
-}
