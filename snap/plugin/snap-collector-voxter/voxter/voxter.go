@@ -128,17 +128,11 @@ func (v *Voxter) EndpointMetrics(client *Client, mts []plugin.MetricType) ([]plu
 //GetConfigPolicy returns a ConfigPolicyTree for testing
 func (v *Voxter) GetConfigPolicy() (*cpolicy.ConfigPolicy, error) {
 	c := cpolicy.New()
-	rule, _ := cpolicy.NewStringRule("ns1_key", true)
-	rule2, _ := cpolicy.NewStringRule("zone", false, "")
-	rule3, _ := cpolicy.NewStringRule("jobId", false, "")
-	rule4, _ := cpolicy.NewStringRule("jobName", false, "")
+	rule, _ := cpolicy.NewStringRule("voxter_key", true)
 	p := cpolicy.NewPolicyNode()
 	p.Add(rule)
-	p.Add(rule2)
-	p.Add(rule3)
-	p.Add(rule4)
 
-	c.Add([]string{"raintank", "apps", "ns1"}, p)
+	c.Add([]string{"raintank", "apps", "voxter"}, p)
 	return c, nil
 }
 
