@@ -88,20 +88,13 @@ func (v *Voxter) GetMetricTypes(cfg plugin.ConfigType) ([]plugin.MetricType, err
 
 func (v *Voxter) EndpointMetrics(client *Client, mts []plugin.MetricType) ([]plugin.MetricType, error) {
 	var metrics []plugin.MetricType
-	conf := mts[0].Config().Table()
-	cust, ok := conf["customer"]
-	if !ok || cust.(ctypes.ConfigValueStr).Value == "" {
-		LogError("customer missing from config")
-		return metrics, nil
-	}
-	cSlug := slug.Make(cust.(ctypes.ConfigValueStr).Value)
+	cSlug := slug.Make("piston")
 	endpoints, err := client.EndpointStats()
 	if err != nil {
 		return nil, err
 	}
 	metrics = make([]plugin.MetricType, len(endpoints) * 3)
 	for _, e := range endpoints {
-		//mSlug := slug.Make(e.Name)
 		marr := strings.Split(e.Name, ".")
 		for i, v := range marr {
 			marr[i] = slug.Make(v)
@@ -137,10 +130,8 @@ func (v *Voxter) EndpointMetrics(client *Client, mts []plugin.MetricType) ([]plu
 func (v *Voxter) GetConfigPolicy() (*cpolicy.ConfigPolicy, error) {
 	c := cpolicy.New()
 	rule, _ := cpolicy.NewStringRule("voxter_key", true)
-	rule1, _ := cpolicy.NewStringRule("customer", true)
 	p := cpolicy.NewPolicyNode()
 	p.Add(rule)
-	p.Add(rule1)
 
 	c.Add([]string{"raintank", "apps", "voxter"}, p)
 	return c, nil
