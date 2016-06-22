@@ -20,7 +20,7 @@ const (
 	// Type of plugin
 	Type = plugin.CollectorPluginType
 	// stat url
-	statsURL = "http://ourstatshost.voxter.com/api/"
+	statsURL = "https://vortex2.voxter.com/api/"
 )
 
 var (
@@ -70,15 +70,15 @@ func (v *Voxter) GetMetricTypes(cfg plugin.ConfigType) ([]plugin.MetricType, err
 	mts := []plugin.MetricType{}
 
 	mts = append(mts, plugin.MetricType{
-		Namespace_: core.NewNamespace("raintank", "apps", "voxter", "endpoints", "*", "*", "registrations"),
+		Namespace_: core.NewNamespace("raintank", "apps", "voxter", "endpoints", "*", "registrations"),
 		Config_: cfg.ConfigDataNode,
 	})
 	mts = append(mts, plugin.MetricType{
-		Namespace_: core.NewNamespace("raintank", "apps", "voxter", "endpoints", "*", "*", "channels", "inbound"),
+		Namespace_: core.NewNamespace("raintank", "apps", "voxter", "endpoints", "*", "channels", "inbound"),
 		Config_: cfg.ConfigDataNode,
 	})
 	mts = append(mts, plugin.MetricType{
-		Namespace_: core.NewNamespace("raintank", "apps", "voxter", "endpoints", "*", "*", "channels", "outbound"),
+		Namespace_: core.NewNamespace("raintank", "apps", "voxter", "endpoints", "*", "channels", "outbound"),
 		Config_: cfg.ConfigDataNode,
 	})
 
@@ -93,9 +93,7 @@ func (v *Voxter) EndpointMetrics(client *Client, mts []plugin.MetricType) ([]plu
 		LogError("customer missing from config")
 		return metrics, nil
 	}
-	cName := cust.(ctypes.ConfigValueStr).Value
-	cSlug := slug.Make(cName)
-	endpoints, err := client.EndpointStats(cName)
+	endpoints, err := client.EndpointStats()
 	if err != nil {
 		return nil, err
 	}
@@ -104,19 +102,19 @@ func (v *Voxter) EndpointMetrics(client *Client, mts []plugin.MetricType) ([]plu
 		mSlug := slug.Make(e.Name)
 		metrics = append(metrics, plugin.MetricType{
 			Data_: e.Registrations,
-			Namespace_: core.NewNamespace("raintank", "apps", "voxter", "endpoints", cSlug, mSlug, "registrations"),
+			Namespace_: core.NewNamespace("raintank", "apps", "voxter", "endpoints", mSlug, "registrations"),
 			Timestamp_: time.Now(),
 			Version_: mts[0].Version(),
 		})
 		metrics = append(metrics, plugin.MetricType{
 			Data_: e.Channels.Inbound,
-			Namespace_: core.NewNamespace("raintank", "apps", "voxter", "endpoints", cSlug, mSlug, "channels", "inbound"),
+			Namespace_: core.NewNamespace("raintank", "apps", "voxter", "endpoints", mSlug, "channels", "inbound"),
 			Timestamp_: time.Now(),
 			Version_: mts[0].Version(),
 		})
 		metrics = append(metrics, plugin.MetricType{
 			Data_: e.Channels.Outbound,
-			Namespace_: core.NewNamespace("raintank", "apps", "voxter", "endpoints", cSlug, mSlug, "channels", "outbound"),
+			Namespace_: core.NewNamespace("raintank", "apps", "voxter", "endpoints", mSlug, "channels", "outbound"),
 			Timestamp_: time.Now(),
 			Version_: mts[0].Version(),
 		})

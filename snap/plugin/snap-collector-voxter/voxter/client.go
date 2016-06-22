@@ -115,8 +115,8 @@ func ToQueryString(q interface{}) (string, error) {
 	return v.Encode(), nil
 }
 
-func (c *Client) EndpointStats(customer string) ([]*Endpoint, error) {
-	body, err := c.get(fmt.Sprintf("/stats/%s", customer), nil)
+func (c *Client) EndpointStats() ([]*Endpoint, error) {
+	body, err := c.get("/stats/piston", nil)
 	if err != nil {
 		return nil, err
 	}
