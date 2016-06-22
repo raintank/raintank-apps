@@ -29,14 +29,14 @@ type Client struct {
 }
 
 type VoxChannels struct {
-	Inbound int
-	Outbound int
+	Inbound float64
+	Outbound float64
 }
 
 type Endpoint struct {
 	Name string
 	Channels VoxChannels
-	Registrations int
+	Registrations float64
 }
 
 func NewClient(serverUrl, apiKey string, insecure bool) (*Client, error) {
@@ -127,12 +127,24 @@ func (c *Client) EndpointStats() ([]*Endpoint, error) {
 		return nil, err
 	}
 	endpoints := make([]*Endpoint, 0, len(raw))
-	for k, v := range raw {
+	ctmp, ok := raw["data"].(map[string]interface{})
+	if !ok {
+		err = fmt.Errorf("no 'data' found in returned json from api")
+		return nil, err
+	}
+
+	counters, ok := ctmp["counters"].(map[string]interface{})
+	if !ok {
+		err = fmt.Errorf("no 'counters' found in data from api")
+		return nil, err
+	}
+
+	for k, v := range counters {
 		e := new(Endpoint)
 		e.Name = k
-		e.Registrations = v.(map[string]interface{})["registrations"].(int)
-		e.Channels.Inbound = v.(map[string]interface{})["channels"].(map[string]int)["inbound"]
-		e.Channels.Outbound = v.(map[string]interface{})["channels"].(map[string]int)["outbound"]
+		e.Registrations = v.(map[string]interface{})["registrations"].(float64)
+		e.Channels.Inbound = v.(map[string]interface{})["channels"].(map[string]interface{})["inbound"].(float64)
+		e.Channels.Outbound = v.(map[string]interface{})["channels"].(map[string]interface{})["outbound"].(float64)
 		endpoints = append(endpoints, e)
 	}
 	
