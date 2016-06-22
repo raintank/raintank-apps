@@ -3,6 +3,7 @@ package voxter
 import (
 	"fmt"
 	"time"
+	"strings"
 
 	"github.com/gosimple/slug"
 	. "github.com/intelsdi-x/snap-plugin-utilities/logger"
@@ -70,15 +71,15 @@ func (v *Voxter) GetMetricTypes(cfg plugin.ConfigType) ([]plugin.MetricType, err
 	mts := []plugin.MetricType{}
 
 	mts = append(mts, plugin.MetricType{
-		Namespace_: core.NewNamespace("raintank", "apps", "voxter", "endpoints", "*", "registrations"),
+		Namespace_: core.NewNamespace("raintank", "apps", "voxter", "*", "endpoints", "*", "registrations"),
 		Config_: cfg.ConfigDataNode,
 	})
 	mts = append(mts, plugin.MetricType{
-		Namespace_: core.NewNamespace("raintank", "apps", "voxter", "endpoints", "*", "channels", "inbound"),
+		Namespace_: core.NewNamespace("raintank", "apps", "voxter", "*", "endpoints", "*", "channels", "inbound"),
 		Config_: cfg.ConfigDataNode,
 	})
 	mts = append(mts, plugin.MetricType{
-		Namespace_: core.NewNamespace("raintank", "apps", "voxter", "endpoints", "*", "channels", "outbound"),
+		Namespace_: core.NewNamespace("raintank", "apps", "voxter", "*", "endpoints", "*", "channels", "outbound"),
 		Config_: cfg.ConfigDataNode,
 	})
 
@@ -93,16 +94,25 @@ func (v *Voxter) EndpointMetrics(client *Client, mts []plugin.MetricType) ([]plu
 		LogError("customer missing from config")
 		return metrics, nil
 	}
+	cSlug := slug.Make(cust.(ctypes.ConfigValueStr).Value)
 	endpoints, err := client.EndpointStats()
 	if err != nil {
 		return nil, err
 	}
 	metrics = make([]plugin.MetricType, len(endpoints) * 3)
 	for _, e := range endpoints {
-		mSlug := slug.Make(e.Name)
+		//mSlug := slug.Make(e.Name)
+		marr := strings.Split(e.Name, ".")
+		for i, v := range marr {
+			marr[i] = slug.Make(v)
+		}
+		for i, j := 0, len(marr) - 1; i < j; i, j = i+1, j-1 {
+			marr[i], marr[j] = marr[j], marr[i]
+		}
+		mSlug := strings.Join(marr, "/")
 		metrics = append(metrics, plugin.MetricType{
 			Data_: e.Registrations,
-			Namespace_: core.NewNamespace("raintank", "apps", "voxter", "endpoints", mSlug, "registrations"),
+			Namespace_: core.NewNamespace("raintank", "apps", "voxter", cSlug, "endpoints", mSlug, "registrations"),
 			Timestamp_: time.Now(),
 			Version_: mts[0].Version(),
 		})
@@ -127,8 +137,10 @@ func (v *Voxter) EndpointMetrics(client *Client, mts []plugin.MetricType) ([]plu
 func (v *Voxter) GetConfigPolicy() (*cpolicy.ConfigPolicy, error) {
 	c := cpolicy.New()
 	rule, _ := cpolicy.NewStringRule("voxter_key", true)
+	rule1, _ := cpolicy.NewStringRule("customer", true)
 	p := cpolicy.NewPolicyNode()
 	p.Add(rule)
+	p.Add(rule1)
 
 	c.Add([]string{"raintank", "apps", "voxter"}, p)
 	return c, nil
