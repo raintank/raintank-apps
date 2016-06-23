@@ -71,15 +71,15 @@ func (v *Voxter) GetMetricTypes(cfg plugin.ConfigType) ([]plugin.MetricType, err
 	mts := []plugin.MetricType{}
 
 	mts = append(mts, plugin.MetricType{
-		Namespace_: core.NewNamespace("raintank", "apps", "voxter", "*", "endpoints", "*", "registrations"),
+		Namespace_: core.NewNamespace("raintank", "apps", "voxter", "endpoints", "*", "*", "registrations"),
 		Config_: cfg.ConfigDataNode,
 	})
 	mts = append(mts, plugin.MetricType{
-		Namespace_: core.NewNamespace("raintank", "apps", "voxter", "*", "endpoints", "*", "channels", "inbound"),
+		Namespace_: core.NewNamespace("raintank", "apps", "voxter", "endpoints", "*", "*", "channels", "inbound"),
 		Config_: cfg.ConfigDataNode,
 	})
 	mts = append(mts, plugin.MetricType{
-		Namespace_: core.NewNamespace("raintank", "apps", "voxter", "*", "endpoints", "*", "channels", "outbound"),
+		Namespace_: core.NewNamespace("raintank", "apps", "voxter", "endpoints", "*", "*", "channels", "outbound"),
 		Config_: cfg.ConfigDataNode,
 	})
 
@@ -102,22 +102,22 @@ func (v *Voxter) EndpointMetrics(client *Client, mts []plugin.MetricType) ([]plu
 		for i, j := 0, len(marr) - 1; i < j; i, j = i+1, j-1 {
 			marr[i], marr[j] = marr[j], marr[i]
 		}
-		mSlug := strings.Join(marr, "/")
+		mSlug := strings.Join(marr, "_")
 		metrics = append(metrics, plugin.MetricType{
 			Data_: e.Registrations,
-			Namespace_: core.NewNamespace("raintank", "apps", "voxter", cSlug, "endpoints", mSlug, "registrations"),
+			Namespace_: core.NewNamespace("raintank", "apps", "voxter", "endpoints", cSlug, mSlug, "registrations"),
 			Timestamp_: time.Now(),
 			Version_: mts[0].Version(),
 		})
 		metrics = append(metrics, plugin.MetricType{
 			Data_: e.Channels.Inbound,
-			Namespace_: core.NewNamespace("raintank", "apps", "voxter", "endpoints", mSlug, "channels", "inbound"),
+			Namespace_: core.NewNamespace("raintank", "apps", "voxter", "endpoints", cSlug, mSlug, "channels", "inbound"),
 			Timestamp_: time.Now(),
 			Version_: mts[0].Version(),
 		})
 		metrics = append(metrics, plugin.MetricType{
 			Data_: e.Channels.Outbound,
-			Namespace_: core.NewNamespace("raintank", "apps", "voxter", "endpoints", mSlug, "channels", "outbound"),
+			Namespace_: core.NewNamespace("raintank", "apps", "voxter", "endpoints", cSlug, mSlug, "channels", "outbound"),
 			Timestamp_: time.Now(),
 			Version_: mts[0].Version(),
 		})
