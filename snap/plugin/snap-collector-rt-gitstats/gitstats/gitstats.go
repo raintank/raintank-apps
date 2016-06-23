@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/google/go-github/github"
+	"github.com/gosimple/slug"
 	. "github.com/intelsdi-x/snap-plugin-utilities/logger"
 	"github.com/intelsdi-x/snap/control/plugin"
 	"github.com/intelsdi-x/snap/control/plugin/cpolicy"
@@ -47,6 +48,10 @@ var (
 		"plan_filled_seats",
 	}
 )
+
+func init() {
+	slug.CustomSub = map[string]string{".": "_"}
+}
 
 type Gitstats struct {
 }
@@ -144,7 +149,8 @@ func gitStats(accessToken string, mts []plugin.MetricType) ([]plugin.MetricType,
 							LogError("failed to get stats from repo object.", err)
 							return nil, err
 						}
-						repos[user][*r.Name] = stats
+						repoSlug := slug.Make(*r.Name)
+						repos[user][repoSlug] = stats
 					}
 				}
 				for repo, stats := range repos[user] {
@@ -160,10 +166,11 @@ func gitStats(accessToken string, mts []plugin.MetricType) ([]plugin.MetricType,
 				if repo == "*" {
 					repo = useRepo
 				}
+				repoSlug := slug.Make(repo)
 				if _, ok := repos[user]; !ok {
 					repos[user] = make(map[string]map[string]int)
 				}
-				if _, ok := repos[user][repo]; !ok {
+				if _, ok := repos[user][repoSlug]; !ok {
 					r, _, err := client.Repositories.Get(user, repo)
 					if err != nil {
 						LogError("failed to user repos.", err)
@@ -174,11 +181,11 @@ func gitStats(accessToken string, mts []plugin.MetricType) ([]plugin.MetricType,
 						LogError("failed to get stats from repo object.", err)
 						return nil, err
 					}
-					repos[user][repo] = stats
+					repos[user][repoSlug] = stats
 				}
 				mt := plugin.MetricType{
 					Data_:      repos[user][repo][stat],
-					Namespace_: core.NewNamespace("raintank", "apps", "gitstats", "repo", user, repo, stat),
+					Namespace_: core.NewNamespace("raintank", "apps", "gitstats", "repo", user, repoSlug, stat),
 					Timestamp_: collectionTime,
 					Version_:   m.Version(),
 				}
@@ -197,14 +204,14 @@ func gitStats(accessToken string, mts []plugin.MetricType) ([]plugin.MetricType,
 						return nil, err
 					}
 					authUser = *gitUser.Login
-					user = authUser
 					stats, err := userStats(gitUser, client)
 					if err != nil {
 						LogError("failed to get stats from user object", err)
 						return nil, err
 					}
-					users[user] = stats
+					users[authUser] = stats
 				}
+				user = authUser
 			} else {
 				if _, ok := users[user]; !ok {
 					u, _, err := client.Users.Get(user)
