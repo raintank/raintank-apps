@@ -79,7 +79,7 @@ func TestGitstatsCollectMetrics(t *testing.T) {
 		}
 		Convey("collect metrics", func() {
 			mts := []plugin.MetricType{
-				plugin.MetricType{
+				{
 					Namespace_: core.NewNamespace(
 						"raintank", "apps", "gitstats", "user", "*", "followers"),
 					Config_: cfg.ConfigDataNode,
