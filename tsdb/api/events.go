@@ -1,8 +1,10 @@
 package api
 
 import (
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 
 	"github.com/codeskyblue/go-uuid"
@@ -16,11 +18,13 @@ func Events(ctx *Context) {
 	contentType := ctx.Req.Header.Get("Content-Type")
 	switch contentType {
 	case "rt-metric-binary":
-		eventsBinary(ctx)
+		eventsBinary(ctx, false)
+	case "rt-metric-binary-gz":
+		eventsBinary(ctx, true)
 	case "application/json":
 		eventsJson(ctx)
 	default:
-		ctx.JSON(400, "unknown content-type")
+		ctx.JSON(400, fmt.Sprintf("unknown content-type: %s", contentType))
 	}
 }
 
@@ -56,10 +60,21 @@ func eventsJson(ctx *Context) {
 	ctx.JSON(400, "no data included in request.")
 }
 
-func eventsBinary(ctx *Context) {
-	defer ctx.Req.Request.Body.Close()
+func eventsBinary(ctx *Context, compressed bool) {
+	var body io.ReadCloser
+	var err error
+	if compressed {
+		body, err = gzip.NewReader(ctx.Req.Request.Body)
+		if err != nil {
+			ctx.JSON(400, err.Error())
+			return
+		}
+	} else {
+		body = ctx.Req.Request.Body
+	}
+	defer body.Close()
 	if ctx.Req.Request.Body != nil {
-		body, err := ioutil.ReadAll(ctx.Req.Request.Body)
+		body, err := ioutil.ReadAll(body)
 		if err != nil {
 			log.Error(3, "unable to read requst body. %s", err)
 		}
