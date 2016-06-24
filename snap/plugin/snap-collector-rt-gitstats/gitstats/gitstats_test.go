@@ -62,6 +62,9 @@ func TestGitstatsPlugin(t *testing.T) {
 }
 
 func TestGitstatsCollectMetrics(t *testing.T) {
+	if os.Getenv("GITSTATS_ACCESS_TOKEN") == "" {
+		return
+	}
 	cfg := setupCfg("woodsaj", "")
 
 	Convey("Ping collector", t, func() {
