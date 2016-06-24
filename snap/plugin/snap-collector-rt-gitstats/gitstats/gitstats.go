@@ -74,11 +74,6 @@ func (f *Gitstats) CollectMetrics(mts []plugin.MetricType) ([]plugin.MetricType,
 	return metrics, nil
 }
 
-type repoName struct {
-	Repo  string
-	Owner string
-}
-
 func gitStats(accessToken string, mts []plugin.MetricType) ([]plugin.MetricType, error) {
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: accessToken},
@@ -106,6 +101,7 @@ func gitStats(accessToken string, mts []plugin.MetricType) ([]plugin.MetricType,
 
 	for _, m := range mts {
 		ns := m.Namespace().Strings()
+		fmt.Printf("getting %s\n", m.Namespace().String())
 		switch ns[3] {
 		case "repo":
 			user := ns[4]
@@ -198,7 +194,7 @@ func gitStats(accessToken string, mts []plugin.MetricType) ([]plugin.MetricType,
 			if user == "*" {
 				//need to get user
 				if authUser == "" {
-					gitUser, _, err := client.Users.Get(user)
+					gitUser, _, err := client.Users.Get("")
 					if err != nil {
 						LogError("failed to get authenticated user.", err)
 						return nil, err
@@ -210,10 +206,25 @@ func gitStats(accessToken string, mts []plugin.MetricType) ([]plugin.MetricType,
 						return nil, err
 					}
 					users[authUser] = stats
+				} else {
+					if _, ok := users[authUser]; !ok {
+						gitUser, _, err := client.Users.Get(authUser)
+						if err != nil {
+							LogError("failed to get authenticated user.", err)
+							return nil, err
+						}
+						stats, err := userStats(gitUser, client)
+						if err != nil {
+							LogError("failed to get stats from user object", err)
+							return nil, err
+						}
+						users[authUser] = stats
+					}
 				}
 				user = authUser
 			} else {
 				if _, ok := users[user]; !ok {
+					fmt.Printf("getting stats for user %s\n", user)
 					u, _, err := client.Users.Get(user)
 					if err != nil {
 						LogError("failed to lookup user.", err)
@@ -241,6 +252,7 @@ func gitStats(accessToken string, mts []plugin.MetricType) ([]plugin.MetricType,
 }
 
 func userStats(user *github.User, client *github.Client) (map[string]int, error) {
+
 	stats := make(map[string]int)
 	if user.PublicRepos != nil {
 		stats["public_repos"] = *user.PublicRepos
@@ -271,7 +283,7 @@ func userStats(user *github.User, client *github.Client) (map[string]int, error)
 			stats["disk_usage"] = *org.DiskUsage
 		}
 	}
-
+	fmt.Printf("\nstats: %v\n", stats)
 	return stats, nil
 }
 
