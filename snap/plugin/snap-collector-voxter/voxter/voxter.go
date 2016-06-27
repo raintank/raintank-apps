@@ -71,15 +71,15 @@ func (v *Voxter) GetMetricTypes(cfg plugin.ConfigType) ([]plugin.MetricType, err
 	mts := []plugin.MetricType{}
 
 	mts = append(mts, plugin.MetricType{
-		Namespace_: core.NewNamespace("raintank", "apps", "voxter", "endpoints", "*", "*", "registrations"),
+		Namespace_: core.NewNamespace("raintank", "apps", "voxter", "endpoints").AddDynamicElement("source", "backend data source").AddDynamicElement("endpoint", "endpoint name").AddStaticElement("registrations"),
 		Config_: cfg.ConfigDataNode,
 	})
 	mts = append(mts, plugin.MetricType{
-		Namespace_: core.NewNamespace("raintank", "apps", "voxter", "endpoints", "*", "*", "channels", "inbound"),
+		Namespace_: core.NewNamespace("raintank", "apps", "voxter", "endpoints").AddDynamicElement("source", "backend data source").AddDynamicElement("endpoint", "endpoint name").AddStaticElement("channels").AddStaticElement("inbound"),
 		Config_: cfg.ConfigDataNode,
 	})
 	mts = append(mts, plugin.MetricType{
-		Namespace_: core.NewNamespace("raintank", "apps", "voxter", "endpoints", "*", "*", "channels", "outbound"),
+		Namespace_: core.NewNamespace("raintank", "apps", "voxter", "endpoints").AddDynamicElement("source", "backend data source").AddDynamicElement("endpoint", "endpoint name").AddStaticElement("channels").AddStaticElement("outbound"),
 		Config_: cfg.ConfigDataNode,
 	})
 
