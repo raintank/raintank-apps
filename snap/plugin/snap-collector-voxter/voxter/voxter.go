@@ -55,7 +55,7 @@ func (v *Voxter) CollectMetrics(mts []plugin.MetricType) ([]plugin.MetricType, e
 	}
 	LogDebug("request to collect metrics", "metric_count", len(mts))
 
-	resp, err := v.EndpointMetrics(client, mts)
+	resp, err := v.endpointMetrics(client, mts)
 	if err != nil {
 		LogError("failed to collect metrics.", "error", err)
 		return nil, err
@@ -86,14 +86,23 @@ func (v *Voxter) GetMetricTypes(cfg plugin.ConfigType) ([]plugin.MetricType, err
 	return mts, nil
 }
 
-func (v *Voxter) EndpointMetrics(client *Client, mts []plugin.MetricType) ([]plugin.MetricType, error) {
+func (v *Voxter) endpointMetrics(client *Client, mts []plugin.MetricType) ([]plugin.MetricType, error) {
 	var metrics []plugin.MetricType
 	cSlug := slug.Make("piston")
 	endpoints, err := client.EndpointStats()
 	if err != nil {
 		return nil, err
 	}
-	metrics = make([]plugin.MetricType, 0, len(endpoints) * 3)
+	desired := make(map[string]bool)
+	for _, m := range mts {
+		metric := m.Namespace()[6].Value
+		if metric == "channels" {
+			metric = m.Namespace()[7].Value
+		}
+		desired[metric] = true
+	}
+
+	metrics = make([]plugin.MetricType, 0)
 	for n, e := range endpoints {
 		marr := strings.Split(n, ".")
 		for i, v := range marr {
@@ -103,24 +112,31 @@ func (v *Voxter) EndpointMetrics(client *Client, mts []plugin.MetricType) ([]plu
 			marr[i], marr[j] = marr[j], marr[i]
 		}
 		mSlug := strings.Join(marr, "_")
-		metrics = append(metrics, plugin.MetricType{
-			Data_: e.Registrations,
-			Namespace_: core.NewNamespace("raintank", "apps", "voxter", "endpoints", cSlug, mSlug, "registrations"),
-			Timestamp_: time.Now(),
-			Version_: mts[0].Version(),
-		})
-		metrics = append(metrics, plugin.MetricType{
-			Data_: e.Channels.Inbound,
-			Namespace_: core.NewNamespace("raintank", "apps", "voxter", "endpoints", cSlug, mSlug, "channels", "inbound"),
-			Timestamp_: time.Now(),
-			Version_: mts[0].Version(),
-		})
-		metrics = append(metrics, plugin.MetricType{
-			Data_: e.Channels.Outbound,
-			Namespace_: core.NewNamespace("raintank", "apps", "voxter", "endpoints", cSlug, mSlug, "channels", "outbound"),
-			Timestamp_: time.Now(),
-			Version_: mts[0].Version(),
-		})
+
+		if desired["registrations"] {
+			metrics = append(metrics, plugin.MetricType{
+				Data_: e.Registrations,
+				Namespace_: core.NewNamespace("raintank", "apps", "voxter", "endpoints", cSlug, mSlug, "registrations"),
+				Timestamp_: time.Now(),
+				Version_: mts[0].Version(),
+			})
+		}
+		if desired["inbound"] {
+			metrics = append(metrics, plugin.MetricType{
+				Data_: e.Channels.Inbound,
+				Namespace_: core.NewNamespace("raintank", "apps", "voxter", "endpoints", cSlug, mSlug, "channels", "inbound"),
+				Timestamp_: time.Now(),
+				Version_: mts[0].Version(),
+			})
+		}
+		if desired["outbound"] {
+			metrics = append(metrics, plugin.MetricType{
+				Data_: e.Channels.Outbound,
+				Namespace_: core.NewNamespace("raintank", "apps", "voxter", "endpoints", cSlug, mSlug, "channels", "outbound"),
+				Timestamp_: time.Now(),
+				Version_: mts[0].Version(),
+			})
+		}
 	}
 
 	return metrics, nil
