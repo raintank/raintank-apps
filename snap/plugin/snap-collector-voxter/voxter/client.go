@@ -28,15 +28,24 @@ type Client struct {
 	prefix string
 }
 
-type VoxChannels struct {
-	Inbound float64
-	Outbound float64
+type VoxterRet struct {
+	Success bool `json:"success"`
+	Data *VoxterData `json:"data"`
+}
+
+type VoxterData struct {
+	Network map[string]string `json:"network"`
+	Counters map[string]*Endpoint `json:"counters"`
+}
+
+type VoxterChannels struct {
+	Inbound float64 `json:"inbound"`
+	Outbound float64 `json:"outbound"`
 }
 
 type Endpoint struct {
-	Name string
-	Channels VoxChannels
-	Registrations float64
+	Channels *VoxterChannels `json:"channels"`
+	Registrations float64 `json:"registrations"`
 }
 
 func NewClient(serverUrl, apiKey string, insecure bool) (*Client, error) {
@@ -115,39 +124,18 @@ func ToQueryString(q interface{}) (string, error) {
 	return v.Encode(), nil
 }
 
-func (c *Client) EndpointStats() ([]*Endpoint, error) {
+func (c *Client) EndpointStats() (map[string]*Endpoint, error) {
 	body, err := c.get("/stats/piston", nil)
 	if err != nil {
 		return nil, err
 	}
 
-	raw := make(map[string]interface{})
-	err = json.Unmarshal(body, &raw)
+	ret := new(VoxterRet)
+	err = json.Unmarshal(body, &ret)
 	if err != nil {
 		return nil, err
 	}
-	endpoints := make([]*Endpoint, 0, len(raw))
-	ctmp, ok := raw["data"].(map[string]interface{})
-	if !ok {
-		err = fmt.Errorf("no 'data' found in returned json from api")
-		return nil, err
-	}
 
-	counters, ok := ctmp["counters"].(map[string]interface{})
-	if !ok {
-		err = fmt.Errorf("no 'counters' found in data from api")
-		return nil, err
-	}
-
-	for k, v := range counters {
-		e := new(Endpoint)
-		e.Name = k
-		e.Registrations = v.(map[string]interface{})["registrations"].(float64)
-		e.Channels.Inbound = v.(map[string]interface{})["channels"].(map[string]interface{})["inbound"].(float64)
-		e.Channels.Outbound = v.(map[string]interface{})["channels"].(map[string]interface{})["outbound"].(float64)
-		endpoints = append(endpoints, e)
-	}
-	
-	return endpoints, nil
+	return ret.Data.Counters, nil
 }
 

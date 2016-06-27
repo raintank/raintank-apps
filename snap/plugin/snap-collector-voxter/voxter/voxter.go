@@ -94,8 +94,8 @@ func (v *Voxter) EndpointMetrics(client *Client, mts []plugin.MetricType) ([]plu
 		return nil, err
 	}
 	metrics = make([]plugin.MetricType, 0, len(endpoints) * 3)
-	for _, e := range endpoints {
-		marr := strings.Split(e.Name, ".")
+	for n, e := range endpoints {
+		marr := strings.Split(n, ".")
 		for i, v := range marr {
 			marr[i] = slug.Make(v)
 		}
