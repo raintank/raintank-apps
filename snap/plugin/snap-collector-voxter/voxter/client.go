@@ -28,23 +28,23 @@ type Client struct {
 }
 
 type VoxterRet struct {
-	Success bool `json:"success"`
-	Data *VoxterData `json:"data"`
+	Success bool        `json:"success"`
+	Data    *VoxterData `json:"data"`
 }
 
 type VoxterData struct {
-	Network map[string]string `json:"network"`
+	Network  map[string]string    `json:"network"`
 	Counters map[string]*Endpoint `json:"counters"`
 }
 
 type VoxterChannels struct {
-	Inbound float64 `json:"inbound"`
+	Inbound  float64 `json:"inbound"`
 	Outbound float64 `json:"outbound"`
 }
 
 type Endpoint struct {
-	Channels *VoxterChannels `json:"channels"`
-	Registrations float64 `json:"registrations"`
+	Channels      *VoxterChannels `json:"channels"`
+	Registrations float64         `json:"registrations"`
 }
 
 func NewClient(serverUrl, apiKey string, insecure bool) (*Client, error) {
@@ -136,4 +136,3 @@ func (c *Client) EndpointStats() (map[string]*Endpoint, error) {
 
 	return ret.Data.Counters, nil
 }
-

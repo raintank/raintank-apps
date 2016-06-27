@@ -2,8 +2,8 @@ package voxter
 
 import (
 	"fmt"
-	"time"
 	"strings"
+	"time"
 
 	"github.com/gosimple/slug"
 	. "github.com/intelsdi-x/snap-plugin-utilities/logger"
@@ -72,15 +72,15 @@ func (v *Voxter) GetMetricTypes(cfg plugin.ConfigType) ([]plugin.MetricType, err
 
 	mts = append(mts, plugin.MetricType{
 		Namespace_: core.NewNamespace("raintank", "apps", "voxter", "endpoints").AddDynamicElement("source", "backend data source").AddDynamicElement("endpoint", "endpoint name").AddStaticElement("registrations"),
-		Config_: cfg.ConfigDataNode,
+		Config_:    cfg.ConfigDataNode,
 	})
 	mts = append(mts, plugin.MetricType{
 		Namespace_: core.NewNamespace("raintank", "apps", "voxter", "endpoints").AddDynamicElement("source", "backend data source").AddDynamicElement("endpoint", "endpoint name").AddStaticElement("channels").AddStaticElement("inbound"),
-		Config_: cfg.ConfigDataNode,
+		Config_:    cfg.ConfigDataNode,
 	})
 	mts = append(mts, plugin.MetricType{
 		Namespace_: core.NewNamespace("raintank", "apps", "voxter", "endpoints").AddDynamicElement("source", "backend data source").AddDynamicElement("endpoint", "endpoint name").AddStaticElement("channels").AddStaticElement("outbound"),
-		Config_: cfg.ConfigDataNode,
+		Config_:    cfg.ConfigDataNode,
 	})
 
 	return mts, nil
@@ -108,33 +108,33 @@ func (v *Voxter) endpointMetrics(client *Client, mts []plugin.MetricType) ([]plu
 		for i, v := range marr {
 			marr[i] = slug.Make(v)
 		}
-		for i, j := 0, len(marr) - 1; i < j; i, j = i+1, j-1 {
+		for i, j := 0, len(marr)-1; i < j; i, j = i+1, j-1 {
 			marr[i], marr[j] = marr[j], marr[i]
 		}
 		mSlug := strings.Join(marr, "_")
 
 		if desired["registrations"] {
 			metrics = append(metrics, plugin.MetricType{
-				Data_: e.Registrations,
+				Data_:      e.Registrations,
 				Namespace_: core.NewNamespace("raintank", "apps", "voxter", "endpoints", cSlug, mSlug, "registrations"),
 				Timestamp_: time.Now(),
-				Version_: mts[0].Version(),
+				Version_:   mts[0].Version(),
 			})
 		}
 		if desired["inbound"] {
 			metrics = append(metrics, plugin.MetricType{
-				Data_: e.Channels.Inbound,
+				Data_:      e.Channels.Inbound,
 				Namespace_: core.NewNamespace("raintank", "apps", "voxter", "endpoints", cSlug, mSlug, "channels", "inbound"),
 				Timestamp_: time.Now(),
-				Version_: mts[0].Version(),
+				Version_:   mts[0].Version(),
 			})
 		}
 		if desired["outbound"] {
 			metrics = append(metrics, plugin.MetricType{
-				Data_: e.Channels.Outbound,
+				Data_:      e.Channels.Outbound,
 				Namespace_: core.NewNamespace("raintank", "apps", "voxter", "endpoints", cSlug, mSlug, "channels", "outbound"),
 				Timestamp_: time.Now(),
-				Version_: mts[0].Version(),
+				Version_:   mts[0].Version(),
 			})
 		}
 	}
