@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"path"
@@ -80,7 +79,6 @@ func (c *Client) get(path string, query interface{}) ([]byte, error) {
 		}
 		path = path + "?" + qstr
 	}
-	log.Printf("sending request for %s", c.prefix+path)
 	req, err := http.NewRequest("GET", c.prefix+path, nil)
 	if err != nil {
 		return nil, err
