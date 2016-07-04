@@ -1,12 +1,12 @@
 package api
 
 import (
-	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
 
+	"github.com/golang/snappy"
 	"github.com/raintank/raintank-apps/tsdb/metric_publish"
 	msg "github.com/raintank/raintank-metric/msg"
 	"github.com/raintank/raintank-metric/schema"
@@ -18,7 +18,7 @@ func Metrics(ctx *Context) {
 	switch contentType {
 	case "rt-metric-binary":
 		metricsBinary(ctx, false)
-	case "rt-metric-binary-gz":
+	case "rt-metric-binary-snappy":
 		metricsBinary(ctx, true)
 	case "application/json":
 		metricsJson(ctx)
@@ -61,13 +61,8 @@ func metricsJson(ctx *Context) {
 
 func metricsBinary(ctx *Context, compressed bool) {
 	var body io.ReadCloser
-	var err error
 	if compressed {
-		body, err = gzip.NewReader(ctx.Req.Request.Body)
-		if err != nil {
-			ctx.JSON(400, err.Error())
-			return
-		}
+		body = ioutil.NopCloser(snappy.NewReader(ctx.Req.Request.Body))
 	} else {
 		body = ctx.Req.Request.Body
 	}
