@@ -19,7 +19,7 @@ import (
 	"github.com/intelsdi-x/snap/core/ctypes"
 
 	"github.com/raintank/raintank-metric/msg"
-	"github.com/raintank/raintank-metric/schema"
+	"gopkg.in/raintank/schema.v0"
 )
 
 const (

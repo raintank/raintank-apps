@@ -8,9 +8,9 @@ import (
 
 	"github.com/golang/snappy"
 	"github.com/raintank/raintank-apps/tsdb/metric_publish"
-	msg "github.com/raintank/raintank-metric/msg"
-	"github.com/raintank/raintank-metric/schema"
 	"github.com/raintank/worldping-api/pkg/log"
+	"gopkg.in/raintank/schema.v0"
+	"gopkg.in/raintank/schema.v0/msg"
 )
 
 func Metrics(ctx *Context) {
