@@ -1,7 +1,7 @@
 #!/bin/bash
 set -x
 
-PKG=${1:-"task-server task-agent tsdb"}
+PKG=${1:-"task-server task-agent"}
 
 BASE=$(dirname $0)
 

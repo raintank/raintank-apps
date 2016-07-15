@@ -8,7 +8,7 @@ BUILD=$CODE_DIR/build
 ARCH="$(uname -m)"
 VERSION=$(git describe --long)
 
-for VAR in task-server task-agent tsdb; do
+for VAR in task-server task-agent; do
 	NSQ_BUILD="${BUILD}/$VAR-${VERSION}"
 	NSQ_PACKAGE_NAME="${BUILD}/${VAR}-${VERSION}_${ARCH}.deb"
 	mkdir -p ${NSQ_BUILD}/usr/bin
