@@ -18,8 +18,8 @@ import (
 	"github.com/intelsdi-x/snap/control/plugin/cpolicy"
 	"github.com/intelsdi-x/snap/core/ctypes"
 
-	"github.com/raintank/raintank-metric/msg"
 	"gopkg.in/raintank/schema.v0"
+	"gopkg.in/raintank/schema.v0/msg"
 )
 
 const (
