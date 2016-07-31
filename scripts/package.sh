@@ -6,7 +6,7 @@ CODE_DIR=$(readlink -e "$BASE/../")
 BUILD_ROOT=$CODE_DIR/build
 
 ARCH="$(uname -m)"
-VERSION=$(git describe --long)
+VERSION=$(git describe --long --always)
 
 # ubuntu 14.04
 for VAR in task-server task-agent; do
