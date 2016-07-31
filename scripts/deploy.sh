@@ -9,4 +9,5 @@ if [ -z ${PACKAGECLOUD_REPO} ] ; then
   exit 1
 fi
 
-package_cloud push ${PACKAGECLOUD_REPO}/ubuntu/trusty ${CODE_DIR}/build/*.deb
+package_cloud push ${PACKAGECLOUD_REPO}/ubuntu/trusty ${CODE_DIR}/build/upstart/*.deb
+package_cloud push ${PACKAGECLOUD_REPO}/ubuntu/xenial ${CODE_DIR}/build/systemd/*.deb

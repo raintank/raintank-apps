@@ -1,0 +1,12 @@
+[Unit]
+Description=Raintank task-server service"
+ 
+[Service]
+Type=simple
+User=root
+Group=root
+ExecStart=/usr/bin/task-server "--config=/etc/raintank/task-server.ini"
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

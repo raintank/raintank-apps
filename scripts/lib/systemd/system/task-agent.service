@@ -1,0 +1,12 @@
+[Unit]
+Description=Raintank task-agent service"
+ 
+[Service]
+Type=simple
+User=root
+Group=root
+ExecStart=/usr/bin/task-agent "--config=/etc/raintank/task-agent.ini"
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
