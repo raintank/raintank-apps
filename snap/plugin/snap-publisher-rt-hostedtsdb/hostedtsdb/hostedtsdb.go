@@ -18,8 +18,8 @@ import (
 	"github.com/intelsdi-x/snap/control/plugin/cpolicy"
 	"github.com/intelsdi-x/snap/core/ctypes"
 
-	"gopkg.in/raintank/schema.v0"
-	"gopkg.in/raintank/schema.v0/msg"
+	"gopkg.in/raintank/schema.v1"
+	"gopkg.in/raintank/schema.v1/msg"
 )
 
 const (
@@ -186,12 +186,12 @@ func (f *HostedtsdbPublisher) Publish(contentType string, content []byte, config
 		}
 
 		tags := make([]string, 0)
-		targetType := "gauge"
+		mtype := "gauge"
 		unit := ""
 		for k, v := range m.Tags() {
 			switch k {
-			case "targetType":
-				targetType = v
+			case "mtype":
+				mtype = v
 			case "unit":
 				unit = v
 			default:
@@ -200,14 +200,14 @@ func (f *HostedtsdbPublisher) Publish(contentType string, content []byte, config
 		}
 
 		metricsArray[i] = &schema.MetricData{
-			OrgId:      orgId,
-			Name:       m.Namespace().Key(),
-			Interval:   interval,
-			Value:      value,
-			Time:       m.Timestamp().Unix(),
-			TargetType: targetType,
-			Unit:       unit,
-			Tags:       tags,
+			OrgId:    orgId,
+			Name:     m.Namespace().Key(),
+			Interval: interval,
+			Value:    value,
+			Time:     m.Timestamp().Unix(),
+			Mtype:    mtype,
+			Unit:     unit,
+			Tags:     tags,
 		}
 		metricsArray[i].SetId()
 	}
