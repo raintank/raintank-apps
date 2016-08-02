@@ -17,7 +17,6 @@ func NewApi(adminKey string, metrics met.Backend) *macaron.Macaron {
 	m := macaron.Classic()
 	m.Use(macaron.Renderer())
 	m.Use(GetContextHandler())
-	m.Use(Auth(adminKey))
 	bind := binding.Bind
 
 	m.Get("/", heartbeat)
@@ -44,7 +43,7 @@ func NewApi(adminKey string, metrics met.Backend) *macaron.Macaron {
 			m.Delete("/:id", DeleteTask)
 		})
 		m.Get("/socket/:agent/:ver", socket)
-	})
+	}, Auth(adminKey))
 
 	taskCreate = metrics.NewCount("api.tasks_create")
 	taskDelete = metrics.NewCount("api.tasks_delete")
