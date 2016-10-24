@@ -202,6 +202,7 @@ func (f *HostedtsdbPublisher) Publish(contentType string, content []byte, config
 		metricsArray[i] = &schema.MetricData{
 			OrgId:    orgId,
 			Name:     m.Namespace().Key(),
+			Metric:   m.Namespace().Key(),
 			Interval: interval,
 			Value:    value,
 			Time:     m.Timestamp().Unix(),
