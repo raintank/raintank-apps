@@ -21,6 +21,7 @@ type Session struct {
 	EventHandlers    map[string]*message.Handler
 	Conn             *websocket.Conn
 	writeMessageChan chan *message.Message
+	pendingMessage   *message.Message
 	closing          bool
 	rDone            chan struct{}
 	wDone            chan struct{}
@@ -93,7 +94,7 @@ func (s *Session) Close() {
 	select {
 	case <-s.wDone:
 	case <-time.After(time.Second * 2):
-		log.Warn("socketWriter taking too long. Closing connectio now. %d messages in queue will be lost.", len(s.writeMessageChan)+1)
+		log.Warn("socketWriter taking too long. Closing connection now. %d messages in queue will be lost.", len(s.writeMessageChan)+1)
 	}
 	s.Conn.Close()
 }
@@ -142,11 +143,13 @@ func (s *Session) socketWriter(done chan struct{}) {
 	defer s.Conn.Close()
 	defer close(done)
 
-	for msg := range s.writeMessageChan {
-		log.Debug("socket %s sending message", s.Id)
-		err := s.Conn.WriteMessage(msg.MessageType, msg.Body)
-		retryDelay := time.Millisecond * 25
-		for err != nil {
+	// if the session was closed due to a write error, the
+	// last message read from the channel wasnt sent. So lets
+	// send it now.
+	if s.pendingMessage != nil {
+		log.Debug("socket %s re-sending message", s.Id)
+		err := s.Conn.WriteMessage(s.pendingMessage.MessageType, s.pendingMessage.Body)
+		if err != nil {
 			s.Lock()
 			closing := s.closing
 			s.Unlock()
@@ -154,11 +157,24 @@ func (s *Session) socketWriter(done chan struct{}) {
 				return
 			}
 			log.Error(3, "unable to write to websocket: %s", err)
-			if retryDelay < time.Second {
-				retryDelay = retryDelay * 2
+			return
+		}
+		s.pendingMessage = nil
+	}
+
+	for msg := range s.writeMessageChan {
+		log.Debug("socket %s sending message", s.Id)
+		err := s.Conn.WriteMessage(msg.MessageType, msg.Body)
+		if err != nil {
+			s.Lock()
+			closing := s.closing
+			s.Unlock()
+			if closing {
+				return
 			}
-			time.Sleep(retryDelay)
-			err = s.Conn.WriteMessage(msg.MessageType, msg.Body)
+			log.Error(3, "unable to write to websocket: %s", err)
+			s.pendingMessage = msg
+			return
 		}
 	}
 	log.Debug("writeMessageChan closed.")
