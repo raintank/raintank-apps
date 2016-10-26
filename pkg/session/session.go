@@ -132,7 +132,7 @@ func (s *Session) socketReader(done chan struct{}) {
 		h, ok := s.EventHandlers[e.Event]
 		s.Unlock()
 		if ok {
-			h.Call(e.Payload)
+			go h.Call(e.Payload)
 		} else {
 			log.Warn("no handler for event: %s", e.Event)
 		}
