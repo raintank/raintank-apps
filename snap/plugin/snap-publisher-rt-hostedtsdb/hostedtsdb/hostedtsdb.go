@@ -2,11 +2,9 @@ package hostedtsdb
 
 import (
 	"bytes"
-	"encoding/gob"
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -14,25 +12,31 @@ import (
 	"sync"
 	"time"
 
-	"github.com/intelsdi-x/snap/control/plugin"
-	"github.com/intelsdi-x/snap/control/plugin/cpolicy"
-	"github.com/intelsdi-x/snap/core/ctypes"
-
+	"github.com/Sirupsen/logrus"
+	"github.com/intelsdi-x/snap-plugin-lib-go/v1/plugin"
 	"gopkg.in/raintank/schema.v1"
 	"gopkg.in/raintank/schema.v1/msg"
 )
 
 const (
-	name                 = "rt-hostedtsdb"
-	version              = 1
-	pluginType           = plugin.PublisherPluginType
 	maxMetricsPerPayload = 3000
 )
 
 var (
 	RemoteUrl *url.URL
 	Token     string
+	log       *logrus.Entry
 )
+
+func init() {
+	log = logrus.WithFields(logrus.Fields{
+		"plugin-name":    "rt-hostedtsdb",
+		"plugin-version": 2,
+		"plugin-type":    "publisher",
+	})
+
+	logrus.SetLevel(logrus.DebugLevel)
+}
 
 type HostedtsdbPublisher struct {
 }
@@ -67,17 +71,17 @@ func (q *WriteQueue) Flush() {
 	q.Metrics = q.Metrics[:0]
 	q.Unlock()
 	// Write the metrics to our HTTP server.
-	log.Printf("writing %d metrics to API", len(metrics))
+	log.Debug("writing %d metrics to API", len(metrics))
 	id := time.Now().UnixNano()
 	body, err := msg.CreateMsg(metrics, id, msg.FormatMetricDataArrayMsgp)
 	if err != nil {
-		log.Printf("Error: unable to convert metrics to MetricDataArrayMsgp. %s", err)
+		log.Errorf("Unable to convert metrics to MetricDataArrayMsgp. %s", err)
 		return
 	}
 	sent := false
 	for !sent {
 		if err = PostData("metrics", Token, body); err != nil {
-			log.Printf("Error: %s", err)
+			log.Errorf("failed to post metrics. %s", err)
 			time.Sleep(time.Second)
 		} else {
 			sent = true
@@ -111,28 +115,16 @@ func init() {
 	go writeQueue.Run()
 }
 
-func (f *HostedtsdbPublisher) Publish(contentType string, content []byte, config map[string]ctypes.ConfigValue) error {
-	log.Println("Publishing started")
-	var metrics []plugin.MetricType
-
-	switch contentType {
-	case plugin.SnapGOBContentType:
-		dec := gob.NewDecoder(bytes.NewBuffer(content))
-		if err := dec.Decode(&metrics); err != nil {
-			log.Printf("Error decoding: error=%v content=%v", err, content)
-			return err
-		}
-	default:
-		log.Printf("Error unknown content type '%v'", contentType)
-		return errors.New(fmt.Sprintf("Unknown content type '%s'", contentType))
-	}
-
-	log.Printf("publishing %d metrics to %v", len(metrics), config)
+func (f *HostedtsdbPublisher) Publish(metrics []plugin.Metric, cfg plugin.Config) error {
+	log.Debug("publishing %d metrics to %v", len(metrics), cfg)
 
 	// set the RemoteURL and Token when the first metrics is recieved.
 	var err error
 	if RemoteUrl == nil {
-		remote := config["raintank_tsdb_url"].(ctypes.ConfigValueStr).Value
+		remote, err := cfg.GetString("raintank_tsdb_url")
+		if err != nil {
+			return err
+		}
 		if !strings.HasSuffix(remote, "/") {
 			remote += "/"
 		}
@@ -143,44 +135,52 @@ func (f *HostedtsdbPublisher) Publish(contentType string, content []byte, config
 
 	}
 	if Token == "" {
-		Token = config["raintank_api_key"].(ctypes.ConfigValueStr).Value
+		Token, err = cfg.GetString("raintank_api_key")
+		if err != nil {
+			return err
+		}
 	}
 	//-----------------
 
-	interval := config["interval"].(ctypes.ConfigValueInt).Value
-	orgId := config["orgId"].(ctypes.ConfigValueInt).Value
+	interval, err := cfg.GetInt("interval")
+	if err != nil {
+		return err
+	}
+	orgId, err := cfg.GetInt("orgId")
+	if err != nil {
+		return err
+	}
 
 	metricsArray := make([]*schema.MetricData, len(metrics))
 	for i, m := range metrics {
 		var value float64
-		rawData := m.Data()
-		switch rawData.(type) {
+		switch m.Data.(type) {
 		case string:
 			//payload is an event.
 			go sendEvent(int64(orgId), &m)
 			continue
 		case int:
-			value = float64(rawData.(int))
+			value = float64(m.Data.(int))
 		case int8:
-			value = float64(rawData.(int8))
+			value = float64(m.Data.(int8))
 		case int16:
-			value = float64(rawData.(int16))
+			value = float64(m.Data.(int16))
 		case int32:
-			value = float64(rawData.(int32))
+			value = float64(m.Data.(int32))
 		case int64:
-			value = float64(rawData.(int64))
+			value = float64(m.Data.(int64))
 		case uint8:
-			value = float64(rawData.(uint8))
+			value = float64(m.Data.(uint8))
 		case uint16:
-			value = float64(rawData.(uint16))
+			value = float64(m.Data.(uint16))
 		case uint32:
-			value = float64(rawData.(uint32))
+			value = float64(m.Data.(uint32))
 		case uint64:
-			value = float64(rawData.(uint64))
+			value = float64(m.Data.(uint64))
 		case float32:
-			value = float64(rawData.(float32))
+			value = float64(m.Data.(float32))
 		case float64:
-			value = rawData.(float64)
+			value = m.Data.(float64)
 		default:
 			return errors.New("unknown data type")
 		}
@@ -188,7 +188,7 @@ func (f *HostedtsdbPublisher) Publish(contentType string, content []byte, config
 		tags := make([]string, 0)
 		mtype := "gauge"
 		unit := ""
-		for k, v := range m.Tags() {
+		for k, v := range m.Tags {
 			switch k {
 			case "mtype":
 				mtype = v
@@ -200,12 +200,12 @@ func (f *HostedtsdbPublisher) Publish(contentType string, content []byte, config
 		}
 
 		metricsArray[i] = &schema.MetricData{
-			OrgId:    orgId,
-			Name:     m.Namespace().Key(),
-			Metric:   m.Namespace().Key(),
-			Interval: interval,
+			OrgId:    int(orgId),
+			Name:     m.Namespace.Key(),
+			Metric:   m.Namespace.Key(),
+			Interval: int(interval),
 			Value:    value,
-			Time:     m.Timestamp().Unix(),
+			Time:     m.Timestamp.Unix(),
 			Mtype:    mtype,
 			Unit:     unit,
 			Tags:     tags,
@@ -217,31 +217,13 @@ func (f *HostedtsdbPublisher) Publish(contentType string, content []byte, config
 	return nil
 }
 
-func Meta() *plugin.PluginMeta {
-	return plugin.NewPluginMeta(
-		name,
-		version,
-		pluginType,
-		[]string{plugin.SnapGOBContentType},
-		[]string{plugin.SnapGOBContentType},
-		plugin.ConcurrencyCount(1000),
-	)
-}
-
-func (f *HostedtsdbPublisher) GetConfigPolicy() (*cpolicy.ConfigPolicy, error) {
-	c := cpolicy.New()
-	rule, _ := cpolicy.NewStringRule("raintank_tsdb_url", true)
-	rule2, _ := cpolicy.NewStringRule("raintank_api_key", true)
-	rule3, _ := cpolicy.NewIntegerRule("interval", true)
-	rule4, _ := cpolicy.NewIntegerRule("orgId", false, 0)
-
-	p := cpolicy.NewPolicyNode()
-	p.Add(rule)
-	p.Add(rule2)
-	p.Add(rule3)
-	p.Add(rule4)
-	c.Add([]string{""}, p)
-	return c, nil
+func (f *HostedtsdbPublisher) GetConfigPolicy() (plugin.ConfigPolicy, error) {
+	policy := plugin.NewConfigPolicy()
+	policy.AddNewStringRule([]string{""}, "raintank_tsdb_url", true)
+	policy.AddNewStringRule([]string{""}, "raintank_api_key", true)
+	policy.AddNewIntRule([]string{""}, "interval", true)
+	policy.AddNewIntRule([]string{""}, "orgId", true)
+	return *policy, nil
 }
 
 func handleErr(e error) {
@@ -269,14 +251,14 @@ func PostData(path, token string, body []byte) error {
 	return nil
 }
 
-func sendEvent(orgId int64, m *plugin.MetricType) {
-	ns := m.Namespace().Strings()
+func sendEvent(orgId int64, m *plugin.Metric) {
+	ns := m.Namespace.Strings()
 	if len(ns) != 4 {
-		log.Printf("Error: invalid event metric. Expected namesapce to be 4 fields.")
+		log.Error("Invalid event metric. Expected namesapce to be 4 fields.")
 		return
 	}
 	if ns[0] != "worldping" || ns[1] != "event" {
-		log.Printf("Error: invalid event metrics.  Metrics hould begin with 'worldping.event'")
+		log.Error("Invalid event metrics.  Metrics hould begin with 'worldping.event'")
 		return
 	}
 	hostname, _ := os.Hostname()
@@ -287,19 +269,19 @@ func sendEvent(orgId int64, m *plugin.MetricType) {
 		Severity:  ns[3],
 		Source:    hostname,
 		Timestamp: id / int64(time.Millisecond),
-		Message:   m.Data().(string),
-		Tags:      m.Tags(),
+		Message:   m.Data.(string),
+		Tags:      m.Tags,
 	}
 
 	body, err := msg.CreateProbeEventMsg(event, id, msg.FormatProbeEventMsgp)
 	if err != nil {
-		log.Printf("Error: unable to convert event to ProbeEventMsgp. %s", err)
+		log.Errorf("unable to convert event to ProbeEventMsgp. %s", err)
 		return
 	}
 	sent := false
 	for !sent {
 		if err = PostData("events", Token, body); err != nil {
-			log.Printf("Error: %s", err)
+			log.Errorf("filed to POST event payload: %s", err)
 			time.Sleep(time.Second)
 		} else {
 			sent = true

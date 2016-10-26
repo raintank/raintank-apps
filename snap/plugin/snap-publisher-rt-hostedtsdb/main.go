@@ -1,17 +1,17 @@
 package main
 
 import (
-	"os"
 	// Import the snap plugin library
-	"github.com/intelsdi-x/snap/control/plugin"
-	// Import our collector plugin implementation
+	"github.com/intelsdi-x/snap-plugin-lib-go/v1/plugin"
+	// Import our publisher plugin implementation
 	"github.com/raintank/raintank-apps/snap/plugin/snap-publisher-rt-hostedtsdb/hostedtsdb"
 )
 
-func main() {
-	// Define metadata about Plugin
-	meta := hostedtsdb.Meta()
+const (
+	pluginName    = "rt-hostedtsdb"
+	pluginVersion = 2
+)
 
-	// Start a collector
-	plugin.Start(meta, new(hostedtsdb.HostedtsdbPublisher), os.Args[1])
+func main() {
+	plugin.StartPublisher(new(hostedtsdb.HostedtsdbPublisher), pluginName, pluginVersion, plugin.ConcurrencyCount(1000))
 }
