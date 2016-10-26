@@ -55,6 +55,12 @@ func (s *Session) Emit(event *message.Event) error {
 	if err != nil {
 		return err
 	}
+	s.Lock()
+	closing := s.closing
+	s.Unlock()
+	if closing {
+		return fmt.Errorf("session is closing. Can't emit new events.")
+	}
 	s.writeMessageChan <- msg
 	return nil
 }
