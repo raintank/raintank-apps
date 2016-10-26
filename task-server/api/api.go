@@ -9,8 +9,9 @@ import (
 )
 
 var (
-	taskCreate met.Count
-	taskDelete met.Count
+	taskCreate      met.Count
+	taskDelete      met.Count
+	agentsConnected met.Gauge
 )
 
 func NewApi(adminKey string, metrics met.Backend) *macaron.Macaron {
@@ -47,6 +48,7 @@ func NewApi(adminKey string, metrics met.Backend) *macaron.Macaron {
 
 	taskCreate = metrics.NewCount("api.tasks_create")
 	taskDelete = metrics.NewCount("api.tasks_delete")
+	agentsConnected = metrics.NewGauge("api.agents_connected", 0)
 	return m
 }
 

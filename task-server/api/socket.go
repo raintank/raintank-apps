@@ -69,16 +69,23 @@ func (s *socketList) NewSocket(a *agent_session.AgentSession) {
 	if ok {
 		log.Debug("new connection for agent %d - %s, closing existing session", a.Agent.Id, a.Agent.Name)
 		existing.Close()
+		agentsConnected.Dec(1)
 	}
 	log.Debug("Agent %d is connected to this server.", a.Agent.Id)
 	s.Sockets[a.Agent.Id] = a
+	agentsConnected.Inc(1)
 	s.Unlock()
 }
 
 func (s *socketList) DeleteSocket(a *agent_session.AgentSession) {
 	s.Lock()
-	delete(s.Sockets, a.Agent.Id)
+	s.deleteSocket(a.Agent.Id)
 	s.Unlock()
+}
+
+func (s *socketList) deleteSocket(id int64) {
+	delete(s.Sockets, id)
+	agentsConnected.Dec(1)
 }
 
 func (s *socketList) CloseSocket(a *agent_session.AgentSession) {
@@ -87,7 +94,7 @@ func (s *socketList) CloseSocket(a *agent_session.AgentSession) {
 	if ok {
 		existing.Close()
 		log.Debug("removing session for Agent %d from socketList.", a.Agent.Id)
-		delete(s.Sockets, a.Agent.Id)
+		s.deleteSocket(a.Agent.Id)
 	}
 	s.Unlock()
 }
@@ -98,7 +105,7 @@ func (s *socketList) CloseSocketByAgentId(id int64) {
 	if ok {
 		existing.Close()
 		log.Debug("removing session for Agent %d from socketList.", id)
-		delete(s.Sockets, id)
+		s.deleteSocket(id)
 	}
 	s.Unlock()
 }
