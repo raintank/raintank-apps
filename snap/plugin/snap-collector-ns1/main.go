@@ -1,17 +1,17 @@
 package main
 
 import (
-	"os"
 	// Import the snap plugin library
-	"github.com/intelsdi-x/snap/control/plugin"
+	"github.com/intelsdi-x/snap-plugin-lib-go/v1/plugin"
 	// Import our collector plugin implementation
 	"github.com/raintank/raintank-apps/snap/plugin/snap-collector-ns1/ns1"
 )
 
-func main() {
-	// Define metadata about Plugin
-	meta := ns1.Meta()
+const (
+	pluginName    = "ns1"
+	pluginVersion = 2
+)
 
-	// Start a collector
-	plugin.Start(meta, new(ns1.Ns1), os.Args[1])
+func main() {
+	plugin.StartCollector(new(ns1.Ns1), pluginName, pluginVersion, plugin.ConcurrencyCount(1000))
 }

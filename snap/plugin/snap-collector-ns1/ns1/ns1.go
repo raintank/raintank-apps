@@ -5,20 +5,8 @@ import (
 	"time"
 
 	"github.com/gosimple/slug"
+	"github.com/intelsdi-x/snap-plugin-lib-go/v1/plugin"
 	. "github.com/intelsdi-x/snap-plugin-utilities/logger"
-	"github.com/intelsdi-x/snap/control/plugin"
-	"github.com/intelsdi-x/snap/control/plugin/cpolicy"
-	"github.com/intelsdi-x/snap/core"
-	"github.com/intelsdi-x/snap/core/ctypes"
-)
-
-const (
-	// Name of plugin
-	Name = "ns1"
-	// Version of plugin
-	Version = 1
-	// Type of plugin
-	Type = plugin.CollectorPluginType
 )
 
 var (
@@ -29,37 +17,33 @@ func init() {
 	slug.CustomSub = map[string]string{".": "_"}
 }
 
-// make sure that we actually satisify requierd interface
-var _ plugin.CollectorPlugin = (*Ns1)(nil)
-
 type Ns1 struct {
 }
 
 // CollectMetrics collects metrics for testing
-func (n *Ns1) CollectMetrics(mts []plugin.MetricType) ([]plugin.MetricType, error) {
+func (n *Ns1) CollectMetrics(mts []plugin.Metric) ([]plugin.Metric, error) {
 	var err error
-	metrics := make([]plugin.MetricType, 0)
-	conf := mts[0].Config().Table()
-	apiKey, ok := conf["ns1_key"]
-	if !ok || apiKey.(ctypes.ConfigValueStr).Value == "" {
+	metrics := make([]plugin.Metric, 0)
+	apiKey, err := mts[0].Config.GetString("ns1_key")
+	if err != nil || apiKey == "" {
 		LogError("ns1_key missing from config.")
-		return nil, fmt.Errorf("ns1_key missing from config, %v", conf)
+		return nil, fmt.Errorf("ns1_key missing from config")
 	}
-	client, err := NewClient("https://api.nsone.net/", apiKey.(ctypes.ConfigValueStr).Value, false)
+	client, err := NewClient("https://api.nsone.net/", apiKey, false)
 	if err != nil {
 		LogError("failed to create NS1 api client.", "error", err)
 		return nil, err
 	}
 	LogDebug("request to collect metrics", "metric_count", len(mts))
-	zoneMts := make([]plugin.MetricType, 0)
-	monitorMts := make([]plugin.MetricType, 0)
-	for _, metricType := range mts {
-		ns := metricType.Namespace()
-		if len(ns) > 4 && ns[3].Value == "zones" {
-			zoneMts = append(zoneMts, metricType)
+	zoneMts := make([]plugin.Metric, 0)
+	monitorMts := make([]plugin.Metric, 0)
+	for _, metric := range mts {
+		ns := metric.Namespace.Strings()
+		if len(ns) > 4 && ns[3] == "zones" {
+			zoneMts = append(zoneMts, metric)
 		}
-		if len(ns) > 4 && ns[3].Value == "monitoring" {
-			monitorMts = append(monitorMts, metricType)
+		if len(ns) > 4 && ns[3] == "monitoring" {
+			monitorMts = append(monitorMts, metric)
 		}
 	}
 
@@ -88,79 +72,98 @@ func (n *Ns1) CollectMetrics(mts []plugin.MetricType) ([]plugin.MetricType, erro
 	return metrics, nil
 }
 
-func (n *Ns1) ZoneMetrics(client *Client, mts []plugin.MetricType) ([]plugin.MetricType, error) {
-	metrics := make([]plugin.MetricType, 0)
-	conf := mts[0].Config().Table()
-	zone, ok := conf["zone"]
-	if !ok || zone.(ctypes.ConfigValueStr).Value == "" {
-		LogError("zone missing from config.")
-		return metrics, nil
-	}
-	zSlug := slug.Make(zone.(ctypes.ConfigValueStr).Value)
+func (n *Ns1) ZoneMetrics(client *Client, mts []plugin.Metric) ([]plugin.Metric, error) {
+	metrics := make([]plugin.Metric, 0)
+	for _, mt := range mts {
+		zone, err := mt.Config.GetString("zone")
+		if err != nil || zone == "" {
+			LogError("zone missing from config.")
+			continue
+		}
+		zSlug := slug.Make(zone)
 
-	qps, err := client.Qps(zone.(ctypes.ConfigValueStr).Value)
-	if err != nil {
-		return nil, err
+		qps, err := client.Qps(zone)
+		if err != nil {
+			LogError("failed to get zone QPS.", "error", err)
+			continue
+		}
+		ns := mt.Namespace.Strings()
+		ns[4] = zSlug
+		mt.Namespace = plugin.NewNamespace(ns...)
+		mt.Data = qps.Qps
+		mt.Timestamp = time.Now()
+		metrics = append(metrics, mt)
 	}
-	metrics = append(metrics, plugin.MetricType{
-		Data_:      qps.Qps,
-		Namespace_: core.NewNamespace("raintank", "apps", "ns1", "zones", zSlug, "qps"),
-		Timestamp_: time.Now(),
-		Version_:   mts[0].Version(),
-	})
-
 	return metrics, nil
 }
 
-func (n *Ns1) MonitorsMetrics(client *Client, mts []plugin.MetricType) ([]plugin.MetricType, error) {
-	metrics := make([]plugin.MetricType, 0)
-	conf := mts[0].Config().Table()
-	jobId, ok := conf["jobId"]
-	if !ok || jobId.(ctypes.ConfigValueStr).Value == "" {
-		LogError("jobId missing from config.")
-		return metrics, nil
-	}
-	jobName, ok := conf["jobName"]
-	if !ok || jobName.(ctypes.ConfigValueStr).Value == "" {
-		LogError("jobName missing from config.")
-		return metrics, nil
-	}
-
-	jSlug := slug.Make(jobName.(ctypes.ConfigValueStr).Value)
-
-	j, err := client.MonitoringJobById(jobId.(ctypes.ConfigValueStr).Value)
-	if err != nil {
-		LogError("failed to query for job.", err)
-		return nil, err
-	}
-
-	for region, status := range j.Status {
-		data, ok := statusMap[status.Status]
+func (n *Ns1) MonitorsMetrics(client *Client, mts []plugin.Metric) ([]plugin.Metric, error) {
+	metrics := make([]plugin.Metric, 0)
+	ts := time.Now()
+	jobs := make(map[string]*MonitoringJob)
+	jobsMetrics := make(map[string][]*MonitoringMetric)
+	for _, mt := range mts {
+		jobId, err := mt.Config.GetString("jobId")
+		if err != nil || jobId == "" {
+			LogError("jobId missing from config.")
+			continue
+		}
+		jobName, err := mt.Config.GetString("jobName")
+		if err != nil || jobName == "" {
+			LogError("jobName missing from config.")
+			continue
+		}
+		jSlug := slug.Make(jobName)
+		j, ok := jobs[jobId]
 		if !ok {
-			return nil, fmt.Errorf("Unknown monitor status")
+			j, err = client.MonitoringJobById(jobId)
+			if err != nil {
+				LogError("failed to query for job.", "error", err)
+				continue
+			}
+			jobs[jobId] = j
 		}
 
-		metrics = append(metrics, plugin.MetricType{
-			Data_:      data,
-			Namespace_: core.NewNamespace("raintank", "apps", "ns1", "monitoring", jSlug, region, "state"),
-			Timestamp_: time.Now(),
-			Version_:   mts[0].Version(),
-		})
+		if mt.Namespace.Element(6).Value == "state" {
+			for region, status := range j.Status {
+				data, ok := statusMap[status.Status]
+				if !ok {
+					return nil, fmt.Errorf("Unknown monitor status")
+				}
+				mt.Data = data
+				mt.Timestamp = ts
+				ns := mt.Namespace.Strings()
+				ns[4] = jSlug
+				ns[5] = region
+				mt.Namespace = plugin.NewNamespace(ns...)
 
-	}
+				metrics = append(metrics, mt)
+			}
+		} else {
+			jobMetrics, ok := jobsMetrics[j.Id]
+			if !ok {
+				jobMetrics, err := client.MonitoringMetics(j.Id)
+				if err != nil {
+					LogError("failed to get monitoring metrics for job", "error", err)
+					continue
+				}
+				jobsMetrics[j.Id] = jobMetrics
+			}
+			ns := mt.Namespace.Strings()
+			for _, jm := range jobMetrics {
+				for stat, m := range jm.Metrics {
+					if stat != mt.Namespace.Element(6).Value {
+						continue
+					}
+					mt.Data = m.Avg
+					mt.Timestamp = ts
+					ns[4] = jSlug
+					ns[5] = jm.Region
+					mt.Namespace = plugin.NewNamespace(ns...)
 
-	jobMetrics, err := client.MonitoringMetics(j.Id)
-	if err != nil {
-		return nil, err
-	}
-	for _, jm := range jobMetrics {
-		for stat, m := range jm.Metrics {
-			metrics = append(metrics, plugin.MetricType{
-				Data_:      m.Avg,
-				Namespace_: core.NewNamespace("raintank", "apps", "ns1", "monitoring", jSlug, jm.Region, stat),
-				Timestamp_: time.Now(),
-				Version_:   mts[0].Version(),
-			})
+					metrics = append(metrics, mt)
+				}
+			}
 		}
 	}
 
@@ -168,59 +171,51 @@ func (n *Ns1) MonitorsMetrics(client *Client, mts []plugin.MetricType) ([]plugin
 }
 
 //GetMetricTypes returns metric types for testing
-func (n *Ns1) GetMetricTypes(cfg plugin.ConfigType) ([]plugin.MetricType, error) {
-	mts := []plugin.MetricType{}
+func (n *Ns1) GetMetricTypes(cfg plugin.Config) ([]plugin.Metric, error) {
+	mts := []plugin.Metric{}
 
-	mts = append(mts, plugin.MetricType{
-		Namespace_: core.NewNamespace("raintank", "apps", "ns1", "zones", "*", "qps"),
-		Config_:    cfg.ConfigDataNode,
+	mts = append(mts, plugin.Metric{
+		Namespace: plugin.NewNamespace("raintank", "apps", "ns1", "zones").
+			AddDynamicElement("zone", "DNS Zone Slug").
+			AddStaticElement("qps"),
+		Version: 1,
 	})
-	mts = append(mts, plugin.MetricType{
-		Namespace_: core.NewNamespace("raintank", "apps", "ns1", "monitoring", "*", "*", "state"),
-		Config_:    cfg.ConfigDataNode,
+	mts = append(mts, plugin.Metric{
+		Namespace: plugin.NewNamespace("raintank", "apps", "ns1", "monitoring").
+			AddDynamicElement("job", "Monitoring Job Name slug").
+			AddDynamicElement("region", "Region").
+			AddStaticElement("state"),
+		Version: 1,
 	})
-	mts = append(mts, plugin.MetricType{
-		Namespace_: core.NewNamespace("raintank", "apps", "ns1", "monitoring", "*", "*", "rtt"),
-		Config_:    cfg.ConfigDataNode,
+	mts = append(mts, plugin.Metric{
+		Namespace: plugin.NewNamespace("raintank", "apps", "ns1", "monitoring").
+			AddDynamicElement("job", "Monitoring Job Name slug").
+			AddDynamicElement("region", "Region").
+			AddStaticElement("rtt"),
+		Version: 1,
 	})
-	mts = append(mts, plugin.MetricType{
-		Namespace_: core.NewNamespace("raintank", "apps", "ns1", "monitoring", "*", "*", "loss"),
-		Config_:    cfg.ConfigDataNode,
+	mts = append(mts, plugin.Metric{
+		Namespace: plugin.NewNamespace("raintank", "apps", "ns1", "monitoring").
+			AddDynamicElement("job", "Monitoring Job Name slug").
+			AddDynamicElement("region", "Region").
+			AddStaticElement("loss"),
+		Version: 1,
 	})
-	mts = append(mts, plugin.MetricType{
-		Namespace_: core.NewNamespace("raintank", "apps", "ns1", "monitoring", "*", "*", "connect"),
-		Config_:    cfg.ConfigDataNode,
+	mts = append(mts, plugin.Metric{
+		Namespace: plugin.NewNamespace("raintank", "apps", "ns1", "monitoring").
+			AddDynamicElement("job", "Monitoring Job Name slug").
+			AddDynamicElement("region", "Region").
+			AddStaticElement("connect"),
+		Version: 1,
 	})
-
 	return mts, nil
 }
 
-//GetConfigPolicy returns a ConfigPolicyTree for testing
-func (n *Ns1) GetConfigPolicy() (*cpolicy.ConfigPolicy, error) {
-	c := cpolicy.New()
-	rule, _ := cpolicy.NewStringRule("ns1_key", true)
-	rule2, _ := cpolicy.NewStringRule("zone", false, "")
-	rule3, _ := cpolicy.NewStringRule("jobId", false, "")
-	rule4, _ := cpolicy.NewStringRule("jobName", false, "")
-	p := cpolicy.NewPolicyNode()
-	p.Add(rule)
-	p.Add(rule2)
-	p.Add(rule3)
-	p.Add(rule4)
-
-	c.Add([]string{"raintank", "apps", "ns1"}, p)
-	return c, nil
-}
-
-//Meta returns meta data for testing
-func Meta() *plugin.PluginMeta {
-	return plugin.NewPluginMeta(
-		Name,
-		Version,
-		Type,
-		[]string{plugin.SnapGOBContentType},
-		[]string{plugin.SnapGOBContentType},
-		plugin.Unsecure(true),
-		plugin.ConcurrencyCount(1000),
-	)
+func (f *Ns1) GetConfigPolicy() (plugin.ConfigPolicy, error) {
+	policy := plugin.NewConfigPolicy()
+	policy.AddNewStringRule([]string{"raintank", "apps", "ns1"}, "ns1_key", true)
+	policy.AddNewStringRule([]string{"raintank", "apps", "ns1"}, "zone", false)
+	policy.AddNewStringRule([]string{"raintank", "apps", "ns1"}, "jobId", false)
+	policy.AddNewStringRule([]string{"raintank", "apps", "ns1"}, "jobName", false)
+	return *policy, nil
 }
