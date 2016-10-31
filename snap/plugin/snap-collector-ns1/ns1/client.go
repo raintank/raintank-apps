@@ -134,6 +134,11 @@ func (c *Client) get(path string, query interface{}) ([]byte, error) {
 }
 
 func handleResp(rsp *http.Response) ([]byte, error) {
+	b, err := ioutil.ReadAll(rsp.Body)
+	rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
 	if rsp.StatusCode == 401 {
 		return nil, ErrAuthFailure
 	}
@@ -145,11 +150,6 @@ func handleResp(rsp *http.Response) ([]byte, error) {
 	}
 	if rsp.StatusCode != 200 {
 		return nil, fmt.Errorf("Unknown error encountered. %s", rsp.Status)
-	}
-	b, err := ioutil.ReadAll(rsp.Body)
-	rsp.Body.Close()
-	if err != nil {
-		return nil, err
 	}
 
 	return b, nil
