@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -99,10 +100,14 @@ func (t *TaskCache) Sync() {
 	}
 
 	for name := range t.SnapTasks {
+		// dont remove tasks that were not added by us.
+		if !strings.HasPrefix(name, "raintank-apps") {
+			continue
+		}
 		if _, ok := tasksByName[name]; !ok {
-			log.Info("%s not in taskList. removing from snap.")
+			log.Info("%s not in taskList. removing from snap.", name)
 			if err := t.removeSnapTask(name); err != nil {
-				log.Error(3, "failed to remove snapTask. %s", name)
+				log.Error(3, "failed to remove snapTask %s. %s", name, err)
 			}
 		}
 	}
