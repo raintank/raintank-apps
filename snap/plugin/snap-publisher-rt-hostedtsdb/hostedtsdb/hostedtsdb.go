@@ -198,11 +198,11 @@ func (f *HostedtsdbPublisher) Publish(metrics []plugin.Metric, cfg plugin.Config
 				tags = append(tags, fmt.Sprintf("%s:%s", k, v))
 			}
 		}
-
+		key := strings.Join(m.Namespace.Strings(), ".")
 		metricsArray[i] = &schema.MetricData{
 			OrgId:    int(orgId),
-			Name:     m.Namespace.Key(),
-			Metric:   m.Namespace.Key(),
+			Name:     key,
+			Metric:   key,
 			Interval: int(interval),
 			Value:    value,
 			Time:     m.Timestamp.Unix(),
