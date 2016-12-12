@@ -146,6 +146,7 @@ func (t *TaskCache) IndexSnapTasks() error {
 	t.Lock()
 	t.SnapTasks = make(map[string]*rbody.ScheduledTask)
 	for _, task := range tasks {
+		log.Debug("task %s running in snap.", task.Name)
 		t.SnapTasks[task.Name] = task
 	}
 	if !t.initialized {
