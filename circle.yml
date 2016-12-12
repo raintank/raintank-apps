@@ -4,18 +4,7 @@ machine:
     PATH: $PATH:/home/ubuntu/go/bin
 dependencies:
   override:
-    - mkdir -p /home/ubuntu/go/src/github.com/$CIRCLE_PROJECT_USERNAME
-    - ln -s /home/ubuntu/$CIRCLE_PROJECT_REPONAME /home/ubuntu/go/src/github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME
-    - go get -d github.com/intelsdi-x/snap
-    - make deps:
-        pwd:
-          ../go/src/github.com/intelsdi-x/snap
-    - go get -t ./...:
-        pwd:
-          ../go/src/github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME
-    - bundle install:
-        pwd:
-          scripts
+    - scripts/deps.sh
 general:
   artifacts:
     - build/
