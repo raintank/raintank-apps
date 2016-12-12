@@ -109,7 +109,8 @@ func (c *Client) GetSnapTasks() ([]*rbody.ScheduledTask, error) {
 	var tasks []*rbody.ScheduledTask
 	if resp.Err == nil {
 		tasks = make([]*rbody.ScheduledTask, len(resp.ScheduledTasks))
-		for i, t := range resp.ScheduledTasks {
+		for i := range resp.ScheduledTasks {
+			t := resp.ScheduledTasks[i]
 			tasks[i] = &t
 		}
 	}
