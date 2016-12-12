@@ -24,6 +24,9 @@ glide up
 cd /home/ubuntu/go/src/github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME
 go get -t ./...
 
+cd /home/ubuntu/go/src/github.com/go-xorm/xorm
+git checkout v0.5.4
+
 
 cd $BASE
 bundle install
