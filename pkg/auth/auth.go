@@ -30,8 +30,8 @@ type CacheItem struct {
 func (a *AuthCache) Get(key string) (*SignedInUser, bool) {
 	a.RLock()
 	defer a.RUnlock()
-	if c, ok := a.items[key]; ok && c.ExpireTime.After(time.Now()) {
-		return c.User, true
+	if c, ok := a.items[key]; ok {
+		return c.User, c.ExpireTime.After(time.Now())
 	}
 	return nil, false
 }
@@ -64,29 +64,61 @@ func Auth(adminKey, keyString string) (*SignedInUser, error) {
 	// check the cache
 	log.Debug("Checking cache for apiKey")
 	user, cached := cache.Get(keyString)
-	if user != nil {
-		log.Debug("valid key cached")
-		return user, nil
-	}
 	if cached {
+		if user != nil {
+			log.Debug("valid key cached")
+			return user, nil
+		}
+
 		log.Debug("invalid key cached")
 		return nil, ErrInvalidApiKey
 	}
 
-	//validate the API key against grafana.net
+	// validate the API key against grafana.net with a 1s timeout
+	timeout := time.Duration(1 * time.Second)
+	client := http.Client{
+		Timeout: timeout,
+	}
+
 	payload := url.Values{}
 	payload.Add("token", keyString)
-	res, err := http.PostForm("https://grafana.net/api/api-keys/check", payload)
 
+	res, err := client.PostForm("https://grafana.net/api/api-keys/check", payload)
 	if err != nil {
 		log.Error(3, "failed to check apiKey. %s", err)
+
+		// if we have an expired cached entry for the user, reset the cache expiration and return that
+		// this allows the service to remain available if grafana.net is unreachable
+		if user != nil {
+			log.Debug("re-caching validKey response for %d seconds", validTTL/time.Second)
+			cache.Set(keyString, user, validTTL)
+			return user, nil
+		}
+
 		return nil, err
 	}
+
 	body, err := ioutil.ReadAll(res.Body)
-	log.Debug("apiKey check response was: %s", body)
 	res.Body.Close()
+
+	log.Debug("apiKey check response was: %s", body)
+
+	if res.StatusCode >= 500 {
+		log.Error(3, "failed to check apiKey. %s", res.Status)
+
+		// if we have an expired cached entry for the user, reset the cache expiration and return that
+		// this allows the service to remain available if grafana.net is unreachable
+		if user != nil {
+			log.Debug("re-caching validKey response for %d seconds", validTTL/time.Second)
+			cache.Set(keyString, user, validTTL)
+			return user, nil
+		}
+
+		return nil, err
+	}
+
 	if res.StatusCode != 200 {
-		//add the invalid key to the cache
+		// add the invalid key to the cache
 		log.Debug("Caching invalidKey response for %d seconds", invalidTTL/time.Second)
 		cache.Set(keyString, nil, invalidTTL)
 
