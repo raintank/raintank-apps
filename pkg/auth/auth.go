@@ -3,6 +3,7 @@ package auth
 import (
 	"encoding/json"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/url"
 	"sync"
@@ -15,6 +16,24 @@ var (
 	validTTL   = time.Minute * 5
 	invalidTTL = time.Second * 30
 	cache      *AuthCache
+
+	// global HTTP client.  By sharing the client we can take
+	// advantage of keepalives and re-use connections instead
+	// of establishing a new tcp connection for every request.
+	client = &http.Client{
+		Timeout: time.Second,
+		Transport: &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			DialContext: (&net.Dialer{
+				Timeout:   5 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).DialContext,
+			MaxIdleConns:          10,
+			IdleConnTimeout:       300 * time.Second,
+			TLSHandshakeTimeout:   5 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+		},
+	}
 )
 
 type AuthCache struct {
@@ -72,12 +91,6 @@ func Auth(adminKey, keyString string) (*SignedInUser, error) {
 
 		log.Debug("invalid key cached")
 		return nil, ErrInvalidApiKey
-	}
-
-	// validate the API key against grafana.net with a 1s timeout
-	timeout := time.Duration(1 * time.Second)
-	client := http.Client{
-		Timeout: timeout,
 	}
 
 	payload := url.Values{}
