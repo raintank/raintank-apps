@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"time"
 
 	"github.com/google/go-querystring/query"
 )
@@ -106,6 +107,7 @@ func NewClient(serverUrl, apiKey string, insecure bool) (*Client, error) {
 					InsecureSkipVerify: insecure,
 				},
 			},
+			Timeout: time.Second * 60,
 		},
 		prefix: u.String(),
 	}

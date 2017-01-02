@@ -84,7 +84,7 @@ func (n *Ns1) ZoneMetrics(client *Client, mts []plugin.Metric) ([]plugin.Metric,
 
 		qps, err := client.Qps(zone)
 		if err != nil {
-			LogError("failed to get zone QPS.", "error", err)
+			LogError("failed to get zone QPS for zone - "+zone+".", "error", err)
 			continue
 		}
 		ns := mt.Namespace.Strings()
@@ -118,7 +118,7 @@ func (n *Ns1) MonitorsMetrics(client *Client, mts []plugin.Metric) ([]plugin.Met
 		if !ok {
 			j, err = client.MonitoringJobById(jobId)
 			if err != nil {
-				LogError("failed to query for job.", "error", err)
+				LogError("failed to query for job - "+jobId+" .", "error", err)
 				continue
 			}
 			jobs[jobId] = j
@@ -144,7 +144,7 @@ func (n *Ns1) MonitorsMetrics(client *Client, mts []plugin.Metric) ([]plugin.Met
 			if !ok {
 				jobMetrics, err := client.MonitoringMetics(j.Id)
 				if err != nil {
-					LogError("failed to get monitoring metrics for job", "error", err)
+					LogError("failed to get monitoring metrics for job - "+j.Id, "error", err)
 					continue
 				}
 				jobsMetrics[j.Id] = jobMetrics

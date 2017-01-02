@@ -9,9 +9,9 @@ import (
 
 const (
 	pluginName    = "ns1"
-	pluginVersion = 2
+	pluginVersion = 4
 )
 
 func main() {
-	plugin.StartCollector(new(ns1.Ns1), pluginName, pluginVersion, plugin.ConcurrencyCount(1000))
+	plugin.StartCollector(new(ns1.Ns1), pluginName, pluginVersion, plugin.ConcurrencyCount(50))
 }
