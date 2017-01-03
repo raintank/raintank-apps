@@ -21,7 +21,7 @@ var (
 	// advantage of keepalives and re-use connections instead
 	// of establishing a new tcp connection for every request.
 	client = &http.Client{
-		Timeout: time.Second,
+		Timeout: time.Second * 2,
 		Transport: &http.Transport{
 			Proxy: http.ProxyFromEnvironment,
 			DialContext: (&net.Dialer{
