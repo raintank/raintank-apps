@@ -2,6 +2,8 @@ package auth
 
 import (
 	"encoding/json"
+	"flag"
+	"fmt"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -13,9 +15,10 @@ import (
 )
 
 var (
-	validTTL   = time.Minute * 5
-	invalidTTL = time.Second * 30
-	cache      *AuthCache
+	validTTL     = time.Minute * 5
+	invalidTTL   = time.Second * 30
+	authEndpoint string
+	cache        *AuthCache
 
 	// global HTTP client.  By sharing the client we can take
 	// advantage of keepalives and re-use connections instead
@@ -65,6 +68,7 @@ func (a *AuthCache) Set(key string, u *SignedInUser, ttl time.Duration) {
 }
 
 func init() {
+	flag.StringVar(&authEndpoint, "auth-endpoint", "https://grafana.net", "Endpoint to authenticate users on")
 	cache = &AuthCache{items: make(map[string]CacheItem)}
 }
 
@@ -96,7 +100,7 @@ func Auth(adminKey, keyString string) (*SignedInUser, error) {
 	payload := url.Values{}
 	payload.Add("token", keyString)
 
-	res, err := client.PostForm("https://grafana.net/api/api-keys/check", payload)
+	res, err := client.PostForm(fmt.Sprintf("%s/api/api-keys/check", authEndpoint), payload)
 	if err != nil {
 		log.Error(3, "failed to check apiKey. %s", err)
 
