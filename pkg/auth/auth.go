@@ -17,7 +17,7 @@ import (
 var (
 	validTTL     = time.Minute * 5
 	invalidTTL   = time.Second * 30
-	authEndpoint string
+	authEndpoint = "https://grafana.net"
 	cache        *AuthCache
 
 	// global HTTP client.  By sharing the client we can take
@@ -68,7 +68,7 @@ func (a *AuthCache) Set(key string, u *SignedInUser, ttl time.Duration) {
 }
 
 func init() {
-	flag.StringVar(&authEndpoint, "auth-endpoint", "https://grafana.net", "Endpoint to authenticate users on")
+	flag.StringVar(&authEndpoint, "auth-endpoint", authEndpoint, "Endpoint to authenticate users on")
 	cache = &AuthCache{items: make(map[string]CacheItem)}
 }
 
