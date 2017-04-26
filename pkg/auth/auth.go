@@ -87,6 +87,12 @@ func (a *AuthCache) Set(key string, u *SignedInUser, ttl time.Duration) {
 	a.Unlock()
 }
 
+func (a *AuthCache) Clear() {
+	a.Lock()
+	a.items = make(map[string]CacheItem)
+	a.Unlock()
+}
+
 func init() {
 	flag.StringVar(&authEndpoint, "auth-endpoint", authEndpoint, "Endpoint to authenticate users on")
 	flag.DurationVar(&validTTL, "valid-ttl", time.Minute*5, "how long valid responses should be cached")
@@ -172,14 +178,25 @@ func Auth(adminKey, keyString string) (*SignedInUser, error) {
 		return nil, err
 	}
 
-	for _, id := range validOrgIds {
-		if user.OrgId == id {
-			// add the user to the cache.
-			log.Debug("Caching validKey response for %d seconds", validTTL/time.Second)
-			cache.Set(keyString, user, validTTL)
-			return user, nil
+	valid := false
+	// keeping it backwards compatible
+	if len(validOrgIds) == 0 {
+		valid = true
+	} else {
+		for _, id := range validOrgIds {
+			if user.OrgId == id {
+				valid = true
+				break
+			}
 		}
 	}
 
-	return nil, ErrInvalidOrgId
+	if !valid {
+		return nil, ErrInvalidOrgId
+	}
+
+	// add the user to the cache.
+	log.Debug("Caching validKey response for %d seconds", validTTL/time.Second)
+	cache.Set(keyString, user, validTTL)
+	return user, nil
 }
