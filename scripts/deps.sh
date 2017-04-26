@@ -21,6 +21,12 @@ go get github.com/intelsdi-x/snap-plugin-lib-go/...
 cd /home/ubuntu/go/src/github.com/intelsdi-x/snap-plugin-lib-go
 glide up
 
+mkdir -p /home/ubuntu/go/src/github.com/google
+cd /home/ubuntu/go/src/github.com/google
+git clone https://github.com/google/go-github
+cd go-github
+git checkout 2ec691a35b10b8c1471955a96d0f182a572e1cad
+
 cd /home/ubuntu/go/src/github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME
 go get -t ./...
 
