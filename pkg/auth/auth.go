@@ -2,20 +2,43 @@ package auth
 
 import (
 	"encoding/json"
+	"flag"
+	"fmt"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/raintank/worldping-api/pkg/log"
 )
 
+type int64SliceFlag []int64
+
+func (i *int64SliceFlag) Set(value string) error {
+	for _, split := range strings.Split(value, ",") {
+		parsed, err := strconv.Atoi(split)
+		if err != nil {
+			return err
+		}
+		*i = append(*i, int64(parsed))
+	}
+	return nil
+}
+
+func (i *int64SliceFlag) String() string {
+	return strings.Trim(strings.Replace(fmt.Sprint(*i), " ", ", ", -1), "[]")
+}
+
 var (
-	validTTL   = time.Minute * 5
-	invalidTTL = time.Second * 30
-	cache      *AuthCache
+	validTTL     = time.Minute * 5
+	invalidTTL   = time.Second * 30
+	authEndpoint = "https://grafana.net"
+	validOrgIds  = int64SliceFlag{}
+	cache        *AuthCache
 
 	// global HTTP client.  By sharing the client we can take
 	// advantage of keepalives and re-use connections instead
@@ -64,7 +87,17 @@ func (a *AuthCache) Set(key string, u *SignedInUser, ttl time.Duration) {
 	a.Unlock()
 }
 
+func (a *AuthCache) Clear() {
+	a.Lock()
+	a.items = make(map[string]CacheItem)
+	a.Unlock()
+}
+
 func init() {
+	flag.StringVar(&authEndpoint, "auth-endpoint", authEndpoint, "Endpoint to authenticate users on")
+	flag.DurationVar(&validTTL, "valid-ttl", validTTL, "how long valid responses should be cached")
+	flag.DurationVar(&invalidTTL, "invalid-ttl", invalidTTL, "how long invalid responses should be cached")
+	flag.Var(&validOrgIds, "valid-org-id", "org ids that may be passed separated by ,")
 	cache = &AuthCache{items: make(map[string]CacheItem)}
 }
 
@@ -96,7 +129,7 @@ func Auth(adminKey, keyString string) (*SignedInUser, error) {
 	payload := url.Values{}
 	payload.Add("token", keyString)
 
-	res, err := client.PostForm("https://grafana.net/api/api-keys/check", payload)
+	res, err := client.PostForm(fmt.Sprintf("%s/api/api-keys/check", authEndpoint), payload)
 	if err != nil {
 		log.Error(3, "failed to check apiKey. %s", err)
 
@@ -143,6 +176,23 @@ func Auth(adminKey, keyString string) (*SignedInUser, error) {
 	if err != nil {
 		log.Error(3, "failed to parse api-keys/check response. %s", err)
 		return nil, err
+	}
+
+	valid := false
+	// keeping it backwards compatible
+	if len(validOrgIds) == 0 {
+		valid = true
+	} else {
+		for _, id := range validOrgIds {
+			if user.OrgId == id {
+				valid = true
+				break
+			}
+		}
+	}
+
+	if !valid {
+		return nil, ErrInvalidOrgId
 	}
 
 	// add the user to the cache.

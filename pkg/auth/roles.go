@@ -9,6 +9,7 @@ import (
 var (
 	ErrInvalidRoleType = errors.New("Invalid role type")
 	ErrInvalidApiKey   = errors.New("Invalid API Key")
+	ErrInvalidOrgId    = errors.New("Invalid Org Id")
 )
 
 type RoleType string

@@ -67,6 +67,59 @@ func TestAuth(t *testing.T) {
 		mockTransport.Reset()
 	})
 
+	Convey("When authenticating with invalid org id 1", t, func() {
+		cache.Clear()
+		responder, err := httpmock.NewJsonResponder(200, &testUser)
+		So(err, ShouldBeNil)
+		mockTransport.RegisterResponder("POST", "https://grafana.net/api/api-keys/check", responder)
+
+		originalValidOrgIds := validOrgIds
+		defer func() { validOrgIds = originalValidOrgIds }()
+		validOrgIds = int64SliceFlag{1}
+
+		user, err := Auth("key", "foo")
+		So(user, ShouldBeNil)
+		So(err, ShouldEqual, ErrInvalidOrgId)
+		mockTransport.Reset()
+	})
+
+	Convey("When authenticating with invalid org id 2", t, func() {
+		cache.Clear()
+		responder, err := httpmock.NewJsonResponder(200, &testUser)
+		So(err, ShouldBeNil)
+		mockTransport.RegisterResponder("POST", "https://grafana.net/api/api-keys/check", responder)
+
+		originalValidOrgIds := validOrgIds
+		defer func() { validOrgIds = originalValidOrgIds }()
+
+		validOrgIds = int64SliceFlag{3, 4, 5}
+		user, err := Auth("key", "foo")
+		So(user, ShouldBeNil)
+		So(err, ShouldEqual, ErrInvalidOrgId)
+		mockTransport.Reset()
+	})
+
+	Convey("When authenticating with explicitely valid org id", t, func() {
+		cache.Clear()
+		responder, err := httpmock.NewJsonResponder(200, &testUser)
+		So(err, ShouldBeNil)
+		mockTransport.RegisterResponder("POST", "https://grafana.net/api/api-keys/check", responder)
+
+		originalValidOrgIds := validOrgIds
+		defer func() { validOrgIds = originalValidOrgIds }()
+
+		validOrgIds = int64SliceFlag{1, 2, 3, 4}
+		user, err := Auth("key", "foo")
+		So(err, ShouldBeNil)
+		So(user.Role, ShouldEqual, testUser.Role)
+		So(user.OrgId, ShouldEqual, testUser.OrgId)
+		So(user.OrgName, ShouldEqual, testUser.OrgName)
+		So(user.OrgSlug, ShouldEqual, testUser.OrgSlug)
+		So(user.IsAdmin, ShouldEqual, testUser.IsAdmin)
+		So(user.key, ShouldEqual, testUser.key)
+		mockTransport.Reset()
+	})
+
 	Convey("When authenticating using expired cache", t, func() {
 		cache.Set("bar", &testUser, 0)
 		responder, err := httpmock.NewJsonResponder(200, &testUser)
