@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -12,8 +13,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/raintank/worldping-api/pkg/log"
 )
 
 type int64SliceFlag []int64
@@ -39,6 +38,8 @@ var (
 	authEndpoint = "https://grafana.net"
 	validOrgIds  = int64SliceFlag{}
 	cache        *AuthCache
+
+	Debug = false
 
 	// global HTTP client.  By sharing the client we can take
 	// advantage of keepalives and re-use connections instead
@@ -114,15 +115,20 @@ func Auth(adminKey, keyString string) (*SignedInUser, error) {
 	}
 
 	// check the cache
-	log.Debug("Checking cache for apiKey")
+	if Debug {
+		log.Println("Auth: Checking cache for apiKey")
+	}
 	user, cached := cache.Get(keyString)
 	if cached {
 		if user != nil {
-			log.Debug("valid key cached")
+			if Debug {
+				log.Println("Auth: valid key cached")
+			}
 			return user, nil
 		}
-
-		log.Debug("invalid key cached")
+		if Debug {
+			log.Println("Auth: invalid key cached")
+		}
 		return nil, ErrInvalidApiKey
 	}
 
@@ -131,12 +137,12 @@ func Auth(adminKey, keyString string) (*SignedInUser, error) {
 
 	res, err := client.PostForm(fmt.Sprintf("%s/api/api-keys/check", authEndpoint), payload)
 	if err != nil {
-		log.Error(3, "failed to check apiKey. %s", err)
-
 		// if we have an expired cached entry for the user, reset the cache expiration and return that
 		// this allows the service to remain available if grafana.net is unreachable
 		if user != nil {
-			log.Debug("re-caching validKey response for %d seconds", validTTL/time.Second)
+			if Debug {
+				log.Printf("Auth: re-caching validKey response for %d seconds", validTTL/time.Second)
+			}
 			cache.Set(keyString, user, validTTL)
 			return user, nil
 		}
@@ -146,16 +152,17 @@ func Auth(adminKey, keyString string) (*SignedInUser, error) {
 
 	body, err := ioutil.ReadAll(res.Body)
 	res.Body.Close()
-
-	log.Debug("apiKey check response was: %s", body)
+	if Debug {
+		log.Printf("Auth: apiKey check response was: %s", body)
+	}
 
 	if res.StatusCode >= 500 {
-		log.Error(3, "failed to check apiKey. %s", res.Status)
-
 		// if we have an expired cached entry for the user, reset the cache expiration and return that
 		// this allows the service to remain available if grafana.net is unreachable
 		if user != nil {
-			log.Debug("re-caching validKey response for %d seconds", validTTL/time.Second)
+			if Debug {
+				log.Printf("Auth: re-caching validKey response for %d seconds", validTTL/time.Second)
+			}
 			cache.Set(keyString, user, validTTL)
 			return user, nil
 		}
@@ -165,7 +172,9 @@ func Auth(adminKey, keyString string) (*SignedInUser, error) {
 
 	if res.StatusCode != 200 {
 		// add the invalid key to the cache
-		log.Debug("Caching invalidKey response for %d seconds", invalidTTL/time.Second)
+		if Debug {
+			log.Printf("Auth: Caching invalidKey response for %d seconds", invalidTTL/time.Second)
+		}
 		cache.Set(keyString, nil, invalidTTL)
 
 		return nil, ErrInvalidApiKey
@@ -174,7 +183,6 @@ func Auth(adminKey, keyString string) (*SignedInUser, error) {
 	user = &SignedInUser{key: keyString}
 	err = json.Unmarshal(body, user)
 	if err != nil {
-		log.Error(3, "failed to parse api-keys/check response. %s", err)
 		return nil, err
 	}
 
@@ -196,7 +204,9 @@ func Auth(adminKey, keyString string) (*SignedInUser, error) {
 	}
 
 	// add the user to the cache.
-	log.Debug("Caching validKey response for %d seconds", validTTL/time.Second)
+	if Debug {
+		log.Printf("Auth: Caching validKey response for %d seconds", validTTL/time.Second)
+	}
 	cache.Set(keyString, user, validTTL)
 	return user, nil
 }
