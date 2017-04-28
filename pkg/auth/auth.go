@@ -95,9 +95,9 @@ func (a *AuthCache) Clear() {
 
 func init() {
 	flag.StringVar(&authEndpoint, "auth-endpoint", authEndpoint, "Endpoint to authenticate users on")
-	flag.DurationVar(&validTTL, "valid-ttl", validTTL, "how long valid responses should be cached")
-	flag.DurationVar(&invalidTTL, "invalid-ttl", invalidTTL, "how long invalid responses should be cached")
-	flag.Var(&validOrgIds, "valid-org-id", "org ids that may be passed separated by ,")
+	flag.DurationVar(&validTTL, "auth-valid-ttl", validTTL, "how long valid auth responses should be cached")
+	flag.DurationVar(&invalidTTL, "auth-invalid-ttl", invalidTTL, "how long invalid auth responses should be cached")
+	flag.Var(&validOrgIds, "auth-valid-org-id", "restrict authentication to the listed orgId (comma separated list)")
 	cache = &AuthCache{items: make(map[string]CacheItem)}
 }
 
