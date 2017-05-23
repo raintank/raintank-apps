@@ -19,6 +19,9 @@ type int64SliceFlag []int64
 
 func (i *int64SliceFlag) Set(value string) error {
 	for _, split := range strings.Split(value, ",") {
+		if split == "" {
+			continue
+		}
 		parsed, err := strconv.Atoi(split)
 		if err != nil {
 			return err
