@@ -63,9 +63,15 @@ func Init(rabbitmqUrl, exchange string) error {
 		Listeners: make(map[string][]chan<- RawEvent),
 	}
 	pubChan = make(chan Message, 100)
-	subChan = make(chan Message, 10)
-	go Run(rabbitmqUrl, exchange, pubChan, subChan)
-	go handleMessages(subChan)
+	if rabbitmqUrl == "" || exchange == "" {
+		log.Info("using internal event channels")
+		go handleMessages(pubChan)
+	} else {
+		log.Info("using rabbitmq for event channels")
+		subChan = make(chan Message, 10)
+		go Run(rabbitmqUrl, exchange, pubChan, subChan)
+		go handleMessages(subChan)
+	}
 	return nil
 }
 
