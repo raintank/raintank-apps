@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/intelsdi-x/snap/mgmt/rest/rbody"
+	"github.com/intelsdi-x/snap/mgmt/rest/v1/rbody"
 )
 
 var (
@@ -12,13 +12,13 @@ var (
 )
 
 type Metric struct {
-	Id        int64               `json:"-"`
-	OrgId     int64               `json:"-"`
-	Public    bool                `json:"public"`
-	Namespace string              `json:"namespace" binding:"Required"`
-	Version   int64               `json:"version" binding:"Required"`
-	Policy    []rbody.PolicyTable `json:"policy"`
-	Created   time.Time           `json:"created"`
+	Id        int64                  `json:"-"`
+	OrgId     int64                  `json:"-"`
+	Public    bool                   `json:"public"`
+	Namespace string                 `json:"namespace" binding:"Required"`
+	Version   int64                  `json:"version" binding:"Required"`
+	Policy    rbody.PolicyTableSlice `json:"policy"`
+	Created   time.Time              `json:"created"`
 }
 
 // "url" tag is used by github.com/google/go-querystring/query
