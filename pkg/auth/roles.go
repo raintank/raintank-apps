@@ -7,9 +7,10 @@ import (
 
 // Typed errors
 var (
-	ErrInvalidRoleType = errors.New("Invalid role type")
-	ErrInvalidApiKey   = errors.New("Invalid API Key")
-	ErrInvalidOrgId    = errors.New("Invalid Org Id")
+	ErrInvalidRoleType   = errors.New("Invalid role type")
+	ErrInvalidApiKey     = errors.New("Invalid API Key")
+	ErrInvalidOrgId      = errors.New("Invalid Org Id")
+	ErrInvalidInstanceID = errors.New("Invalid Instance ID")
 )
 
 type RoleType string
@@ -35,4 +36,11 @@ type SignedInUser struct {
 	CreatedAt time.Time `json:"createAt"`
 	IsAdmin   bool      `json:"-"`
 	key       string
+}
+
+type Instance struct {
+	Items []struct {
+		ID    int64 `json:"id"`
+		OrgID int   `json:"orgId"`
+	} `json:"items"`
 }
