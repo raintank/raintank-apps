@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/codeskyblue/go-uuid"
-	"github.com/intelsdi-x/snap/mgmt/rest/rbody"
 	"github.com/raintank/met/helper"
 	"github.com/raintank/raintank-apps/task-server/api"
 	"github.com/raintank/raintank-apps/task-server/model"
@@ -65,43 +64,6 @@ func addTestData() {
 	if err != nil {
 		panic(err.Error())
 	}
-	metrics := []*model.Metric{
-		{
-			OrgId:     1000,
-			Public:    true,
-			Namespace: "/testing/public/demo1",
-			Version:   1,
-			Policy: []rbody.PolicyTable{
-				{
-					Name:     "user",
-					Type:     "string",
-					Required: true,
-				},
-				{
-					Name:     "passwd",
-					Type:     "string",
-					Required: true,
-				},
-				{
-					Name:     "limit",
-					Type:     "integer",
-					Required: false,
-					Default:  10,
-				},
-			},
-		},
-		{
-			OrgId:     1000,
-			Public:    true,
-			Namespace: "/testing/demo2/demo",
-			Version:   2,
-			Policy:    nil,
-		},
-	}
-	err = sqlstore.AddMissingMetricsForAgent(agent, metrics)
-	if err != nil {
-		panic(err)
-	}
 	err = sqlstore.AddAgentSession(&model.AgentSession{
 		Id:       uuid.NewUUID().String(),
 		AgentId:  agent.Id,
@@ -116,47 +78,7 @@ func addTestData() {
 }
 
 func addTestMetrics(agent *model.AgentDTO) {
-	metrics := []*model.Metric{
-		{
-			OrgId:     1,
-			Public:    true,
-			Namespace: "/testing/demo/demo1",
-			Version:   1,
-			Policy: []rbody.PolicyTable{
-				{
-					Name:     "user",
-					Type:     "string",
-					Required: true,
-				},
-				{
-					Name:     "passwd",
-					Type:     "string",
-					Required: true,
-				},
-				{
-					Name:     "limit",
-					Type:     "integer",
-					Required: false,
-					Default:  10,
-				},
-			},
-		},
-		{
-			OrgId:     1,
-			Public:    true,
-			Namespace: "/testing/demo2/demo",
-			Version:   2,
-			Policy:    nil,
-		},
-	}
-	lock.Lock()
-	err := sqlstore.AddMissingMetricsForAgent(agent, metrics)
-	lock.Unlock()
-	if err != nil {
-		panic(err)
-	}
-
-	err = sqlstore.AddAgentSession(&model.AgentSession{
+	err := sqlstore.AddAgentSession(&model.AgentSession{
 		Id:       uuid.NewUUID().String(),
 		AgentId:  agent.Id,
 		Version:  1,
@@ -177,7 +99,6 @@ func TestApiClient(t *testing.T) {
 	}()
 	url := startApi(done)
 	agentCount := 1
-	metricsCount := 2
 	taskCount := 0
 	Convey("Client should exist", t, func() {
 		c, cerr := New(url, adminKey, false)
@@ -275,61 +196,6 @@ func TestApiClient(t *testing.T) {
 			})
 		})
 
-		// Metric Tests
-		Convey("When getting metrics list", func() {
-			query := &model.GetMetricsQuery{}
-			metrics, err := c.GetMetrics(query)
-			So(err, ShouldBeNil)
-			So(metrics, ShouldNotBeNil)
-			So(metrics, ShouldHaveSameTypeAs, []*model.Metric{})
-			So(len(metrics), ShouldEqual, metricsCount)
-			agent, err := c.GetAgentById(2)
-			if err != nil {
-				panic(err)
-			}
-			addTestMetrics(agent)
-			metricsCount = 3
-			Convey("When getting metrics for Agent", func() {
-				metrics, err := c.GetAgentMetrics(agent.Id)
-				So(err, ShouldBeNil)
-				So(metrics, ShouldNotBeNil)
-				So(metrics, ShouldHaveSameTypeAs, []*model.Metric{})
-				So(len(metrics), ShouldEqual, 2)
-			})
-			Convey("When getting agent with Metric", func() {
-				q := &model.GetAgentsQuery{
-					Metric: "/testing/demo/demo1",
-				}
-				agentsWithMetric, err := c.GetAgents(q)
-				So(err, ShouldBeNil)
-				So(agentsWithMetric, ShouldNotBeNil)
-				So(agentsWithMetric, ShouldHaveSameTypeAs, []*model.AgentDTO{})
-				So(len(agentsWithMetric), ShouldEqual, 1)
-				So(agentsWithMetric[0].Id, ShouldEqual, agent.Id)
-			})
-			Convey("When getting agent with Metric wildcard", func() {
-				q := &model.GetAgentsQuery{
-					Metric: "/testing/public/*",
-				}
-				agentsWithMetric, err := c.GetAgents(q)
-				So(err, ShouldBeNil)
-				So(agentsWithMetric, ShouldNotBeNil)
-				So(agentsWithMetric, ShouldHaveSameTypeAs, []*model.AgentDTO{})
-				So(len(agentsWithMetric), ShouldEqual, 1)
-				So(agentsWithMetric[0].Id, ShouldEqual, 1)
-			})
-			Convey("When getting agent with Metric wildcard that doesnt match", func() {
-				q := &model.GetAgentsQuery{
-					Metric: "/not-found/demo/*",
-				}
-				agentsWithMetric, err := c.GetAgents(q)
-				So(err, ShouldBeNil)
-				So(agentsWithMetric, ShouldNotBeNil)
-				So(agentsWithMetric, ShouldHaveSameTypeAs, []*model.AgentDTO{})
-				So(len(agentsWithMetric), ShouldEqual, 0)
-			})
-		})
-
 		Convey("When getting list of tasks", func() {
 			query := model.GetTasksQuery{}
 			tasks, err := c.GetTasks(&query)
@@ -347,7 +213,6 @@ func TestApiClient(t *testing.T) {
 						"user":   "test",
 						"passwd": "test",
 					}},
-					Metrics: map[string]int64{"/testing/demo/demo1": 0},
 					Route: &model.TaskRoute{
 						Type: "any",
 					},
@@ -389,7 +254,6 @@ func TestApiClient(t *testing.T) {
 						"user":   "test",
 						"passwd": "test",
 					}},
-					Metrics: map[string]int64{"/testing/demo2/demo": 0},
 					Route: &model.TaskRoute{
 						Type:   model.RouteByTags,
 						Config: map[string]interface{}{"tags": []string{"demo"}},
@@ -418,7 +282,6 @@ func TestApiClient(t *testing.T) {
 						"user":   "test",
 						"passwd": "test",
 					}},
-					Metrics: map[string]int64{"/testing/demo2/demo": 0},
 					Route: &model.TaskRoute{
 						Type:   model.RouteByTags,
 						Config: map[string]interface{}{"tags": []string{"private"}},
@@ -450,7 +313,6 @@ func TestApiClient(t *testing.T) {
 						"user":   "test",
 						"passwd": "test",
 					}},
-					Metrics: map[string]int64{"/testing/demo/demo1": 0},
 					Route: &model.TaskRoute{
 						Type: "any",
 					},

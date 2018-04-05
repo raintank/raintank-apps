@@ -87,13 +87,6 @@ func getAgents(sess *session, query *model.GetAgentsQuery) ([]*model.AgentDTO, e
 		prefix = "AND"
 	}
 
-	if query.Metric != "" {
-		sess.Join("INNER", "agent_metric", "agent_metric.agent_id = agent.id").Where("agent_metric.namespace LIKE ?", query.Metric)
-		fmt.Fprint(&rawSQL, "INNER JOIN (SELECT DISTINCT(agent_id) FROM agent_metric where namespace like ?) AS am ON am.agent_id = agent.id ")
-		ns := strings.Replace(query.Metric, "*", "%", -1)
-		args = append(args, ns)
-	}
-
 	if query.Name != "" {
 		fmt.Fprintf(&where, "%s agent.name=? ", prefix)
 		whereArgs = append(whereArgs, query.Name)
@@ -376,7 +369,6 @@ func getAgentsForTask(sess *session, t *model.TaskDTO) ([]int64, error) {
 			return nil, err
 		}
 	case model.RouteByTags:
-		//TODO: this list needs to be filtered by agents that support the metrics listed in the task.
 		tags := make([]string, len(t.Route.Config["tags"].([]string)))
 		for i, tag := range t.Route.Config["tags"].([]string) {
 			tags[i] = tag
@@ -428,10 +420,6 @@ func deleteAgent(sess *session, id int64, orgId int64) error {
 	}
 	rawSql = "DELETE FROM agent_tag WHERE agent_id=? and org_id=?"
 	if _, err := sess.Exec(rawSql, existing.Id, existing.OrgId); err != nil {
-		return err
-	}
-	rawSql = "DELETE FROM agent_metric WHERE agent_id=?"
-	if _, err := sess.Exec(rawSql, existing.Id); err != nil {
 		return err
 	}
 	rawSql = "DELETE FROM route_by_id_index WHERE agent_id=?"

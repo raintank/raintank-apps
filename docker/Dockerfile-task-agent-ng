@@ -1,0 +1,12 @@
+# use ubuntu image
+FROM ubuntu:latest
+#
+ENV HOME /app
+
+# Copy the built binaries into /app
+RUN mkdir -p /app
+COPY --from=raintank-apps-task-server /app/task-agent-ng /app
+
+# Run task-server
+WORKDIR /app
+CMD ["./task-agent-ng", "-config", "/etc/raintank/task-agent.ini"]

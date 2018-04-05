@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/raintank/raintank-apps/task-server/api/rbody"
 	"github.com/raintank/raintank-apps/task-server/model"
@@ -27,6 +28,13 @@ func GetTaskById(ctx *Context) {
 
 func GetTasks(ctx *Context, query model.GetTasksQuery) {
 	query.OrgId = ctx.OrgId
+
+	// added for backwards compatibility.
+	// if the user is looking for tasks for a specific metric type
+	// translate that to a task with a specific type
+	if query.Metric != "" {
+		query.TaskType = strings.TrimRight(query.Metric, "/*")
+	}
 	tasks, err := sqlstore.GetTasks(&query)
 	if err != nil {
 		log.Error(3, err.Error())
@@ -47,18 +55,6 @@ func AddTask(ctx *Context, task model.TaskDTO) {
 	}
 	if !ok {
 		ctx.JSON(200, rbody.ErrResp(400, fmt.Errorf("invalid route config")))
-		return
-	}
-
-	err = sqlstore.ValidateMetrics(task.OrgId, task.Metrics)
-	if err != nil {
-		ctx.JSON(200, rbody.ErrResp(400, err))
-		return
-	}
-
-	err = sqlstore.ValidateTaskRouteConfig(&task)
-	if err != nil {
-		ctx.JSON(200, rbody.ErrResp(400, err))
 		return
 	}
 
@@ -83,18 +79,6 @@ func UpdateTask(ctx *Context, task model.TaskDTO) {
 	}
 	if !ok {
 		ctx.JSON(200, rbody.ErrResp(400, fmt.Errorf("invalid route config")))
-		return
-	}
-
-	err = sqlstore.ValidateMetrics(task.OrgId, task.Metrics)
-	if err != nil {
-		ctx.JSON(200, rbody.ErrResp(400, err))
-		return
-	}
-
-	err = sqlstore.ValidateTaskRouteConfig(&task)
-	if err != nil {
-		ctx.JSON(200, rbody.ErrResp(400, err))
 		return
 	}
 

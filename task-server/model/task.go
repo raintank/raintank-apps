@@ -13,6 +13,7 @@ var (
 type Task struct {
 	Id       int64
 	Name     string
+	TaskType string
 	OrgId    int64
 	Config   map[string]map[string]interface{}
 	Interval int64
@@ -22,22 +23,14 @@ type Task struct {
 	Updated  time.Time
 }
 
-type TaskMetric struct {
-	Id        int64
-	TaskId    int64
-	Namespace string
-	Version   int64
-	Created   time.Time
-}
-
 type TaskDTO struct {
 	Id       int64                             `json:"id"`
 	Name     string                            `json:"name" binding:"Required"`
+	TaskType string                            `json:"taskType"`
 	OrgId    int64                             `json:"orgId"`
 	Config   map[string]map[string]interface{} `json:"config"`
 	Interval int64                             `json:"interval" binding:"Required"`
-	Route    *TaskRoute                        `json:"route" binding:"Required"`
-	Metrics  map[string]int64                  `json:"metrics" binding:"Required"`
+	Route    *TaskRoute                        `xorm:"JSON" json:"route" binding:"Required"`
 	Enabled  bool                              `json:"enabled"`
 	Created  time.Time                         `json:"created"`
 	Updated  time.Time                         `json:"updated"`
@@ -52,7 +45,7 @@ const (
 )
 
 var (
-	InvalidRouteConfig = errors.New("Invlid route config")
+	InvalidRouteConfig = errors.New("Invalid route config")
 	UnknownRouteType   = errors.New("unknown route type")
 )
 
@@ -133,11 +126,12 @@ func (r *TaskRoute) Validate() (bool, error) {
 // "url" tag is used by github.com/google/go-querystring/query
 // "form" tag is used by is ued by github.com/go-macaron/binding
 type GetTasksQuery struct {
-	Name    string `form:"name" url:"name,omitempty"`
-	Metric  string `form:"metric" url:"metric,omitempty"`
-	OrgId   int64  `form:"-" url:"-"`
-	Enabled string `form:"enabled" url:"enabled,omitempty"`
-	OrderBy string `form:"orderBy" url:"orderBy,omitempty"`
-	Limit   int    `form:"limit" url:"limit,omitempty"`
-	Page    int    `form:"page" url:"page,omitempty"`
+	Name     string `form:"name" url:"name,omitempty"`
+	Metric   string `form:"metric" url:"metric,omitempty"`
+	TaskType string `form:"taskType" url:"taskType,omitempty"`
+	OrgId    int64  `form:"-" url:"-"`
+	Enabled  string `form:"enabled" url:"enabled,omitempty"`
+	OrderBy  string `form:"orderBy" url:"orderBy,omitempty"`
+	Limit    int    `form:"limit" url:"limit,omitempty"`
+	Page     int    `form:"page" url:"page,omitempty"`
 }

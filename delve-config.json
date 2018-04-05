@@ -1,0 +1,9 @@
+{
+  "configurations": [
+    {
+      "name": "Debug raintank/task-server",
+      "mode": "debug",
+      "args": ["-config","../example-config/task-server-local.ini"]
+    }
+  ]
+}

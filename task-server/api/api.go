@@ -29,11 +29,8 @@ func NewApi(adminKey string, metrics met.Backend) *macaron.Macaron {
 				Post(AgentQuota(), bind(model.AgentDTO{}), AddAgent).
 				Put(bind(model.AgentDTO{}), UpdateAgent)
 			m.Get("/:id", GetAgentById)
-			m.Get("/:id/metrics", GetAgentMetrics)
 			m.Delete("/:id", DeleteAgent)
 		})
-
-		m.Get("/metrics", bind(model.GetMetricsQuery{}), GetMetrics)
 
 		m.Group("/tasks", func() {
 			m.Combo("/").

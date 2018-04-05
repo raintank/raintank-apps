@@ -28,7 +28,7 @@ func addAgentMigrations(mg *migrator.Migrator) {
 	}
 	mg.AddMigration("create agent table v1", migrator.NewAddTableMigration(agentV1))
 	for _, index := range agentV1.Indices {
-		migrationId := fmt.Sprintf("create index %s - %s", index.XName(agentV1.Name), "v1")
-		mg.AddMigration(migrationId, migrator.NewAddIndexMigration(agentV1, index))
+		migrationID := fmt.Sprintf("create index %s - %s", index.XName(agentV1.Name), "v1")
+		mg.AddMigration(migrationID, migrator.NewAddIndexMigration(agentV1, index))
 	}
 }

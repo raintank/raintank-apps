@@ -11,12 +11,9 @@ func AddMigrations(mg *Migrator) {
 	addMigrationLogMigrations(mg)
 
 	addAgentMigrations(mg)
-	addAgentMetricMigrations(mg)
 	addAgentTagMigrations(mg)
-	addMetricMigrations(mg)
 	addAgentSessionMigrations(mg)
 	addTaskMigrations(mg)
-	addTaskMetricMigrations(mg)
 
 	addRouteByIdIndexMigrations(mg)
 	addRouteByTagIndexMigrations(mg)

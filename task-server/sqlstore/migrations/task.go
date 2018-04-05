@@ -26,7 +26,13 @@ func addTaskMigrations(mg *migrator.Migrator) {
 	}
 	mg.AddMigration("create task table v1", migrator.NewAddTableMigration(taskV1))
 	for _, index := range taskV1.Indices {
-		migrationId := fmt.Sprintf("create index %s - %s", index.XName(taskV1.Name), "v1")
-		mg.AddMigration(migrationId, migrator.NewAddIndexMigration(taskV1, index))
+		migrationID := fmt.Sprintf("create index %s - %s", index.XName(taskV1.Name), "v1")
+		mg.AddMigration(migrationID, migrator.NewAddIndexMigration(taskV1, index))
 	}
+	// add task type
+	migration := migrator.NewAddColumnMigration(taskV1, &migrator.Column{
+		Name: "task_type", Type: migrator.DB_NVarchar, Length: 255, Nullable: true,
+	})
+	//lamigra.OnSuccess = bubba(nil)
+	mg.AddMigration("task add taskType field", migration)
 }

@@ -104,7 +104,7 @@ func (s *socketList) CloseSocketByAgentId(id int64) {
 	existing, ok := s.Sockets[id]
 	if ok {
 		existing.Close()
-		log.Debug("removing session for Agent %d from socketList.", id)
+		log.Debug("CloseSocketByAgentId: removing session for Agent %d from socketList.", id)
 		s.deleteSocket(id)
 	}
 	s.Unlock()
@@ -122,21 +122,47 @@ func init() {
 	ActiveSockets = newSocketList()
 }
 
-func connectedAgent(agentName string, owner int64) (*model.AgentDTO, error) {
+func connectedAgent(agentName string, orgID int64) (*model.AgentDTO, error) {
 	if agentName == "" {
-		return nil, errors.New("agent name not specified.")
+		return nil, errors.New("connectedAgent: agent name not specified")
 	}
 	q := model.GetAgentsQuery{
 		Name:  agentName,
-		OrgId: owner,
+		OrgId: orgID,
 	}
 	agents, err := sqlstore.GetAgents(&q)
 	if err != nil {
 		return nil, err
 	}
 	if len(agents) < 1 {
-		return nil, errors.New("agent not found.")
+		log.Debug("connectedAgent: Agent %s not found, attempting to create.", agentName)
+
+		// auto add agent
+		anAgent := model.AgentDTO{
+			Name:    agentName,
+			OrgId:   orgID,
+			Enabled: true,
+			Public:  true,
+		}
+		addAgentErr := sqlstore.AddAgent(&anAgent)
+		if addAgentErr != nil {
+			log.Error(3, addAgentErr.Error())
+			return nil, errors.New("connectedAgent: failed to auto create agent.")
+		}
+		log.Debug("connectedAgent: Agent %s created.", agentName)
+
+		agentsAfter, err := sqlstore.GetAgents(&q)
+		if err != nil {
+			return nil, err
+		}
+		if len(agentsAfter) < 1 {
+			return nil, errors.New("connectedAgent: agent not found after autocreate.")
+		}
+		log.Debug("connectedAgent: Allowing new Agent %s.", agentName)
+
+		return agentsAfter[0], nil
 	}
+
 	return agents[0], nil
 }
 
@@ -145,20 +171,23 @@ func socket(ctx *Context) {
 	agentVer := ctx.ParamsInt64(":ver")
 	//TODO: add auth
 	owner := ctx.OrgId
+	log.Debug("socket: agent name %s", agentName)
+	log.Debug("socket: agent ver %s", agentVer)
+	log.Debug("socket: agent orgid %s", owner)
 	agent, err := connectedAgent(agentName, owner)
 	if err != nil {
-		log.Debug("agent cant connect. %s", err)
+		log.Debug("socket: agent cant connect. %s", err)
 		ctx.JSON(400, err.Error())
 		return
 	}
 
 	c, err := upgrader.Upgrade(ctx.Resp, ctx.Req.Request, nil)
 	if err != nil {
-		log.Error(3, "upgrade:", err)
+		log.Error(3, "socket: upgrade:", err)
 		return
 	}
 
-	log.Debug("agent %s connected.", agent.Name)
+	log.Debug("socket: agent %s connected.", agent.Name)
 
 	sess := agent_session.NewSession(agent, agentVer, c)
 	ActiveSockets.NewSocket(sess)

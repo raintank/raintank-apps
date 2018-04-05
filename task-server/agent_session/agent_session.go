@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/intelsdi-x/snap/mgmt/rest/v1/rbody"
 	"github.com/raintank/raintank-apps/pkg/message"
 	"github.com/raintank/raintank-apps/pkg/session"
 	"github.com/raintank/raintank-apps/task-server/model"
@@ -45,13 +44,6 @@ func (a *AgentSession) Start() error {
 	log.Debug("setting handler for disconnect event.")
 	if err := a.SocketSession.On("disconnect", a.OnDisconnect()); err != nil {
 		log.Error(3, "failed to bind disconnect event. %s", err.Error())
-		a.close()
-		return err
-	}
-
-	log.Debug("setting handler for catalog event.")
-	if err := a.SocketSession.On("catalog", a.HandleCatalog()); err != nil {
-		log.Error(3, "failed to bind catalog event handler. %s", err.Error())
 		a.close()
 		return err
 	}
@@ -115,31 +107,6 @@ func (a *AgentSession) OnDisconnect() interface{} {
 	return func() {
 		log.Debug("session %s has disconnected", a.SocketSession.Id)
 		a.close()
-	}
-}
-
-func (a *AgentSession) HandleCatalog() interface{} {
-	return func(body []byte) {
-		catalog := make([]*rbody.Metric, 0)
-		if err := json.Unmarshal(body, &catalog); err != nil {
-			log.Error(3, err.Error())
-			return
-		}
-		log.Debug("Received catalog for session %s: %s", a.SocketSession.Id, body)
-		metrics := make([]*model.Metric, len(catalog))
-		for i, m := range catalog {
-			metrics[i] = &model.Metric{
-				OrgId:     a.Agent.OrgId,
-				Public:    a.Agent.Public,
-				Namespace: m.Namespace,
-				Version:   int64(m.Version),
-				Policy:    m.Policy,
-			}
-		}
-		err := sqlstore.AddMissingMetricsForAgent(a.Agent, metrics)
-		if err != nil {
-			log.Error(3, "failed to update metrics in DB. %s", err)
-		}
 	}
 }
 

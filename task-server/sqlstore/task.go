@@ -4,55 +4,12 @@ import (
 	"fmt"
 	"math/rand"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/raintank/raintank-apps/task-server/event"
 	"github.com/raintank/raintank-apps/task-server/model"
 	"github.com/raintank/worldping-api/pkg/log"
 )
-
-type taskWithMetric struct {
-	model.Task `xorm:"extends"`
-	Namespace  string
-	Version    int64
-}
-
-type taskWithMetrics []*taskWithMetric
-
-func (taskWithMetrics) TableName() string {
-	return "task"
-}
-
-func (rows taskWithMetrics) ToTaskDTO() []*model.TaskDTO {
-	taskById := make(map[int64]*model.TaskDTO)
-	for _, r := range rows {
-		t, ok := taskById[r.Id]
-		if !ok {
-			taskById[r.Id] = &model.TaskDTO{
-				Id:       r.Id,
-				OrgId:    r.OrgId,
-				Name:     r.Name,
-				Enabled:  r.Enabled,
-				Interval: r.Interval,
-				Route:    r.Route,
-				Config:   r.Config,
-				Created:  r.Created,
-				Updated:  r.Updated,
-				Metrics:  map[string]int64{r.Namespace: r.Version},
-			}
-		} else {
-			t.Metrics[r.Namespace] = r.Version
-		}
-	}
-	tasks := make([]*model.TaskDTO, len(taskById))
-	i := 0
-	for _, t := range taskById {
-		tasks[i] = t
-		i++
-	}
-	return tasks
-}
 
 func GetTasks(query *model.GetTasksQuery) ([]*model.TaskDTO, error) {
 	sess, err := newSession(false, "task")
@@ -63,7 +20,7 @@ func GetTasks(query *model.GetTasksQuery) ([]*model.TaskDTO, error) {
 }
 
 func getTasks(sess *session, query *model.GetTasksQuery) ([]*model.TaskDTO, error) {
-	var t taskWithMetrics
+	var t []*model.TaskDTO
 	if query.OrgId != 0 {
 		sess.Where("task.org_id = ?", query.OrgId)
 	}
@@ -79,10 +36,6 @@ func getTasks(sess *session, query *model.GetTasksQuery) ([]*model.TaskDTO, erro
 		sess.And("task.name like ?", query.Name)
 	}
 
-	if query.Metric != "" {
-		sess.Join("INNER", []string{"task_metric", "tm"}, "task.id = tm.task_id").
-			Where("tm.namespace like ?", strings.Replace(query.Metric, "*", "%", -1))
-	}
 	if query.OrderBy == "" {
 		query.OrderBy = "name"
 	}
@@ -97,6 +50,7 @@ func getTasks(sess *session, query *model.GetTasksQuery) ([]*model.TaskDTO, erro
 	sess.Cols(
 		"task.id",
 		"task.name",
+		"task.task_type",
 		"task.org_id",
 		"task.enabled",
 		"task.interval",
@@ -104,14 +58,12 @@ func getTasks(sess *session, query *model.GetTasksQuery) ([]*model.TaskDTO, erro
 		"task.route",
 		"task.created",
 		"task.updated",
-		"task_metric.namespace",
-		"task_metric.version",
 	)
-	err := sess.Join("LEFT", "task_metric", "task.id = task_metric.task_id").Find(&t)
+	err := sess.Find(&t)
 	if err != nil {
 		return nil, err
 	}
-	return t.ToTaskDTO(), nil
+	return t, nil
 }
 
 func GetTaskById(id int64, orgId int64) (*model.TaskDTO, error) {
@@ -123,22 +75,14 @@ func GetTaskById(id int64, orgId int64) (*model.TaskDTO, error) {
 }
 
 func getTaskById(sess *session, id int64, orgId int64) (*model.TaskDTO, error) {
-	var t taskWithMetrics
-	sess.Where("task.id=? AND org_id=?", id, orgId).Join("LEFT", "task_metric", "task.id = task_metric.task_id")
-	sess.Cols(
-		"`task`.*",
-		"task_metric.namespace",
-		"task_metric.version",
-	)
+	var t *model.TaskDTO
+	sess.Where("task.id=? AND org_id=?", id, orgId)
 
 	err := sess.Find(&t)
 	if err != nil {
 		return nil, err
 	}
-	if len(t) == 0 {
-		return nil, nil
-	}
-	return t.ToTaskDTO()[0], nil
+	return t, nil
 }
 
 func AddTask(t *model.TaskDTO) error {
@@ -158,6 +102,7 @@ func AddTask(t *model.TaskDTO) error {
 func addTask(sess *session, t *model.TaskDTO) error {
 	task := model.Task{
 		Name:     t.Name,
+		TaskType: t.TaskType,
 		OrgId:    t.OrgId,
 		Interval: t.Interval,
 		Enabled:  t.Enabled,
@@ -174,23 +119,6 @@ func addTask(sess *session, t *model.TaskDTO) error {
 	t.Updated = task.Updated
 	t.Id = task.Id
 
-	// handle metrics.
-	metrics := make([]*model.TaskMetric, 0, len(t.Metrics))
-	for namespace, ver := range t.Metrics {
-		metrics = append(metrics, &model.TaskMetric{
-			TaskId:    t.Id,
-			Namespace: namespace,
-			Version:   ver,
-			Created:   time.Now(),
-		})
-	}
-	if len(metrics) > 0 {
-		sess.Table("task_metric")
-		if _, err := sess.Insert(&metrics); err != nil {
-			return err
-		}
-	}
-
 	// add routeIndexes
 	return addTaskRoute(sess, t)
 
@@ -199,12 +127,7 @@ func addTask(sess *session, t *model.TaskDTO) error {
 func taskRouteAnyCandidates(sess *session, tid int64) ([]int64, error) {
 	// get Candidate Agents.
 	candidates := make([]struct{ AgentId int64 }, 0)
-	err := sess.Sql(`SELECT
-                            DISTINCT(agent_metric.agent_id)
-                        FROM agent_metric 
-                        INNER JOIN agent on agent_metric.agent_id = agent.id AND agent.online=1
-                        INNER JOIN task_metric on agent_metric.namespace like REPLACE(task_metric.namespace, '*', '%')
-                        WHERE task_metric.task_id=?`, tid).Find(&candidates)
+	err := sess.Sql(`SELECT id as agent_id from agent where agent.online=1`).Find(&candidates)
 	if err != nil {
 		return nil, err
 	}
@@ -245,6 +168,7 @@ func updateTask(sess *session, t *model.TaskDTO) ([]event.Event, error) {
 	task := model.Task{
 		Id:       t.Id,
 		Name:     t.Name,
+		TaskType: t.TaskType,
 		OrgId:    t.OrgId,
 		Interval: t.Interval,
 		Enabled:  t.Enabled,
@@ -260,53 +184,6 @@ func updateTask(sess *session, t *model.TaskDTO) ([]event.Event, error) {
 	}
 	t.Updated = task.Updated
 
-	// Update taskMetrics
-	metricsToAdd := make([]*model.TaskMetric, 0)
-	metricsToDel := make([]*model.TaskMetric, 0)
-	metricsMap := make(map[string]*model.TaskMetric)
-	seenMetrics := make(map[string]struct{})
-
-	for m, v := range existing.Metrics {
-		metricsMap[fmt.Sprintf("%s:%d", m, v)] = &model.TaskMetric{
-			TaskId:    t.Id,
-			Namespace: m,
-			Version:   v,
-		}
-	}
-	for m, v := range t.Metrics {
-		key := fmt.Sprintf("%s:%d", m, v)
-		seenMetrics[key] = struct{}{}
-		if _, ok := metricsMap[key]; !ok {
-			metricsToAdd = append(metricsToAdd, &model.TaskMetric{
-				TaskId:    t.Id,
-				Namespace: m,
-				Version:   v,
-				Created:   time.Now(),
-			})
-		}
-	}
-
-	for key, m := range metricsMap {
-		if _, ok := seenMetrics[key]; !ok {
-			metricsToDel = append(metricsToDel, m)
-		}
-	}
-
-	if len(metricsToDel) > 0 {
-		_, err := sess.Delete(&metricsToDel)
-		if err != nil {
-			return nil, err
-		}
-	}
-	newMetrics := false
-	if len(metricsToAdd) > 0 {
-		_, err := sess.Insert(&metricsToAdd)
-		if err != nil {
-			return nil, err
-		}
-		newMetrics = true
-	}
-
 	// handle task routes.
 	if existing.Route.Type != t.Route.Type {
 		if err := deleteTaskRoute(sess, existing); err != nil {
@@ -318,46 +195,6 @@ func updateTask(sess *session, t *model.TaskDTO) ([]event.Event, error) {
 	} else {
 		switch t.Route.Type {
 		case model.RouteAny:
-			// we only need to consider changing the agent this task is allocated to
-			// if new metrics have been added.
-			if newMetrics {
-				currentAgent := struct{ AgentId int64 }{}
-				found, err := sess.Sql("SELECT agent_id from route_by_any_index where task_id = ?", t.Id).Get(&currentAgent)
-				if err != nil {
-					return nil, err
-				}
-				if !found {
-					log.Error(3, "no entry for task %d found in route_by_any_index", t.Id)
-				}
-
-				candidates, err := taskRouteAnyCandidates(sess, t.Id)
-				if err != nil {
-					return nil, err
-				}
-				if len(candidates) == 0 {
-					return nil, fmt.Errorf("No agent found that can provide all requested metrics.")
-				}
-				for _, id := range candidates {
-					if id == currentAgent.AgentId {
-						// no need to change the assigned agent.
-						break
-					}
-				}
-				// need to assign a new agent.
-				_, err = sess.Exec("DELETE from route_by_any_index where task_id = ?", t.Id)
-				if err != nil {
-					return nil, err
-				}
-
-				idx := model.RouteByAnyIndex{
-					TaskId:  t.Id,
-					AgentId: candidates[rand.Intn(len(candidates))],
-					Created: time.Now(),
-				}
-				if _, err := sess.Insert(&idx); err != nil {
-					return nil, err
-				}
-			}
 		case model.RouteByTags:
 			existingTags := make(map[string]struct{})
 			tagsToAdd := make([]string, 0)
@@ -550,15 +387,12 @@ func RelocateRouteAnyTasks(agent *model.AgentDTO) error {
 func relocateRouteAnyTasks(sess *session, agent *model.AgentDTO) ([]event.Event, error) {
 	events := make([]event.Event, 0)
 	// get list of tasks.
-	var twm taskWithMetrics
-	sess.Join("LEFT", "task_metric", "task.id = task_metric.task_id")
+	var tasks []*model.TaskDTO
 	sess.Join("INNER", "route_by_any_index", "route_by_any_index.task_id = task.id").Where("route_by_any_index.agent_id=?", agent.Id)
-	sess.Cols("`task_metric`.*", "`task`.*")
-	err := sess.Find(&twm)
+	err := sess.Find(&tasks)
 	if err != nil {
 		return nil, err
 	}
-	tasks := twm.ToTaskDTO()
 	if len(tasks) == 0 {
 		return nil, nil
 	}
@@ -599,7 +433,7 @@ func GetAgentTasks(agent *model.AgentDTO) ([]*model.TaskDTO, error) {
 }
 
 func getAgentTasks(sess *session, agent *model.AgentDTO) ([]*model.TaskDTO, error) {
-	var tasks taskWithMetrics
+	var tasks []*model.TaskDTO
 
 	type taskIdRow struct {
 		TaskId int64
@@ -609,16 +443,14 @@ func getAgentTasks(sess *session, agent *model.AgentDTO) ([]*model.TaskDTO, erro
 	rawParams := make([]interface{}, 0)
 	rawParams = append(rawParams, agent.Id, agent.Id)
 
-	q := `SELECT 
+	q := `SELECT
 	           DISTINCT(idx.task_id)
-	        FROM route_by_tag_index AS idx 
-	        INNER JOIN task_metric on task_metric.task_id = idx.task_id 
-	        INNER join (SELECT namespace from agent_metric where agent_id=?) ns ON ns.namespace like REPLACE(task_metric.namespace, '*', '%%')
+	        FROM route_by_tag_index AS idx
 	        INNER JOIN agent_tag on idx.org_id=agent_tag.org_id and idx.tag = agent_tag.tag
 	        WHERE agent_tag.agent_id = ?`
-	rawParams = append(rawParams, agent.Id, agent.Id)
+	rawParams = append(rawParams, agent.Id)
 	rawQuery = fmt.Sprintf("%s UNION %s", rawQuery, q)
-
+	log.Info(rawQuery)
 	err := sess.Sql(rawQuery, rawParams...).Find(&taskIds)
 	if err != nil {
 		return nil, err
@@ -627,21 +459,35 @@ func getAgentTasks(sess *session, agent *model.AgentDTO) ([]*model.TaskDTO, erro
 	if len(taskIds) == 0 {
 		return nil, nil
 	}
+	log.Info("There are %d tasks", len(taskIds))
+
 	tid := make([]int64, len(taskIds))
 	for i, t := range taskIds {
+		log.Info("Adding TaskID %d to tid array", t.TaskId)
 		tid[i] = t.TaskId
 	}
+	z := "SELECT * from task WHERE task.enabled=1"
+
+	log.Info("Gettings tasks matching id list")
+	//var xresults []map[string][]byte
+	results, zerr := sess.Query(z)
+	if results != nil {
+		log.Info("got something")
+	}
+	if zerr != nil {
+		return nil, zerr
+	}
+
 	sess.Table("task")
-	sess.Join("LEFT", "task_metric", "task.id = task_metric.task_id")
 	sess.Where("task.enabled=1")
 	sess.In("task.id", tid)
-	sess.Cols(
-		"`task`.*",
-		"task_metric.namespace",
-		"task_metric.version",
-	)
+	sess.Cols("id", "name", "config", "interval", "org_id", "enabled", "route", "created", "updated", "task_type")
+
 	err = sess.Find(&tasks)
-	return tasks.ToTaskDTO(), err
+	if err != nil {
+		return nil, err
+	}
+	return tasks, zerr
 }
 
 func DeleteTask(id int64, orgId int64) (*model.TaskDTO, error) {
@@ -671,7 +517,6 @@ func deleteTask(sess *session, id int64, orgId int64) (*model.TaskDTO, error) {
 	}
 	deletes := []string{
 		"DELETE FROM task WHERE id = ?",
-		"DELETE FROM task_metric WHERE task_id = ?",
 		"DELETE from route_by_id_index where task_id = ?",
 		"DELETE from route_by_tag_index where task_id = ?",
 		"DELETE from route_by_any_index where task_id = ?",
@@ -684,83 +529,4 @@ func deleteTask(sess *session, id int64, orgId int64) (*model.TaskDTO, error) {
 		}
 	}
 	return existing, nil
-}
-
-// need to make sure that that the metrics listed in the task
-// can be executed by the agents specified by the route config.
-func ValidateTaskRouteConfig(task *model.TaskDTO) error {
-	sess, err := newSession(true, "task")
-	if err != nil {
-		return err
-	}
-	defer sess.Cleanup()
-	err = validateTaskRouteConfig(sess, task)
-	if err != nil {
-		return err
-	}
-	sess.Complete()
-	return nil
-}
-
-func validateTaskRouteConfig(sess *session, task *model.TaskDTO) error {
-	metricsByAgent := make(map[int64][]string)
-	agentsById := make(map[int64]*model.AgentDTO)
-	for ns := range task.Metrics {
-		agentsQuery := model.GetAgentsQuery{
-			OrgId:  task.OrgId,
-			Metric: ns,
-		}
-
-		if task.Route.Type == model.RouteByTags {
-			agentsQuery.Tag = task.Route.Config["tags"].([]string)
-		}
-		agents, err := getAgents(sess, &agentsQuery)
-		if err != nil {
-			return err
-		}
-		for _, a := range agents {
-			if !a.Online {
-				continue
-			}
-			if _, ok := metricsByAgent[a.Id]; !ok {
-				metricsByAgent[a.Id] = make([]string, 0)
-			}
-			metricsByAgent[a.Id] = append(metricsByAgent[a.Id], ns)
-			if _, ok := agentsById[a.Id]; !ok {
-				agentsById[a.Id] = a
-			}
-		}
-	}
-
-	switch task.Route.Type {
-	case model.RouteAny:
-		// need to make sure at least 1 agent can serve all metrics.
-		for _, metrics := range metricsByAgent {
-			if len(metrics) == len(task.Metrics) {
-				//found a agent that can handle all metrics.
-				return nil
-			}
-		}
-		return fmt.Errorf("No agent found that can provide all requested metrics.")
-	case model.RouteByTags:
-		// we need to make sure that there is at least 1 agent which can handle all specificed metrics.
-		for _, metrics := range metricsByAgent {
-			if len(metrics) == len(task.Metrics) {
-				//found a agent that can handle all metrics.
-				return nil
-			}
-		}
-		return fmt.Errorf("No agent found that can provide all requested metrics.")
-	case model.RouteByIds:
-		// Need to make sure that every agentId listed is able to handle all metrics requested.
-		for _, id := range task.Route.Config["ids"].([]int64) {
-			metrics, ok := metricsByAgent[id]
-			if !ok || len(metrics) != len(task.Metrics) {
-				return fmt.Errorf("Not all agents listed can return all metrics requested.")
-			}
-		}
-		return nil
-	}
-
-	return nil
 }
