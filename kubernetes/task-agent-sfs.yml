@@ -1,0 +1,42 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: task-agent-ng-config
+  namespace: dev-rta
+data:
+  task-agent.ini: |-
+    log-level = 0
+    server-url = ws://raintank-apps-task-server-svc:8082/api/v1/
+    tsdb-url = http://192.168.1.99:2003
+    stats-enabled = false
+    statsd-addr = localhost:8125
+    statsd-type = standard
+    api-key = EASY
+    name = agent1
+---
+apiVersion: apps/v1beta1
+kind: StatefulSet
+metadata: 
+  name: raintank-apps-task-agent
+  namespace: dev-rta
+spec: 
+  replicas: 1
+  serviceName: raintank-apps-task-agent-svc
+  template: 
+    metadata: 
+      labels: 
+        app: raintank-apps-task-agent-ng
+        product: raintank-apps
+    spec: 
+      containers: 
+        - image: "raintank-apps-task-agent-ng:latest"
+          imagePullPolicy: Never
+          name: task-agent-container
+          volumeMounts:
+          - name: config-volume
+            mountPath: /etc/raintank
+      volumes:
+        - name: config-volume
+          configMap:
+            name: task-agent-ng-config

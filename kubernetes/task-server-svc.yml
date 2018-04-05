@@ -1,0 +1,17 @@
+---
+apiVersion: v1
+kind: Service
+metadata: 
+  name: raintank-apps-task-server-svc
+  namespace: dev-rta
+  labels:
+    app: raintank-apps-task-server-service
+    product: raintank-apps
+spec: 
+  ports: 
+     -  port: 8082
+        protocol: TCP
+        targetPort: 8082
+  selector: 
+    app: raintank-apps-task-server
+  type: NodePort
