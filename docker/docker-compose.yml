@@ -1,0 +1,47 @@
+# Creates a task server and task agent
+version: "3.3"
+services:
+  db:
+     image: mysql:latest
+     volumes:
+       - dbdata:/var/lib/mysql
+     restart: always
+     environment:
+       MYSQL_ROOT_PASSWORD: temp
+       MYSQL_DATABASE: task_server
+       MYSQL_USER: ts
+       MYSQL_PASSWORD: tp
+     ports:
+       - "3306:3306"
+  task-server:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile-task-server
+      labels:
+        - "raintank-apps task-server"
+    image: rta-server
+    restart: always
+    depends_on:
+      - db
+    ports:
+      - "4000:8082"
+    environment:
+     - TERM=linux
+    volumes:
+     - ./example-config/task-server-mysql.ini:/etc/raintank/task-server.ini
+  task-agent-ng:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile-task-agent-ng
+      labels:
+        - "raintank-apps task-agent-ng"
+    image: rta-agent-ng
+    restart: always
+    depends_on:
+      - task-server
+    environment:
+     - TERM=linux
+    volumes:
+     - ./example-config/task-agent-ng.ini:/etc/raintank/task-agent.ini
+volumes:
+  dbdata:
