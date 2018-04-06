@@ -55,7 +55,7 @@ func (n *Ns1) CollectMetrics() {
 	zoneSlug := slug.Make(n.Metric.Zone)
 
 	var metrics []*schema.MetricData
-	x := schema.MetricData{
+	qpsMetric := schema.MetricData{
 		Id:       "1",
 		OrgId:    1,
 		Name:     fmt.Sprintf("raintank.apps.ns1.zones.%s.qps", zoneSlug),
@@ -67,7 +67,7 @@ func (n *Ns1) CollectMetrics() {
 		Value:    result.Value,
 		Tags:     nil,
 	}
-	metrics = append(metrics, &x)
+	metrics = append(metrics, &qpsMetric)
 	log.Debug("got %d metrics", len(metrics))
 	spew.Dump(metrics)
 

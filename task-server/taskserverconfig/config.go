@@ -39,6 +39,9 @@ func Start() {
 		stats.NewMemoryReporter()
 		stats.NewGraphite(prefix, addr, interval, bufferSize)
 		log.Info("running raintank-app with instrumentation.")
+		log.Info("Sending stats to %s", addr)
+		log.Info("Sending stats with prefix %s", prefix)
+		log.Info("Sending with interval to %d", interval)
 	} else {
 		stats.NewDevnull()
 		log.Warn("running raintank-app without instrumentation.")

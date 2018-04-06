@@ -3,7 +3,12 @@
     {
       "name": "Debug raintank/task-server",
       "mode": "debug",
-      "args": ["-config","../example-config/task-server-local.ini"]
+      "args": ["-config","../example-config/task-server.ini"]
+    },
+    {
+      "name": "Debug raintank/task-agent-ng",
+      "mode": "debug",
+      "args": ["-config","../example-config/task-agent-ng-local.ini"]
     }
   ]
 }

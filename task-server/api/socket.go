@@ -14,17 +14,21 @@ import (
 	"github.com/raintank/worldping-api/pkg/log"
 )
 
-var upgrader = websocket.Upgrader{} // use default options
-
 var (
-	taskServerAgentsConnectionsActiveCount  = stats.NewGauge32("taskserver.agents.connections.active")
+	taskServerAgentsConnectionsActiveCount  = stats.NewGauge64("taskserver.agents.connections.active")
 	taskServerAgentsConnectionFailureCount  = stats.NewCounter64("taskserver.agents.connections.failed")
 	taskServerAgentsConnectionAcceptedCount = stats.NewCounter64("taskserver.agents.connections.accepted")
 )
 
+var upgrader = websocket.Upgrader{} // use default options
+
 type socketList struct {
 	sync.RWMutex
 	Sockets map[int64]*agent_session.AgentSession
+}
+
+func SetActiveAgentsCount(count int) {
+	taskServerAgentsConnectionsActiveCount.Set(count)
 }
 
 func (s *socketList) CloseAll() {
@@ -180,8 +184,8 @@ func socket(ctx *Context) {
 	//TODO: add auth
 	owner := ctx.OrgId
 	log.Debug("socket: agent name %s", agentName)
-	log.Debug("socket: agent ver %s", agentVer)
-	log.Debug("socket: agent orgid %s", owner)
+	log.Debug("socket: agent ver %d", agentVer)
+	log.Debug("socket: agent orgid %d", owner)
 	agent, err := connectedAgent(agentName, owner)
 	if err != nil {
 		log.Debug("socket: agent cant connect. %s", err)

@@ -1,4 +1,4 @@
-// Package publisher is lifted from worldping-api and is used to send internal metrics to metrictank
+// Package publisher is lifted from worldping-api and is used to send plugin output metrics to tsdb-gw (not for internal metrics)
 package publisher
 
 import (

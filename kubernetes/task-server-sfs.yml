@@ -13,6 +13,9 @@ data:
     addr = :8082
     admin-key = EASY
     exchange =
+    [stats]
+    addr = 192.168.1.99:2003
+    enabled = true
 ---
 apiVersion: apps/v1beta1
 kind: StatefulSet

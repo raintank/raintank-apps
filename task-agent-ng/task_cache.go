@@ -8,7 +8,8 @@ import (
 	"time"
 
 	"github.com/raintank/raintank-apps/task-agent-ng/collector-ns1/ns1"
-	"github.com/raintank/raintank-apps/task-agent-ng/publisher"
+	"github.com/raintank/raintank-probe/publisher"
+
 	"github.com/raintank/raintank-apps/task-agent-ng/taskrunner"
 	"github.com/raintank/raintank-apps/task-server/model"
 	"github.com/raintank/worldping-api/pkg/log"
@@ -179,17 +180,20 @@ func (t *TaskCache) removeActiveTask(taskName string) error {
 
 var GlobalTaskCache *TaskCache
 
-func InitTaskCache(tsdbURL *string) {
+func InitTaskCache(tsdbAddr *string) {
 	GlobalTaskCache = &TaskCache{
-		tsdbURL: tsdbURL,
+		tsdbURL: tsdbAddr,
 		Tasks:   make(map[int64]*model.TaskDTO),
 	}
-	tsdbURLx, err := url.Parse("http://localhost:2003")
+
+	log.Info("TSDB URL is %s", *tsdbAddr)
+	tsdbURL, err := url.Parse(*tsdbAddr)
 	if err != nil {
 		log.Fatal(4, "Invalid TSDB url.", err)
 	}
 	var tsdbAPIKey = "123"
-	publisher.Init(tsdbURLx, tsdbAPIKey, 5)
+	publisher.Init(tsdbURL, tsdbAPIKey, 1)
+
 	GlobalTaskCache.TaskRunner = taskrunner.TaskRunner{}
 	GlobalTaskCache.TaskRunner.Init()
 	GlobalTaskCache.initialized = true

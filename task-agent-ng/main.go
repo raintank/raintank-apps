@@ -13,7 +13,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/raintank/raintank-apps/pkg/session"
-	"github.com/raintank/raintank-apps/task-agent-ng/taskagentconfig"
+	taConfig "github.com/raintank/raintank-apps/task-agent-ng/taskagentconfig"
 
 	"github.com/raintank/worldping-api/pkg/log"
 	"github.com/rakyll/globalconf"
@@ -53,23 +53,20 @@ func main() {
 
 	// Still parse globalconf, though, even if the config file doesn't exist
 	// because we want to be able to use environment variables.
-	conf, err := globalconf.NewWithOptions(&globalconf.Options{
+	config, err := globalconf.NewWithOptions(&globalconf.Options{
 		Filename:  cfile,
 		EnvPrefix: "TASKAGENT_",
 	})
 	if err != nil {
 		panic(fmt.Sprintf("error with configuration file: %s", err))
 	}
-	taskagentconfig.ConfigSetup()
-	conf.ParseAll()
-	/*
-		tsdbURL, err := url.Parse("http://zeus:2003")
-		if err != nil {
-			log.Fatal(4, "Invalid TSDB url.", err)
-		}
-		var tsdbAPIKey = "123"
-		publisher.Init(tsdbURL, tsdbAPIKey, 5)
-	*/
+	if *showVersion {
+		fmt.Printf("task-agent-ng (built with %s, git hash %s)\n", runtime.Version(), GitHash)
+		return
+	}
+	taConfig.ConfigSetup()
+	config.ParseAll()
+
 	log.NewLogger(0, "console", fmt.Sprintf(`{"level": %d, "formatting":true}`, *logLevel))
 	// workaround for https://github.com/grafana/grafana/issues/4055
 	switch *logLevel {
@@ -89,25 +86,28 @@ func main() {
 		log.Level(log.FATAL)
 	}
 
-	if *showVersion {
-		fmt.Printf("task-agent-ng (built with %s, git hash %s)\n", runtime.Version(), GitHash)
-		return
-	}
-
 	//*nodeName = "agent1"
-	*nodeName, err = os.Hostname()
+	hostname, err := os.Hostname()
 	if err != nil {
 		log.Fatal(4, "failed to get hostname from OS.")
 	}
-	taskagentconfig.ConfigProcess(*nodeName)
-	taskagentconfig.Start()
+	taConfig.ConfigProcess(hostname)
+	taConfig.Start()
 
-	*apiKey = "EASY"
-	if *nodeName == "" {
+	if hostname == "" {
 		log.Fatal(4, "name must be set.")
 	}
 
 	InitTaskCache(tsdbAddr)
+	/*
+		stats, err := helper.New(*statsEnabled, *statsdAddr, *statsdType, "raintank_apps", strings.Replace(hostname, ".", "_", -1))
+		if err != nil {
+			log.Fatal(4, "failed to initialize statsd. %s", err)
+		}
+		if stats == nil {
+
+		}
+	*/
 
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)

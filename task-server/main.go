@@ -5,17 +5,16 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
 	"runtime"
 
+	"github.com/grafana/metrictank/stats"
 	"github.com/raintank/raintank-apps/task-server/api"
 	"github.com/raintank/raintank-apps/task-server/event"
 	"github.com/raintank/raintank-apps/task-server/manager"
 	"github.com/raintank/raintank-apps/task-server/sqlstore"
-	"github.com/raintank/raintank-apps/task-server/taskserverconfig"
-	"github.com/raintank/raintank-probe/publisher"
+	tsConfig "github.com/raintank/raintank-apps/task-server/taskserverconfig"
 	"github.com/raintank/worldping-api/pkg/log"
 	"github.com/rakyll/globalconf"
 )
@@ -32,36 +31,31 @@ var (
 
 	exchange    = flag.String("exchange", "events", "Rabbitmq Topic Exchange")
 	rabbitmqUrl = flag.String("rabbitmq-url", "amqp://guest:guest@localhost:5672/", "rabbitmq Url")
-	tsdbAddr    = flag.String("tsdb-url", "http://localhost:2003/", "address of raintank-apps server")
 
 	adminKey = flag.String("admin-key", "not_very_secret_key", "Admin Secret Key")
+)
+
+var (
+	taskServerRunning = stats.NewGauge32("taskserver.running")
 )
 
 func main() {
 	flag.Parse()
 
-	// Only try and parse the conf file if it exists
+	var cfile string
 	if _, err := os.Stat(*confFile); err == nil {
-		conf, err := globalconf.NewWithOptions(&globalconf.Options{Filename: *confFile})
-		if err != nil {
-			panic(fmt.Sprintf("error with configuration file: %s", err))
-		}
-		conf.ParseAll()
-	}
-	var nodeName, err = os.Hostname()
-	if err != nil {
-		log.Fatal(4, "failed to get hostname from OS.")
+		cfile = *confFile
 	}
 
-	tsdbURL, err := url.Parse(*tsdbAddr)
+	conf, err := globalconf.NewWithOptions(&globalconf.Options{
+		Filename:  cfile,
+		EnvPrefix: "TASKSERVER_",
+	})
 	if err != nil {
-		log.Fatal(4, "Invalid TSDB url.", err)
+		panic(fmt.Sprintf("error with configuration file: %s", err))
 	}
-	var tsdbAPIKey = "123"
-	publisher.Init(tsdbURL, tsdbAPIKey, 5)
-	taskserverconfig.ConfigSetup()
-	taskserverconfig.ConfigProcess(nodeName)
-	taskserverconfig.Start()
+	tsConfig.ConfigSetup()
+	conf.ParseAll()
 
 	log.NewLogger(0, "console", fmt.Sprintf(`{"level": %d, "formatting":true}`, *logLevel))
 	// workaround for https://github.com/grafana/grafana/issues/4055
@@ -87,7 +81,13 @@ func main() {
 		return
 	}
 
-	hostname, _ := os.Hostname()
+	var hostname, hnErr = os.Hostname()
+	if hnErr != nil {
+		log.Fatal(4, "failed to get hostname from OS.")
+	}
+
+	tsConfig.ConfigProcess(hostname)
+	tsConfig.Start()
 
 	// initialize DB
 	enableSqlLog := false
@@ -100,9 +100,9 @@ func main() {
 	if err := sqlstore.DeleteAgentSessionsByServer(hostname); err != nil {
 		panic(err)
 	}
+	log.Info("Key:%s:", *adminKey)
 
 	m := api.NewApi(*adminKey)
-
 	err = event.Init(*rabbitmqUrl, *exchange)
 	if err != nil {
 		log.Fatal(4, "failed to init event PubSub. %s", err)
@@ -114,6 +114,8 @@ func main() {
 	signal.Notify(interrupt, os.Interrupt)
 
 	log.Info("starting up")
+	taskServerRunning.Inc()
+
 	// define our own listner so we can call Close on it
 	l, err := net.Listen("tcp", *addr)
 	if err != nil {

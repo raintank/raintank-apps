@@ -10,6 +10,9 @@ data:
     server-url = ws://raintank-apps-task-server-svc:8082/api/v1/
     tsdb-url = http://192.168.1.99:2003
     api-key = EASY
+    [stats]
+    addr = 192.168.1.99:2003
+    enabled = true
 ---
 apiVersion: apps/v1beta1
 kind: StatefulSet

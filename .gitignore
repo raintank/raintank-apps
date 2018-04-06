@@ -1,7 +1,10 @@
 build/
 tsdb/tsdb
 task-server/task-server
+task-server/debug
 task-agent/task-agent
+task-agent-ng/task-agent-ng
+task-agent-ng/debug
 
 # Editor junk
 *.sublime-workspace
