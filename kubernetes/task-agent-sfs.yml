@@ -9,27 +9,23 @@ data:
     log-level = 0
     server-url = ws://raintank-apps-task-server-svc:8082/api/v1/
     tsdb-url = http://192.168.1.99:2003
-    stats-enabled = false
-    statsd-addr = localhost:8125
-    statsd-type = standard
     api-key = EASY
-    name = agent1
 ---
 apiVersion: apps/v1beta1
 kind: StatefulSet
-metadata: 
+metadata:
   name: raintank-apps-task-agent
   namespace: dev-rta
-spec: 
+spec:
   replicas: 1
   serviceName: raintank-apps-task-agent-svc
-  template: 
-    metadata: 
-      labels: 
+  template:
+    metadata:
+      labels:
         app: raintank-apps-task-agent-ng
         product: raintank-apps
-    spec: 
-      containers: 
+    spec:
+      containers:
         - image: "raintank-apps-task-agent-ng:latest"
           imagePullPolicy: Never
           name: task-agent-container

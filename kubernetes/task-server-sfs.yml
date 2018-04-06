@@ -8,6 +8,7 @@ data:
   task-server.ini: |-
     db-type = mysql
     db-connect-str = ts:tp@tcp(mysql-svc:3306)/task_server?charset=utf8
+    tsdb-url = http://192.168.1.99:2003
     log-level = 0
     addr = :8082
     admin-key = EASY
@@ -15,23 +16,23 @@ data:
 ---
 apiVersion: apps/v1beta1
 kind: StatefulSet
-metadata: 
+metadata:
   name: raintank-apps-task-server
   namespace: dev-rta
-spec: 
+spec:
   serviceName: raintank-apps-task-server-svc
   replicas: 1
-  template: 
-    metadata: 
-      labels: 
+  template:
+    metadata:
+      labels:
         app: raintank-apps-task-server
         product: raintank-apps
-    spec: 
-      containers: 
+    spec:
+      containers:
         - image: "raintank-apps-task-server:latest"
           imagePullPolicy: Never
           name: task-server-container
-          ports: 
+          ports:
             - containerPort: 8082
           volumeMounts:
           - name: config-volume
