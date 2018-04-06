@@ -5,16 +5,17 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"runtime"
-	"strings"
 
-	"github.com/raintank/met/helper"
 	"github.com/raintank/raintank-apps/task-server/api"
 	"github.com/raintank/raintank-apps/task-server/event"
 	"github.com/raintank/raintank-apps/task-server/manager"
 	"github.com/raintank/raintank-apps/task-server/sqlstore"
+	"github.com/raintank/raintank-apps/task-server/taskserverconfig"
+	"github.com/raintank/raintank-probe/publisher"
 	"github.com/raintank/worldping-api/pkg/log"
 	"github.com/rakyll/globalconf"
 )
@@ -29,12 +30,9 @@ var (
 	dbType          = flag.String("db-type", "sqlite3", "Database type. sqlite3 or mysql")
 	dbConnectString = flag.String("db-connect-str", "file:/tmp/task-server.db?cache=shared&mode=rwc&_loc=Local", "DSN to connect to DB. https://godoc.org/github.com/mattn/go-sqlite3#SQLiteDriver.Open or https://github.com/go-sql-driver/mysql#dsn-data-source-name")
 
-	statsEnabled = flag.Bool("stats-enabled", false, "enable statsd metrics")
-	statsdAddr   = flag.String("statsd-addr", "localhost:8125", "statsd address")
-	statsdType   = flag.String("statsd-type", "standard", "statsd type: standard or datadog")
-
 	exchange    = flag.String("exchange", "events", "Rabbitmq Topic Exchange")
 	rabbitmqUrl = flag.String("rabbitmq-url", "amqp://guest:guest@localhost:5672/", "rabbitmq Url")
+	tsdbAddr    = flag.String("tsdb-url", "http://localhost:2003/", "address of raintank-apps server")
 
 	adminKey = flag.String("admin-key", "not_very_secret_key", "Admin Secret Key")
 )
@@ -50,6 +48,20 @@ func main() {
 		}
 		conf.ParseAll()
 	}
+	var nodeName, err = os.Hostname()
+	if err != nil {
+		log.Fatal(4, "failed to get hostname from OS.")
+	}
+
+	tsdbURL, err := url.Parse(*tsdbAddr)
+	if err != nil {
+		log.Fatal(4, "Invalid TSDB url.", err)
+	}
+	var tsdbAPIKey = "123"
+	publisher.Init(tsdbURL, tsdbAPIKey, 5)
+	taskserverconfig.ConfigSetup()
+	taskserverconfig.ConfigProcess(nodeName)
+	taskserverconfig.Start()
 
 	log.NewLogger(0, "console", fmt.Sprintf(`{"level": %d, "formatting":true}`, *logLevel))
 	// workaround for https://github.com/grafana/grafana/issues/4055
@@ -77,11 +89,6 @@ func main() {
 
 	hostname, _ := os.Hostname()
 
-	stats, err := helper.New(*statsEnabled, *statsdAddr, *statsdType, "raintank_apps", strings.Replace(hostname, ".", "_", -1))
-	if err != nil {
-		log.Fatal(4, "failed to initialize statsd. %s", err)
-	}
-
 	// initialize DB
 	enableSqlLog := false
 	if *logLevel >= int(log.DEBUG) {
@@ -94,7 +101,7 @@ func main() {
 		panic(err)
 	}
 
-	m := api.NewApi(*adminKey, stats)
+	m := api.NewApi(*adminKey)
 
 	err = event.Init(*rabbitmqUrl, *exchange)
 	if err != nil {

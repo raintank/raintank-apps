@@ -27,7 +27,7 @@ var (
 	logLevel    = flag.Int("log-level", 2, "log level. 0=TRACE|1=DEBUG|2=INFO|3=WARN|4=ERROR|5=CRITICAL|6=FATAL")
 	confFile    = flag.String("config", "/etc/raintank/collector.ini", "configuration file path")
 	serverAddr  = flag.String("server-url", "ws://localhost:8082/api/v1/", "address of raintank-apps server")
-	tsdbAddr    = flag.String("tsdb-url", "http://zeus:2003/", "address of raintank-apps server")
+	tsdbAddr    = flag.String("tsdb-url", "http://localhost:2003/", "address of raintank-apps server")
 	nodeName    = flag.String("name", "", "agent-name")
 	apiKey      = flag.String("api-key", "not_very_secret_key", "Api Key")
 )

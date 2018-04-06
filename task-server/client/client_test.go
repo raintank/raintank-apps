@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/codeskyblue/go-uuid"
-	"github.com/raintank/met/helper"
 	"github.com/raintank/raintank-apps/task-server/api"
 	"github.com/raintank/raintank-apps/task-server/model"
 	"github.com/raintank/raintank-apps/task-server/sqlstore"
@@ -24,17 +23,13 @@ var (
 
 func startApi(done chan struct{}) string {
 	log.NewLogger(0, "console", fmt.Sprintf(`{"level": %d, "formatting":true}`, 1))
-	stats, err := helper.New(false, "localhost:8125", "standard", "task-server", "default")
-	if err != nil {
-		panic(fmt.Errorf("failed to initialize statsd. %s", err))
-	}
 
 	sqlstore.NewEngine("sqlite3", ":memory:", true)
 	//sqlstore.NewEngine("sqlite3", "file:/tmp/task-server-test.db?cache=shared&mode=rwc&_loc=Local", true)
 
 	addTestData()
 
-	m := api.NewApi(adminKey, stats)
+	m := api.NewApi(adminKey)
 
 	// define our own listner so we can call Close on it
 	l, err := net.Listen("tcp", "localhost:0")

@@ -184,7 +184,7 @@ func InitTaskCache(tsdbURL *string) {
 		tsdbURL: tsdbURL,
 		Tasks:   make(map[int64]*model.TaskDTO),
 	}
-	tsdbURLx, err := url.Parse("http://zeus:2003")
+	tsdbURLx, err := url.Parse("http://localhost:2003")
 	if err != nil {
 		log.Fatal(4, "Invalid TSDB url.", err)
 	}

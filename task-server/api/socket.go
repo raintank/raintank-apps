@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/gorilla/websocket"
+	"github.com/grafana/metrictank/stats"
 	"github.com/raintank/raintank-apps/pkg/message"
 	"github.com/raintank/raintank-apps/task-server/agent_session"
 	"github.com/raintank/raintank-apps/task-server/model"
@@ -14,6 +15,12 @@ import (
 )
 
 var upgrader = websocket.Upgrader{} // use default options
+
+var (
+	taskServerAgentsConnectionsActiveCount  = stats.NewGauge32("taskserver.agents.connections.active")
+	taskServerAgentsConnectionFailureCount  = stats.NewCounter64("taskserver.agents.connections.failed")
+	taskServerAgentsConnectionAcceptedCount = stats.NewCounter64("taskserver.agents.connections.accepted")
+)
 
 type socketList struct {
 	sync.RWMutex
@@ -69,11 +76,11 @@ func (s *socketList) NewSocket(a *agent_session.AgentSession) {
 	if ok {
 		log.Debug("new connection for agent %d - %s, closing existing session", a.Agent.Id, a.Agent.Name)
 		existing.Close()
-		agentsConnected.Dec(1)
+		agentsConnected.Dec()
 	}
 	log.Debug("Agent %d is connected to this server.", a.Agent.Id)
 	s.Sockets[a.Agent.Id] = a
-	agentsConnected.Inc(1)
+	agentsConnected.Inc()
 	s.Unlock()
 }
 
@@ -85,7 +92,7 @@ func (s *socketList) DeleteSocket(a *agent_session.AgentSession) {
 
 func (s *socketList) deleteSocket(id int64) {
 	delete(s.Sockets, id)
-	agentsConnected.Dec(1)
+	agentsConnected.Dec()
 }
 
 func (s *socketList) CloseSocket(a *agent_session.AgentSession) {
@@ -106,6 +113,7 @@ func (s *socketList) CloseSocketByAgentId(id int64) {
 		existing.Close()
 		log.Debug("CloseSocketByAgentId: removing session for Agent %d from socketList.", id)
 		s.deleteSocket(id)
+		taskServerAgentsConnectionsActiveCount.Dec()
 	}
 	s.Unlock()
 }
@@ -159,7 +167,7 @@ func connectedAgent(agentName string, orgID int64) (*model.AgentDTO, error) {
 			return nil, errors.New("connectedAgent: agent not found after autocreate.")
 		}
 		log.Debug("connectedAgent: Allowing new Agent %s.", agentName)
-
+		taskServerAgentsConnectionsActiveCount.Inc()
 		return agentsAfter[0], nil
 	}
 

@@ -1,5 +1,5 @@
-// Package taskagentconfig creates internal statistics and handles sending them to metrictank
-package taskagentconfig
+// Package taskserverconfig creates internal statistics and handles sending them to metrictank
+package taskserverconfig
 
 import (
 	"flag"
@@ -19,7 +19,7 @@ var bufferSize int
 func ConfigSetup() {
 	inStats := flag.NewFlagSet("stats", flag.ExitOnError)
 	inStats.BoolVar(&enabled, "enabled", true, "enable sending graphite messages for instrumentation")
-	inStats.StringVar(&prefix, "prefix", "raintank.app.stats.taskagent.$instance", "stats prefix (will add trailing dot automatically if needed)")
+	inStats.StringVar(&prefix, "prefix", "raintank.app.stats.taskserver.$instance", "stats prefix (will add trailing dot automatically if needed)")
 	inStats.StringVar(&addr, "addr", "localhost:2003", "graphite address")
 	inStats.IntVar(&interval, "interval", 1, "interval at which to send statistics")
 	inStats.IntVar(&bufferSize, "buffer-size", 20000, "how many messages (holding all measurements from one interval. rule of thumb: a message is ~25kB) to buffer up in case graphite endpoint is unavailable. With the default of 20k you will use max about 500MB and bridge 5 hours of downtime when needed")

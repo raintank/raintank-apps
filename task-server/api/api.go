@@ -2,19 +2,19 @@ package api
 
 import (
 	"github.com/Unknwon/macaron"
+	"github.com/grafana/metrictank/stats"
 	"github.com/macaron-contrib/binding"
-	"github.com/raintank/met"
 	"github.com/raintank/raintank-apps/task-server/api/rbody"
 	"github.com/raintank/raintank-apps/task-server/model"
 )
 
 var (
-	taskCreate      met.Count
-	taskDelete      met.Count
-	agentsConnected met.Gauge
+	taskCreate      = stats.NewCounter64("api.tasks_create")
+	taskDelete      = stats.NewCounter64("api.tasks_delete")
+	agentsConnected = stats.NewGauge64("api.agents_connected")
 )
 
-func NewApi(adminKey string, metrics met.Backend) *macaron.Macaron {
+func NewApi(adminKey string) *macaron.Macaron {
 	m := macaron.Classic()
 	m.Use(macaron.Renderer())
 	m.Use(GetContextHandler())
@@ -43,9 +43,6 @@ func NewApi(adminKey string, metrics met.Backend) *macaron.Macaron {
 		m.Get("/socket/:agent/:ver", socket)
 	}, Auth(adminKey))
 
-	taskCreate = metrics.NewCount("api.tasks_create")
-	taskDelete = metrics.NewCount("api.tasks_delete")
-	agentsConnected = metrics.NewGauge("api.agents_connected", 0)
 	return m
 }
 
