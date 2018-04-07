@@ -53,3 +53,38 @@ Example Kubernetes deployment are provided.
 ## Docker
 
 A "docker-compose" example is provided that will stand up a complete instance of the application.
+
+# Internal Metrics
+
+## Task Agent Metrics
+The following metrics are sent to metrictank
+
+|name|type|description|
+|----|----|-----------|
+runner.tasks.added.count|counter|
+runner.tasks.updated.count|counter|
+runner.tasks.removed.count|counter|
+runner.initialized|gauge|
+runner.tasks.active.count|gauge|
+
+## Plugin Metrics
+### NS1
+|name|type|description|
+|----|----|-----------|
+collector.ns1.collect.attempts.count|counter|
+collector.ns1.collect.success.count|counter|
+collector.ns1.collect.failures.count|counter|
+collector.ns1.client.queries.count|counter|
+collector.ns1.client.authfailures.count|counter|
+
+## Task Server metrics
+
+|name|type|description|
+|----|----|-----------|
+api.tasks_create|counter|
+api.tasks_delete|counter|
+api.agents_connected|gauge|
+taskserver.agents.connections.active|gauge|
+taskserver.agents.connections.failed|counter|
+taskserver.agents.connections.accepted|counter|
+taskserver.running|gauge|
