@@ -57,15 +57,18 @@ A "docker-compose" example is provided that will stand up a complete instance of
 # Internal Metrics
 
 ## Task Agent Metrics
-The following metrics are sent to metrictank
+The following metrics are sent to metrictank, using the prefix:
+```
+raintank.app.stats.taskagent.$instance
+```
 
 |name|type|description|
 |----|----|-----------|
+runner.initialized|gauge|
+runner.tasks.active.count|gauge|
 runner.tasks.added.count|counter|
 runner.tasks.updated.count|counter|
 runner.tasks.removed.count|counter|
-runner.initialized|gauge|
-runner.tasks.active.count|gauge|
 
 ## Plugin Metrics
 ### NS1
@@ -79,12 +82,16 @@ collector.ns1.client.authfailures.count|counter|
 
 ## Task Server metrics
 
+The following metrics are sent to metrictank, using the prefix:
+```
+raintank.app.stats.taskserver.$instance
+```
 |name|type|description|
 |----|----|-----------|
 api.tasks_create|counter|
 api.tasks_delete|counter|
 api.agents_connected|gauge|
-taskserver.agents.connections.active|gauge|
-taskserver.agents.connections.failed|counter|
-taskserver.agents.connections.accepted|counter|
+agents.connections.active|gauge|
+agents.connections.failed|counter|
+agents.connections.accepted|counter|
 taskserver.running|gauge|

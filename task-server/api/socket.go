@@ -15,9 +15,9 @@ import (
 )
 
 var (
-	taskServerAgentsConnectionsActiveCount  = stats.NewGauge64("taskserver.agents.connections.active")
-	taskServerAgentsConnectionFailureCount  = stats.NewCounter64("taskserver.agents.connections.failed")
-	taskServerAgentsConnectionAcceptedCount = stats.NewCounter64("taskserver.agents.connections.accepted")
+	taskServerAgentsConnectionsActiveCount  = stats.NewGauge64("agents.connections.active")
+	taskServerAgentsConnectionFailureCount  = stats.NewCounter64("agents.connections.failed")
+	taskServerAgentsConnectionAcceptedCount = stats.NewCounter64("agents.connections.accepted")
 )
 
 var upgrader = websocket.Upgrader{} // use default options
