@@ -15,9 +15,12 @@ import (
 )
 
 var (
-	ns1CollectStatsAttempts  = stats.NewCounter64("collector.ns1.collect.attempts.count")
-	ns1CollectStatsSucceeded = stats.NewCounter64("collector.ns1.collect.success.count")
-	ns1CollectStatsFailures  = stats.NewCounter64("collector.ns1.collect.failures.count")
+	ns1CollectAttemptsCount     = stats.NewCounter64("collector.ns1.collect.attempts.count")
+	ns1CollectSuccessCount      = stats.NewCounter64("collector.ns1.collect.success.count")
+	ns1CollectFailureCount      = stats.NewCounter64("collector.ns1.collect.failure.count")
+	ns1CollectDurationNS        = stats.NewGauge64("collector.ns1.collect.duration_ns")
+	ns1CollectSuccessDurationNS = stats.NewGauge64("collector.ns1.collect.success.duration_ns")
+	ns1CollectFailureDurationNS = stats.NewGauge64("collector.ns1.collect.failure.duration_ns")
 )
 var (
 	statusMap = map[string]int{"up": 0, "down": 1}
@@ -77,15 +80,22 @@ func (n *Ns1) CollectMetrics() {
 
 func (n *Ns1) zoneMetrics(client *Client, metric *taskrunner.RTAMetric) (*taskrunner.RTAMetric, error) {
 	//zSlug := slug.Make(mt.Zone)
-	ns1CollectStatsAttempts.Inc()
+	ns1CollectAttemptsCount.Inc()
+	startTime := time.Now().UTC()
 	qps, err := client.QPS(metric.Zone)
 	if err != nil {
 		log.Error(4, "failed to get zone QPS for zone - %d error %s", metric.Zone, err)
-		ns1CollectStatsFailures.Inc()
+		ns1CollectFailureCount.Inc()
+		endTime := time.Since(startTime)
+		ns1CollectSuccessDurationNS.SetUint64(uint64(endTime.Nanoseconds()))
+		ns1CollectDurationNS.SetUint64(uint64(endTime.Nanoseconds()))
 	} else {
 		metric.Value = qps.QPS
 		metric.Timestamp = time.Now().Unix()
-		ns1CollectStatsSucceeded.Inc()
+		ns1CollectSuccessCount.Inc()
+		endTime := time.Since(startTime)
+		ns1CollectFailureDurationNS.SetUint64(uint64(endTime.Nanoseconds()))
+		ns1CollectDurationNS.SetUint64(uint64(endTime.Nanoseconds()))
 	}
 	return metric, nil
 }

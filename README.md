@@ -19,7 +19,7 @@ Version|Date         |Notes
 
 ### task-server
 
-- [ ] implement internal metrics and publisher
+- [x] implement internal metrics and publisher
 - [ ] add internal metrics for no-agents connected (state critical)
 - [ ] add internal metrics for task-agents created automatically
 - [ ] add database encryption for all sensitive data
@@ -34,5 +34,7 @@ Version|Date         |Notes
   - [x] add code to self-register agent to allow for rolling update/scaling
   - [ ] send internal metrics even when there are no tasks active
   - [ ] align current NS1 Grafana plugin with metrics being sent
+  - [ ] removeTask implementation and unit testing
+
 ### plugins
   - [ ] voxter plugin needs to be converted, no working example to verify currently

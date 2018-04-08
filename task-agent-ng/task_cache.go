@@ -7,12 +7,19 @@ import (
 	"sync"
 	"time"
 
+	"github.com/grafana/metrictank/stats"
 	"github.com/raintank/raintank-apps/task-agent-ng/collector-ns1/ns1"
 	"github.com/raintank/raintank-probe/publisher"
 
 	"github.com/raintank/raintank-apps/task-agent-ng/taskrunner"
 	"github.com/raintank/raintank-apps/task-server/model"
 	"github.com/raintank/worldping-api/pkg/log"
+)
+
+var (
+	taskAddedCount   = stats.NewCounter32("tasks.added.count")
+	taskUpdatedCount = stats.NewCounter32("tasks.updated.count")
+	taskRemovedCount = stats.NewCounter32("tasks.removed.count")
 )
 
 type TaskCache struct {
@@ -41,8 +48,8 @@ func (t *TaskCache) addTask(task *model.TaskDTO) error {
 	aJob, ok := t.TaskRunner.Exists(int(task.Id))
 	if !ok {
 		log.Debug("New task received %s", taskName)
+		taskAddedCount.Inc()
 		t.AddToTaskRunner(task)
-
 	} else {
 		log.Debug("task %s already in the cache.", taskName)
 		log.Info("jobmeta:", aJob)
@@ -53,8 +60,10 @@ func (t *TaskCache) addTask(task *model.TaskDTO) error {
 			// need to update task
 			// remove it first
 			t.TaskRunner.Remove(aJob)
+			taskRemovedCount.Inc()
 			// then add it
 			t.AddToTaskRunner(task)
+			taskUpdatedCount.Inc()
 		}
 	}
 

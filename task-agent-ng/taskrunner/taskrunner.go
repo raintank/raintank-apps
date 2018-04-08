@@ -22,12 +22,10 @@ type RTAMetric struct {
 }
 
 var (
-	runnerAddedCount    = stats.NewCounter32("runner.tasks.added.count")
-	runnerUpdatedCount  = stats.NewCounter32("runner.tasks.updated.count")
-	runnerDisabledCount = stats.NewCounter32("runner.tasks.disabled.count")
-	runnerRemovedCount  = stats.NewCounter32("runner.tasks.removed.count")
-	runnerInitialized   = stats.NewGauge32("runner.initialized")
-	runnerActiveTasks   = stats.NewGauge32("runner.tasks.active.count")
+	runnerAddedCount   = stats.NewCounter32("runner.tasks.added.count")
+	runnerRemovedCount = stats.NewCounter32("runner.tasks.removed.count")
+	runnerInitialized  = stats.NewGauge32("runner.initialized")
+	runnerActiveTasks  = stats.NewGauge32("runner.tasks.active.count")
 )
 
 // TaskMeta holds creation and execution data about a collector

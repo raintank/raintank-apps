@@ -15,9 +15,9 @@ import (
 )
 
 var (
-	taskServerAgentsConnectionsActiveCount  = stats.NewGauge64("agents.connections.active")
-	taskServerAgentsConnectionFailureCount  = stats.NewCounter64("agents.connections.failed")
-	taskServerAgentsConnectionAcceptedCount = stats.NewCounter64("agents.connections.accepted")
+	taskServerAgentConnectionsActiveCount   = stats.NewGauge64("agent.connections.active")
+	taskServerAgentConnectionsFailedCount   = stats.NewCounter64("agent.connections.failed")
+	taskServerAgentConnectionsAcceptedCount = stats.NewCounter64("agent.connections.accepted")
 )
 
 var upgrader = websocket.Upgrader{} // use default options
@@ -25,10 +25,6 @@ var upgrader = websocket.Upgrader{} // use default options
 type socketList struct {
 	sync.RWMutex
 	Sockets map[int64]*agent_session.AgentSession
-}
-
-func SetActiveAgentsCount(count int) {
-	taskServerAgentsConnectionsActiveCount.Set(count)
 }
 
 func (s *socketList) CloseAll() {
@@ -80,11 +76,11 @@ func (s *socketList) NewSocket(a *agent_session.AgentSession) {
 	if ok {
 		log.Debug("new connection for agent %d - %s, closing existing session", a.Agent.Id, a.Agent.Name)
 		existing.Close()
-		agentsConnected.Dec()
 	}
 	log.Debug("Agent %d is connected to this server.", a.Agent.Id)
 	s.Sockets[a.Agent.Id] = a
-	agentsConnected.Inc()
+	taskServerAgentConnectionsAcceptedCount.Inc()
+	taskServerAgentConnectionsActiveCount.Inc()
 	s.Unlock()
 }
 
@@ -96,7 +92,7 @@ func (s *socketList) DeleteSocket(a *agent_session.AgentSession) {
 
 func (s *socketList) deleteSocket(id int64) {
 	delete(s.Sockets, id)
-	agentsConnected.Dec()
+	taskServerAgentConnectionsActiveCount.Dec()
 }
 
 func (s *socketList) CloseSocket(a *agent_session.AgentSession) {
@@ -117,7 +113,6 @@ func (s *socketList) CloseSocketByAgentId(id int64) {
 		existing.Close()
 		log.Debug("CloseSocketByAgentId: removing session for Agent %d from socketList.", id)
 		s.deleteSocket(id)
-		taskServerAgentsConnectionsActiveCount.Dec()
 	}
 	s.Unlock()
 }
@@ -159,6 +154,7 @@ func connectedAgent(agentName string, orgID int64) (*model.AgentDTO, error) {
 		addAgentErr := sqlstore.AddAgent(&anAgent)
 		if addAgentErr != nil {
 			log.Error(3, addAgentErr.Error())
+			taskServerAgentConnectionsFailedCount.Inc()
 			return nil, errors.New("connectedAgent: failed to auto create agent.")
 		}
 		log.Debug("connectedAgent: Agent %s created.", agentName)
@@ -168,10 +164,12 @@ func connectedAgent(agentName string, orgID int64) (*model.AgentDTO, error) {
 			return nil, err
 		}
 		if len(agentsAfter) < 1 {
+			taskServerAgentConnectionsFailedCount.Inc()
 			return nil, errors.New("connectedAgent: agent not found after autocreate.")
 		}
 		log.Debug("connectedAgent: Allowing new Agent %s.", agentName)
-		taskServerAgentsConnectionsActiveCount.Inc()
+		taskServerAgentConnectionsAcceptedCount.Inc()
+
 		return agentsAfter[0], nil
 	}
 
@@ -188,6 +186,7 @@ func socket(ctx *Context) {
 	log.Debug("socket: agent orgid %d", owner)
 	agent, err := connectedAgent(agentName, owner)
 	if err != nil {
+		taskServerAgentConnectionsFailedCount.Inc()
 		log.Debug("socket: agent cant connect. %s", err)
 		ctx.JSON(400, err.Error())
 		return

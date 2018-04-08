@@ -36,7 +36,7 @@ var (
 )
 
 var (
-	taskServerRunning = stats.NewGauge32("taskserver.running")
+	taskServerRunning = stats.NewGauge32("running")
 )
 
 func main() {

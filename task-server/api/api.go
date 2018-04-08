@@ -9,9 +9,9 @@ import (
 )
 
 var (
-	taskCreate      = stats.NewCounter64("api.tasks_create")
-	taskDelete      = stats.NewCounter64("api.tasks_delete")
-	agentsConnected = stats.NewGauge64("api.agents_connected")
+	tasksCreated = stats.NewCounter64("api.tasks.created")
+	tasksDeleted = stats.NewCounter64("api.tasks.deleted")
+	tasksUpdated = stats.NewCounter64("api.tasks.updated")
 )
 
 func NewApi(adminKey string) *macaron.Macaron {
