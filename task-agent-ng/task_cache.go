@@ -84,22 +84,26 @@ func (t *TaskCache) AddToTaskRunner(task *model.TaskDTO) {
 			zone = value["zone"].(string)
 			log.Info("ns1key is:", ns1Key)
 			log.Info("zone is:", zone)
+			metric := taskrunner.RTAMetric{
+				Name:       task.Name,
+				MetricName: "qps",
+				Zone:       zone,
+				Unit:       "ms",
+			}
+			z := new(ns1.Ns1)
+			z.APIKey = ns1Key
+			z.Metric = &metric
+			sched := fmt.Sprintf("@every %ds", task.Interval)
+			id1 := t.TaskRunner.Add(int(task.Id), sched, z.CollectMetrics)
+			log.Info("cron id:", id1)
+			break
+		case "/raintank/apps/voxter":
+			log.Info("Voxter Plugin Needed!")
 		default:
 			log.Info("Unknown Plugin Needed!")
 		}
 	}
-	metric := taskrunner.RTAMetric{
-		Name:       task.Name,
-		MetricName: "qps",
-		Zone:       zone,
-		Unit:       "ms",
-	}
-	z := new(ns1.Ns1)
-	z.APIKey = ns1Key
-	z.Metric = &metric
-	sched := fmt.Sprintf("@every %ds", task.Interval)
-	id1 := t.TaskRunner.Add(int(task.Id), sched, z.CollectMetrics)
-	log.Info("cron id:", id1)
+
 }
 
 // UpdateTasks Iterates over the tasks and removes stale entries
