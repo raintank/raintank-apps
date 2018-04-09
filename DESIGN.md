@@ -115,3 +115,5 @@ api.tasks.updated|counter|Tasks updated via API
 agent.connections.active|gauge|Total agents connected
 agent.connections.failed|counter|Count of Agent connect failures
 agent.connections.accepted|counter|Count of Accepted connections
+agent.autocreate.success|counter|Agent auto create successes
+agent.autocreate.failed|counter|Agent auto create failures

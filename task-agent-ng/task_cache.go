@@ -90,11 +90,11 @@ func (t *TaskCache) AddToTaskRunner(task *model.TaskDTO) {
 				Zone:       zone,
 				Unit:       "ms",
 			}
-			z := new(ns1.Ns1)
-			z.APIKey = ns1Key
-			z.Metric = &metric
+			aPlugin := new(ns1.Ns1)
+			aPlugin.APIKey = ns1Key
+			aPlugin.Metric = &metric
 			sched := fmt.Sprintf("@every %ds", task.Interval)
-			id1 := t.TaskRunner.Add(int(task.Id), sched, z.CollectMetrics)
+			id1 := t.TaskRunner.Add(int(task.Id), sched, aPlugin.CollectMetrics)
 			log.Info("cron id:", id1)
 			break
 		case "/raintank/apps/voxter":

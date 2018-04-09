@@ -18,6 +18,8 @@ var (
 	taskServerAgentConnectionsActiveCount   = stats.NewGauge64("agent.connections.active")
 	taskServerAgentConnectionsFailedCount   = stats.NewCounter64("agent.connections.failed")
 	taskServerAgentConnectionsAcceptedCount = stats.NewCounter64("agent.connections.accepted")
+	taskServerAgentAutoCreateSuccessCount   = stats.NewCounter64("agent.autocreate.success")
+	taskServerAgentAutoCreateFailedCount    = stats.NewCounter64("agent.autocreate.failed")
 )
 
 var upgrader = websocket.Upgrader{} // use default options
@@ -155,6 +157,7 @@ func connectedAgent(agentName string, orgID int64) (*model.AgentDTO, error) {
 		if addAgentErr != nil {
 			log.Error(3, addAgentErr.Error())
 			taskServerAgentConnectionsFailedCount.Inc()
+			taskServerAgentAutoCreateFailedCount.Inc()
 			return nil, errors.New("connectedAgent: failed to auto create agent.")
 		}
 		log.Debug("connectedAgent: Agent %s created.", agentName)
@@ -165,10 +168,12 @@ func connectedAgent(agentName string, orgID int64) (*model.AgentDTO, error) {
 		}
 		if len(agentsAfter) < 1 {
 			taskServerAgentConnectionsFailedCount.Inc()
+			taskServerAgentAutoCreateFailedCount.Inc()
 			return nil, errors.New("connectedAgent: agent not found after autocreate.")
 		}
 		log.Debug("connectedAgent: Allowing new Agent %s.", agentName)
 		taskServerAgentConnectionsAcceptedCount.Inc()
+		taskServerAgentAutoCreateSuccessCount.Inc()
 
 		return agentsAfter[0], nil
 	}
