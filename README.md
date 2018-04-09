@@ -27,6 +27,7 @@ Version|Date         |Notes
 ### task-agent
   - [x] update task needs to be completed
   - [x] adding a task should use the specified interval (was hardcoded to 300 seconds)
+  - [x] removeTask implementation
   - [ ] needs to report metrics for failing jobs
   - [ ] update task needs unit test
   - [ ] remove task needs unit test
@@ -34,7 +35,6 @@ Version|Date         |Notes
   - [x] add code to self-register agent to allow for rolling update/scaling
   - [ ] send internal metrics even when there are no tasks active
   - [ ] align current NS1 Grafana plugin with metrics being sent
-  - [ ] removeTask implementation and unit testing
 
 ### plugins
   - [ ] voxter plugin needs to be converted, no working example to verify currently

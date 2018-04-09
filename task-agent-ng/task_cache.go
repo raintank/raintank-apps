@@ -133,61 +133,25 @@ func (t *TaskCache) UpdateTasks(tasks []*model.TaskDTO) {
 	}
 }
 
-func (t *TaskCache) Sync() {
-	tasksByName := make(map[string]*model.TaskDTO)
-	t.Lock()
-	for _, task := range t.Tasks {
-		name := fmt.Sprintf("raintank-apps:%d", task.Id)
-		tasksByName[name] = task
-		log.Debug("seen %s", name)
-		err := t.addTask(task)
-		if err != nil {
-			log.Error(3, err.Error())
-		}
-	}
-
-	/*
-		for name := range t.ActiveTasks {
-			// dont remove tasks that were not added by us.
-			if !strings.HasPrefix(name, "raintank-apps") {
-				continue
-			}
-			if _, ok := tasksByName[name]; !ok {
-				// TODO
-				log.Info("%s not in taskList. removing from snap.", name)
-				//if err := t.removeActiveTask(name); err != nil {
-				//	log.Error(3, "failed to remove snapTask %s. %s", name, err)
-				//}
-			}
-		}
-	*/
-	t.Unlock()
-
-}
-
 func (t *TaskCache) RemoveTask(task *model.TaskDTO) error {
 	t.Lock()
 	defer t.Unlock()
-	snapTaskName := fmt.Sprintf("raintank-apps:%d", task.Id)
-	log.Debug("removing snap task %s", snapTaskName)
-	if err := t.removeActiveTask(snapTaskName); err != nil {
+	log.Debug("removing snap task %d", task.Id)
+	if err := t.removeActiveTask(task); err != nil {
 		return err
 	}
-
 	delete(t.Tasks, task.Id)
 	return nil
 }
 
-func (t *TaskCache) removeActiveTask(taskName string) error {
-	// TODO
-	/*
-		_, ok := t.ActiveTasks[taskName]
-		if !ok {
-			log.Debug("task to remove not in cache. %s", taskName)
-		} else {
-			delete(t.ActiveTasks, taskName)
-		}
-	*/
+func (t *TaskCache) removeActiveTask(task *model.TaskDTO) error {
+	aJob, ok := t.TaskRunner.Exists(int(task.Id))
+	if !ok {
+		log.Debug("removeActiveTask: task does not exist %d", task.Id)
+		return fmt.Errorf("task does not exist")
+	}
+	t.TaskRunner.Remove(aJob)
+	taskRemovedCount.Inc()
 	return nil
 }
 
