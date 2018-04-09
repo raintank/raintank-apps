@@ -17,12 +17,22 @@ Version|Date         |Notes
 
 ## TODO
 
+### circleci
+
+update to use v2 and ensure all tests pass
+
+### tsdb-gw
+
+- [ ] docker-compose needs a sample tsdb-gw to verify metrics out are working
+- [ ] Kubernetes example should also include a tsdb-gw
+
 ### task-server
 
 - [x] implement internal metrics and publisher
 - [x] add internal metrics for no-agents connected (state critical) metric is "agent.connections.active"
 - [x] add internal metrics for task-agents created automatically
 - [ ] add database encryption for all sensitive data
+- [ ] verify OrgId is being set appropriately
 
 ### task-agent
   - [x] update task needs to be completed
@@ -30,11 +40,11 @@ Version|Date         |Notes
   - [x] removeTask implementation
   - [x] add code to self-register agent to allow for rolling update/scaling
   - [ ] needs to report metrics for failing jobs
+  - [ ] send internal metrics even when there are no tasks active
+  - [ ] align current NS1 Grafana plugin with metrics being sent
   - [ ] add task needs unit test
   - [ ] remove task needs unit test
   - [ ] update task needs unit test
-  - [ ] send internal metrics even when there are no tasks active
-  - [ ] align current NS1 Grafana plugin with metrics being sent
 
 ### plugins
   - [ ] voxter plugin needs to be converted (API not functioning, stubbed out plugin only)

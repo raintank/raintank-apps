@@ -1,6 +1,6 @@
 # Overall Architecture
 
-[Diagram](https://bit.ly/2H1Oi5m)
+[Loopy.io Diagram](https://bit.ly/2EwOKTS)
 
 ![raintank-app](img/raintank-app-animation.gif)
 
