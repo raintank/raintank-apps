@@ -16,13 +16,12 @@ log-level = 1
 addr = :8082
 db-type = mysql
 db-connect-str = DB_USERNAME:DB_PASSWORD@tcp(NGINX_REVERSE_PROXY:3306)/task_server?charset=utf8
-stats-enabled = true
-statsd-addr = localhost:8125
-statsd-type = standard
 admin-key = YOUR_TASK_SERVER_API_KEY
 exchange =
 #rabbitmq-url = amqp://RMQ_USER:RMQ_PASSWORD@NGINX_REVERSE_PROXY:5672/
-
+[stats]
+addr = metrictank-svc.metrictank:2003
+enabled = true
 ```
 ## task-agent
 
@@ -31,13 +30,12 @@ exchange =
 ```
 log-level = 1
 server-url = wss://task-server.raintank.io/api/v1
-tsdb-url = https://tsdb-gw.raintank.io/
-snap-url = http://localhost:8181/
-stats-enabled = false
-statsd-addr = localhost:8125
-statsd-type = standard
+tsdbgw-url = https://tsdb-gw.raintank.io/
 api-key = YOUR_TASK_SERVER_API_KEY
 name = task-agent-1
+[stats]
+addr = metrictank-svc.metrictank:2003
+enabled = true
 ```
 
 # Questions
@@ -79,36 +77,24 @@ agent2
 GO Client:
 ```
 package main
-
 import (
-	"fmt"
-	"strings"
-	"net/http"
-	"io/ioutil"
+  "fmt"
+  "net/http"
+  "net/url"
+  "io/ioutil"
+  "strings"
 )
-
 func main() {
-
-	url := "http://localhost:4000/api/v1/agents"
-
-	payload := strings.NewReader("------WebKitFormBoundary7MA4YWxkTrZu0gW\r\nContent-Disposition: form-data; name=\"name\"\r\n\r\nagent2\r\n------WebKitFormBoundary7MA4YWxkTrZu0gW--")
-
-	req, _ := http.NewRequest("POST", url, payload)
-
-	req.Header.Add("content-type", "multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW")
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Authorization", "Bearer EASY")
-	req.Header.Add("Cache-Control", "no-cache")
-	req.Header.Add("Postman-Token", "a32f687c-5915-44f4-8bc6-82e915ae0cad")
-
-	res, _ := http.DefaultClient.Do(req)
-
-	defer res.Body.Close()
-	body, _ := ioutil.ReadAll(res.Body)
-
-	fmt.Println(res)
-	fmt.Println(string(body))
-
+  payload := url.Values{}
+  payload.Set('name', 'agent2')
+  req, _ := http.NewRequest("POST", "http://localhost:4000/api/v1/agents", strings.NewReader(payload.Encode())
+  req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+  req.Header.Add("Authorization", "Bearer EASY")
+  res, _ := http.DefaultClient.Do(req)
+  defer res.Body.Close()
+  body, _ := ioutil.ReadAll(res.Body)
+  fmt.Println(res)
+  fmt.Println(string(body))
 }
 ```
 

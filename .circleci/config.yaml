@@ -25,7 +25,7 @@ jobs:
       - image: circleci/golang:1.10
     steps:
       - checkout
-      - run: go test -v -race $(go list ./... | grep -v github.com/raintank/raintank-apps)
+      - run: go test -v -race $(go list ./...)
 
   qa:
     working_directory: /go/src/github.com/raintank/raintank-apps
