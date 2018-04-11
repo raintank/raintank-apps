@@ -8,10 +8,10 @@ data:
   task-agent.ini: |-
     log-level = 0
     server-url = ws://raintank-apps-task-server-svc:8082/api/v1/
-    tsdb-url = http://192.168.1.99:2003
+    tsdbgw-url = http://tsdb-gw-svc.metrictank:9090
     api-key = EASY
     [stats]
-    addr = 192.168.1.99:2003
+    addr = metrictank-svc.metrictank:2003
     enabled = true
 ---
 apiVersion: apps/v1beta1

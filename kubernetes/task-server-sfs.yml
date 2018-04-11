@@ -8,13 +8,12 @@ data:
   task-server.ini: |-
     db-type = mysql
     db-connect-str = ts:tp@tcp(mysql-svc:3306)/task_server?charset=utf8
-    tsdb-url = http://192.168.1.99:2003
     log-level = 0
     addr = :8082
     admin-key = EASY
     exchange =
     [stats]
-    addr = 192.168.1.99:2003
+    addr = metrictank-svc.metrictank:2003
     enabled = true
 ---
 apiVersion: apps/v1beta1
