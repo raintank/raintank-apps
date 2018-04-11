@@ -1,5 +1,7 @@
 # use ubuntu image
 FROM ubuntu:latest
+RUN apt-get update
+RUN apt-get install -y ca-certificates
 #
 ENV HOME /app
 
