@@ -6,13 +6,25 @@ jobs:
       - image: circleci/golang:1.10
     steps:
       - checkout
-      - run: scripts/deps.sh
-      - run: scripts/build.sh
+      - run:
+          name: Install Dependencies
+          command: scripts/deps.sh
+      - run:
+          name: Build
+          command: scripts/build.sh
       - setup_remote_docker
-      - run: scripts/build_docker.sh
-      - run: mkdir build_docker
-      - run: docker save -o build_docker/raintank-apps-task-server.tar raintank/raintank-apps-task-server
-      - run: docker save -o build_docker/raintank-apps-task-agent-ng.tar raintank/raintank-apps-task-agent-ng
+      - run:
+          name: Build Docker Images
+          command: scripts/build_docker.sh
+      - run:
+          name: Create directory for saving docker build
+          command: mkdir build_docker
+      - run:
+          name: Export task-server docker image
+          command: docker save -o build_docker/raintank-apps-task-server.tar raintank/raintank-apps-task-server
+      - run:
+          name: Export task-agent-ng docker image
+          command: docker save -o build_docker/raintank-apps-task-agent-ng.tar raintank/raintank-apps-task-agent-ng
       - persist_to_workspace:
           root: .
           paths:
@@ -25,7 +37,7 @@ jobs:
       - image: circleci/golang:1.10
     steps:
       - checkout
-      - run: go test -v -race $(go list ./...)
+      - run: go test -v ./...
 
   qa:
     working_directory: /go/src/github.com/raintank/raintank-apps
