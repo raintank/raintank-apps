@@ -3,6 +3,7 @@ FROM golang:latest as rta-builder
 
 # Update APT
 RUN apt-get update
+RUN apt-get install -y ca-certificates
 #RUN apt-get install -y curl
 #RUN apt-get install -y apt-utils
 #RUN apt-get install -y software-properties-common
@@ -29,6 +30,8 @@ RUN rm -rf /go/src/github.com/raintank/worldping-api/vendor/github.com/mattn
 RUN ./build.sh
 
 FROM ubuntu:latest
+RUN apt-get update
+RUN apt-get install -y ca-certificates
 # Copy the built binaries into /app
 RUN mkdir -p /app
 COPY --from=rta-builder /go/src/github.com/raintank/raintank-apps/build/bin/task-server /app
