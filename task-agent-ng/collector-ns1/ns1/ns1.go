@@ -32,8 +32,9 @@ func init() {
 
 // Ns1 Plugin Name
 type Ns1 struct {
-	APIKey string
-	Metric *taskrunner.RTAMetric
+	APIKey    string
+	Metric    *taskrunner.RTAMetric
+	Publisher *publisher.Tsdb
 }
 
 // CollectMetrics collects metrics for testing
@@ -53,7 +54,7 @@ func (n *Ns1) CollectMetrics() {
 		log.Error(4, "failed to collect metrics.", probeErr)
 		return
 	}
-	log.Info("QPS is ", result.Value)
+	log.Info("QPS is %f", result.Value)
 	spew.Dump(result)
 	zoneSlug := slug.Make(n.Metric.Zone)
 
@@ -72,9 +73,8 @@ func (n *Ns1) CollectMetrics() {
 	}
 	metrics = append(metrics, &qpsMetric)
 	log.Debug("got %d metrics", len(metrics))
-	spew.Dump(metrics)
 
-	publisher.Publisher.Add(metrics)
+	n.Publisher.Add(metrics)
 	log.Debug("collecting metrics completed")
 }
 
@@ -87,14 +87,14 @@ func (n *Ns1) zoneMetrics(client *Client, metric *taskrunner.RTAMetric) (*taskru
 		log.Error(4, "failed to get zone QPS for zone - %d error %s", metric.Zone, err)
 		ns1CollectFailureCount.Inc()
 		endTime := time.Since(startTime)
-		ns1CollectSuccessDurationNS.SetUint64(uint64(endTime.Nanoseconds()))
+		ns1CollectFailureDurationNS.SetUint64(uint64(endTime.Nanoseconds()))
 		ns1CollectDurationNS.SetUint64(uint64(endTime.Nanoseconds()))
 	} else {
 		metric.Value = qps.QPS
 		metric.Timestamp = time.Now().Unix()
 		ns1CollectSuccessCount.Inc()
 		endTime := time.Since(startTime)
-		ns1CollectFailureDurationNS.SetUint64(uint64(endTime.Nanoseconds()))
+		ns1CollectSuccessDurationNS.SetUint64(uint64(endTime.Nanoseconds()))
 		ns1CollectDurationNS.SetUint64(uint64(endTime.Nanoseconds()))
 	}
 	return metric, nil
