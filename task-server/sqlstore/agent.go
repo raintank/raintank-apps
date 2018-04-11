@@ -108,16 +108,13 @@ func getAgents(sess *session, query *model.GetAgentsQuery) ([]*model.AgentDTO, e
 		}
 		if public {
 			fmt.Fprintf(&where, "%s agent.public=1 ", prefix)
-			prefix = "AND"
 		} else {
 			fmt.Fprintf(&where, "%s (agent.public=0 AND agent.org_id=?) ", prefix)
 			whereArgs = append(whereArgs, query.OrgId)
-			prefix = "AND"
 		}
 	} else {
 		fmt.Fprintf(&where, "%s (agent.org_id=? OR agent.public=1) ", prefix)
 		whereArgs = append(whereArgs, query.OrgId)
-		prefix = "AND"
 	}
 
 	if query.OrderBy == "" {
