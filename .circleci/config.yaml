@@ -1,0 +1,49 @@
+version: 2
+jobs:
+  build:
+    working_directory: /go/src/github.com/raintank/raintank-apps
+    docker:
+      - image: circleci/golang:1.10
+    steps:
+      - checkout
+      - run: scripts/deps.sh
+      - run: scripts/build.sh
+      - setup_remote_docker
+      - run: scripts/build_docker.sh
+      - run: mkdir build_docker
+      - run: docker save -o build_docker/raintank-apps-task-server.tar raintank/raintank-apps-task-server
+      - run: docker save -o build_docker/raintank-apps-task-agent-ng.tar raintank/raintank-apps-task-agent-ng
+      - persist_to_workspace:
+          root: .
+          paths:
+            - build
+            - build_docker
+
+  test:
+    working_directory: /go/src/github.com/raintank/raintank-apps
+    docker:
+      - image: circleci/golang:1.10
+    steps:
+      - checkout
+      - run: go test -v -race $(go list ./... | grep -v github.com/raintank/raintank-apps)
+
+  qa:
+    working_directory: /go/src/github.com/raintank/raintank-apps
+    docker:
+      - image: circleci/golang:1.10
+    steps:
+      - checkout
+      - run: scripts/qa/gofmt.sh
+      - run: scripts/qa/go-generate.sh
+      - run: scripts/qa/ineffassign.sh
+      - run: scripts/qa/misspell.sh
+      - run: scripts/qa/unused.sh
+      - run: scripts/qa/vendor.sh
+
+workflows:
+  version: 2
+  build_test_qa:
+    jobs:
+      - build
+      - test
+      - qa
