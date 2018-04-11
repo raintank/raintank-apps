@@ -7,11 +7,12 @@ cd ${DIR}
 
 VERSION=`git describe --abbrev=7`
 
+# Go back to top level
+cd ..
 # regular image
 rm -rf build/*
 mkdir -p build
-cp ../build/* build/
-
+#cp ../build/* build/
 
 docker build -t raintank/raintank-apps-task-server -f docker/Dockerfile-task-server .
 docker tag raintank/raintank-apps-task-server raintank/raintank-apps-task-server:latest
