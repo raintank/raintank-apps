@@ -14,10 +14,10 @@ import (
 	"time"
 
 	"github.com/golang/snappy"
+	"github.com/grafana/metrictank/stats"
 	eventMsg "github.com/grafana/worldping-gw/msg"
 	"github.com/jpillora/backoff"
 	"github.com/raintank/schema.v1"
-
 	"github.com/raintank/schema.v1/msg"
 	"github.com/raintank/worldping-api/pkg/log"
 )
@@ -27,6 +27,17 @@ var (
 	maxMetricsPerFlush = 10000
 	maxEventsPerFlush  = 10000
 	maxFlushWait       = time.Millisecond * 500
+)
+
+var (
+	tsdbgwSendSuccessCount      = stats.NewCounter32("tsdbgw.send.success.count")
+	tsdbgwSendFailureCount      = stats.NewCounter32("tsdbgw.send.failure.count")
+	tsdbgwSendSuccessDurationNS = stats.NewGauge64("tsdbgw.send.success.duration_ns")
+	tsdbgwSendFailureDurationNS = stats.NewGauge64("tsdbgw.send.failure.duration_ns")
+	eventSendSuccessCount       = stats.NewCounter32("event.flush.success.count")
+	eventSendFailureCount       = stats.NewCounter32("event.flush.failure.count")
+	eventSendSuccessDurationNS  = stats.NewGauge64("event.flush.success.duration_ns")
+	eventSendFailureDurationNS  = stats.NewGauge64("event.flush.failure.duration_ns")
 )
 
 func Init(u *url.URL, apiKey string, concurrency int) {
@@ -94,8 +105,11 @@ func NewTsdb(u *url.URL, apiKey string, concurrency int) *Tsdb {
 
 // Add metrics to the input buffer
 func (t *Tsdb) Add(metrics []*schema.MetricData) {
-	for _, m := range metrics {
-		t.metricsIn <- m
+	log.Debug("publisher.Add: publishing %d metrics", len(metrics))
+	for index := range metrics {
+		log.Debug("publisher.Add: appending metric with index %d", index)
+		t.metricsIn <- metrics[index]
+		log.Debug("publisher.Add: appended metric with index %d", index)
 	}
 }
 
@@ -229,6 +243,8 @@ func (t *Tsdb) flushMetrics(shard int) {
 				log.Debug("GrafanaNet sent metrics in %s -msg size %d", diff, bodyLen)
 				resp.Body.Close()
 				ioutil.ReadAll(resp.Body)
+				tsdbgwSendSuccessCount.Inc()
+				tsdbgwSendSuccessDurationNS.SetUint64(uint64(diff.Nanoseconds()))
 				break
 			}
 			dur := b.Duration()
@@ -239,6 +255,8 @@ func (t *Tsdb) flushMetrics(shard int) {
 				n, _ := resp.Body.Read(buf)
 				log.Warn("GrafanaNet failed to submit metrics: http %d - %s will try again in %s (this attempt took %s)", resp.StatusCode, buf[:n], dur, diff)
 				resp.Body.Close()
+				tsdbgwSendFailureCount.Inc()
+				tsdbgwSendFailureDurationNS.SetUint64(uint64(diff.Nanoseconds()))
 			}
 
 			time.Sleep(dur)
@@ -277,6 +295,8 @@ func (t *Tsdb) flushEvents() {
 				log.Debug("GrafanaNet sent event in %s -msg size %d", diff, bodyLen)
 				resp.Body.Close()
 				ioutil.ReadAll(resp.Body)
+				eventSendSuccessCount.Inc()
+				eventSendSuccessDurationNS.SetUint64(uint64(diff.Nanoseconds()))
 				break
 			}
 			dur := b.Duration()
@@ -287,6 +307,8 @@ func (t *Tsdb) flushEvents() {
 				n, _ := resp.Body.Read(buf)
 				log.Warn("GrafanaNet failed to submit event: http %d - %s will try again in %s (this attempt took %s)", resp.StatusCode, buf[:n], dur, diff)
 				resp.Body.Close()
+				eventSendFailureCount.Inc()
+				eventSendFailureDurationNS.SetUint64(uint64(diff.Nanoseconds()))
 			}
 
 			time.Sleep(dur)
