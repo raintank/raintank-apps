@@ -170,7 +170,7 @@ func main() {
 
 	go sess.Start()
 
-	//wait for interupt Signal.
+	//wait for interrupt Signal.
 	<-interrupt
 	log.Info("interrupt")
 	close(shutdownStart)

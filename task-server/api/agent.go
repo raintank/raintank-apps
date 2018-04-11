@@ -43,7 +43,7 @@ func AddAgent(ctx *Context, agent model.AgentDTO) {
 		return
 	}
 	agent.Id = 0
-	//need to add suport for middelware context with AUTH/
+	//need to add support for middelware context with AUTH/
 	agent.OrgId = ctx.OrgId
 	err := sqlstore.AddAgent(&agent)
 	if err != nil {
@@ -63,7 +63,7 @@ func UpdateAgent(ctx *Context, agent model.AgentDTO) {
 		ctx.JSON(200, rbody.ErrResp(400, fmt.Errorf("UpdateAgent: agent ID not set.")))
 		return
 	}
-	//need to add suport for middelware context with AUTH/
+	//need to add support for middelware context with AUTH/
 	agent.OrgId = ctx.OrgId
 	err := sqlstore.UpdateAgent(&agent)
 	if err != nil {

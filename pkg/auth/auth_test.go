@@ -99,7 +99,7 @@ func TestAuth(t *testing.T) {
 		mockTransport.Reset()
 	})
 
-	Convey("When authenticating with explicitely valid org id", t, func() {
+	Convey("When authenticating with explicitly valid org id", t, func() {
 		cache.Clear()
 		responder, err := httpmock.NewJsonResponder(200, &testUser)
 		So(err, ShouldBeNil)

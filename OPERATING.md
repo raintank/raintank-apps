@@ -151,15 +151,15 @@ task-agent_1   | 2018/03/17 05:09:15 [D] TaskList. null
 task-agent_1   | 2018/03/17 05:09:16 [D] Snap server is unreachable. URL target is not available. Get http://localhost:8181/v1/plugins////config: dial tcp 127.0.0.1:8181: connect: connection refused
 task-agent_1   | 2018/03/17 05:09:17 [D] Snap server is unreachable. URL target is not available. Get http://localhost:8181/v1/plugins////config: dial tcp 127.0.0.1:8181: connect: connection refused
 task-server_1  | 2018/03/17 05:09:17 [D] socket 567edc2f-29a1-11e8-9a05-0242ac120002 sending message
-task-agent_1   | 2018/03/17 05:09:17 [D] recieved heartbeat event. 2018-03-17 05:09:17.25672063 +0000 UTC m=+2.532669118
+task-agent_1   | 2018/03/17 05:09:17 [D] received heartbeat event. 2018-03-17 05:09:17.25672063 +0000 UTC m=+2.532669118
 task-agent_1   | 2018/03/17 05:09:18 [D] Snap server is unreachable. URL target is not available. Get http://localhost:8181/v1/plugins////config: dial tcp 127.0.0.1:8181: connect: connection refused
 task-agent_1   | 2018/03/17 05:09:19 [D] Snap server is unreachable. URL target is not available. Get http://localhost:8181/v1/plugins////config: dial tcp 127.0.0.1:8181: connect: connection refused
 task-server_1  | 2018/03/17 05:09:19 [D] socket 567edc2f-29a1-11e8-9a05-0242ac120002 sending message
-task-agent_1   | 2018/03/17 05:09:19 [D] recieved heartbeat event. 2018-03-17 05:09:19.256805662 +0000 UTC m=+4.532754141
+task-agent_1   | 2018/03/17 05:09:19 [D] received heartbeat event. 2018-03-17 05:09:19.256805662 +0000 UTC m=+4.532754141
 task-agent_1   | 2018/03/17 05:09:20 [D] Snap server is unreachable. URL target is not available. Get http://localhost:8181/v1/plugins////config: dial tcp 127.0.0.1:8181: connect: connection refused
 task-agent_1   | 2018/03/17 05:09:21 [D] Snap server is unreachable. URL target is not available. Get http://localhost:8181/v1/plugins////config: dial tcp 127.0.0.1:8181: connect: connection refused
 task-server_1  | 2018/03/17 05:09:21 [D] socket 567edc2f-29a1-11e8-9a05-0242ac120002 sending message
-task-agent_1   | 2018/03/17 05:09:21 [D] recieved heartbeat event. 2018-03-17 05:09:21.256605886 +0000 UTC m=+6.532554401
+task-agent_1   | 2018/03/17 05:09:21 [D] received heartbeat event. 2018-03-17 05:09:21.256605886 +0000 UTC m=+6.532554401
 ```
 
 #### Creating a task
