@@ -4,4 +4,4 @@ DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 # and cd into root project dir
 cd ${DIR}/../..
 go get -u github.com/client9/misspell/cmd/misspell
-misspell -i Unknwon -error $(find . -type f | grep -v vendor | grep -v '.git' | grep -v Gopkg.lock)
+misspell -i "unknwon" -error $(find . -type f | grep -v vendor | grep -v '.git' | grep -v Gopkg.lock)
