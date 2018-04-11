@@ -9,7 +9,7 @@ import (
 
 	"github.com/grafana/metrictank/stats"
 	"github.com/raintank/raintank-apps/task-agent-ng/collector-ns1/ns1"
-	"github.com/raintank/raintank-probe/publisher"
+	"github.com/raintank/raintank-apps/task-agent-ng/publisher"
 
 	"github.com/raintank/raintank-apps/task-agent-ng/taskrunner"
 	"github.com/raintank/raintank-apps/task-server/model"
@@ -20,11 +20,12 @@ var (
 	taskAddedCount   = stats.NewCounter32("tasks.added.count")
 	taskUpdatedCount = stats.NewCounter32("tasks.updated.count")
 	taskRemovedCount = stats.NewCounter32("tasks.removed.count")
+	Publisher        *publisher.Tsdb
 )
 
 type TaskCache struct {
 	sync.RWMutex
-	tsdbURL     *string
+	tsdbgwURL   *string
 	Tasks       map[int64]*model.TaskDTO
 	initialized bool
 	TaskRunner  taskrunner.TaskRunner
@@ -93,6 +94,7 @@ func (t *TaskCache) AddToTaskRunner(task *model.TaskDTO) {
 			aPlugin := new(ns1.Ns1)
 			aPlugin.APIKey = ns1Key
 			aPlugin.Metric = &metric
+			aPlugin.Publisher = Publisher
 			sched := fmt.Sprintf("@every %ds", task.Interval)
 			id1 := t.TaskRunner.Add(int(task.Id), sched, aPlugin.CollectMetrics)
 			log.Info("cron id:", id1)
@@ -157,19 +159,20 @@ func (t *TaskCache) removeActiveTask(task *model.TaskDTO) error {
 
 var GlobalTaskCache *TaskCache
 
-func InitTaskCache(tsdbAddr *string) {
+func InitTaskCache(tsdbgwAddr *string) {
 	GlobalTaskCache = &TaskCache{
-		tsdbURL: tsdbAddr,
-		Tasks:   make(map[int64]*model.TaskDTO),
+		tsdbgwURL: tsdbgwAddr,
+		Tasks:     make(map[int64]*model.TaskDTO),
 	}
 
-	log.Info("TSDB URL is %s", *tsdbAddr)
-	tsdbURL, err := url.Parse(*tsdbAddr)
+	log.Info("TSDB-GW URL is %s", *tsdbgwAddr)
+	tsdbgwURL, err := url.Parse(*tsdbgwAddr)
 	if err != nil {
 		log.Fatal(4, "Invalid TSDB url.", err)
 	}
 	var tsdbAPIKey = "123"
-	publisher.Init(tsdbURL, tsdbAPIKey, 1)
+	//publisher.Init(tsdbgwURL, tsdbAPIKey, 1)
+	Publisher = publisher.NewTsdb(tsdbgwURL, tsdbAPIKey, 1)
 
 	GlobalTaskCache.TaskRunner = taskrunner.TaskRunner{}
 	GlobalTaskCache.TaskRunner.Init()
