@@ -469,10 +469,9 @@ func getAgentTasks(sess *session, agent *model.AgentDTO) ([]*model.TaskDTO, erro
 	z := "SELECT * from task WHERE task.enabled=1"
 
 	log.Info("Gettings tasks matching id list")
-	//var xresults []map[string][]byte
 	results, zerr := sess.Query(z)
 	if results != nil {
-		log.Info("got something")
+		log.Info("matching tasks found")
 	}
 	if zerr != nil {
 		return nil, zerr
