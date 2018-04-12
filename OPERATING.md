@@ -16,7 +16,7 @@ log-level = 1
 addr = :8082
 db-type = mysql
 db-connect-str = DB_USERNAME:DB_PASSWORD@tcp(NGINX_REVERSE_PROXY:3306)/task_server?charset=utf8
-admin-key = YOUR_TASK_SERVER_API_KEY
+app-api-key = YOUR_TASK_SERVER_API_KEY
 exchange =
 #rabbitmq-url = amqp://RMQ_USER:RMQ_PASSWORD@NGINX_REVERSE_PROXY:5672/
 [stats]
@@ -31,18 +31,25 @@ enabled = true
 log-level = 1
 server-url = wss://task-server.raintank.io/api/v1
 tsdbgw-url = https://tsdb-gw.raintank.io/
-api-key = YOUR_TASK_SERVER_API_KEY
+tsdbgw-api-key = TSDBGW_KEY
+app-api-key = YOUR_TASK_SERVER_API_KEY
 name = task-agent-1
 [stats]
 addr = metrictank-svc.metrictank:2003
 enabled = true
 ```
 
-# Questions
+NOTE: name field is optional, it will use the hostname if not specified
 
 
-#### Registering an Agent
-For a task agent to work, it has to be pre-registered using the task-server API:
+
+#### Agent Registration
+
+##### Option: Automatic
+Task-Agents are automatically registered if they connect with the correct app-api-key.
+
+##### Option: Manual
+You can also manually register an agent if desired using the task-server API:
 
 http://localhost:4000/api/v1/agents
 
@@ -56,22 +63,6 @@ curl -X POST \
   -H 'Postman-Token: 4ba0a028-5b71-f875-718b-63d71eb866ae' \
   -H 'content-type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW' \
   -F name=agent2
-```
-
-HTTP/RAW
-```
-POST /api/v1/agents HTTP/1.1
-Host: localhost:4000
-Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
-Authorization: Bearer EASY
-Cache-Control: no-cache
-Postman-Token: aa131313-1086-75a1-7749-958479bd554f
-
-------WebKitFormBoundary7MA4YWxkTrZu0gW
-Content-Disposition: form-data; name="name"
-
-agent2
-------WebKitFormBoundary7MA4YWxkTrZu0gW--
 ```
 
 GO Client:

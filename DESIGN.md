@@ -10,6 +10,33 @@ The task server provides a REST API to manage plugins, requests, agents, and han
 
 ### configuration settings
 
+|Key|Value|Description
+|---|-----|-----------|
+addr | :8082 | port to bind task-server
+app-api-key| API_KEY | secret used to communicate between task-agent and task-server
+db-type| mysql \| sqlite3 | Database backend to use
+db-connect-str | USER:PASSWORD@tcp(localhost:3306)/task_server?charset=utf8| sample MySQL connection string
+exchange| *leave this empty* | rabbitmq connection string, not used
+log-level| 0..6 | log output level from TRACE (verbose) to INFO
+
+|Section|Key|Value|Description
+|-------|---|-----|-----------|
+| stats | addr | address:port | graphite address for internal Metrics
+|       | enabled | true\|false| send internal metrics
+Example configuration file:
+
+```
+addr = :8082
+app-api-key = API_KEY
+db-type = mysql
+db-connect-str = USER:PASSWORD@tcp(localhost:3306)/task_server?charset=utf8
+exchange =
+log-level = 0
+[stats]
+addr = 192.168.1.99:2003
+enabled = true
+```
+
 ### Requests
 
 Grafana Applications like NS1 connect to the task server to configure metric collection
@@ -20,7 +47,7 @@ Requests are turned into tasks that will be run by an agent.  Tasks have typical
 
 ### Agents
 
-Agents connect to the task server and receive tasks to process.
+Agents connect to the task server and receive tasks to process, sending metric results to a tsdb-gw.
 
 
 ### Dependencies
@@ -31,8 +58,35 @@ Databases supported are sqlite3 and MySQL.
 
 Task agent executes a task on a regular interval specified by the task.
 The task agent connects to a task server to receive tasks that need to be executed.
+The task agent will send the metric results to the specified TSDB-GW
 
 ### Configuration Settings
+
+```
+app-api-key = API_KEY
+log-level = 0
+name = agent1
+server-url = ws://task-server:8082/api/v1/
+tsdbgw-url = https://not-tsdb-gw.raintank.io/
+tsdbgw-admin-key = EASY
+[stats]
+addr = 192.168.1.99:2003
+enabled = true
+```
+|Key|Value|Description
+|---|-----|-----------|
+app-api-key| API_KEY | secret used to communicate between task-agent and task-server
+log-level| 0..6 | log output level from TRACE (verbose) to INFO
+name| agentname<br>or<br>""| name of agent, leave empty to use hostname
+server-url| wss://task-server:8082/api/v1/<br>or<br>ws://task-server:8082/api/v1/|websocket address of the task server
+tsdbgw-url | https://tsdb-gw.raintank.io/ | url to your TSDB-GW
+tsdbgw-admin-key| EASY | API Admin Key for TSDB-GW
+
+
+|Section|Key|Value|Description
+|-------|---|-----|-----------|
+| stats | addr | address:port | graphite address for internal Metrics
+|       | enabled | true\|false| send internal metrics
 
 ### Plugins
 
@@ -71,12 +125,12 @@ raintank.app.stats.taskagent.$instance
 |name|type|description|
 |----|----|-----------|
 runner.initialized|gauge|1 when runner is enabled
-runner.tasks.active.count|gauge|current count of active tasks in runner
-runner.tasks.added.count|counter|number of tasks added to runner
-runner.tasks.removed.count|counter|number of tasks removed from runner
-tasks.added.count|counter|tasks added to queue
-tasks.removed.count|counter|tasks removed from queue
-tasks.updated.count|counter|tasks updated in queue
+runner.tasks.active|gauge|current count of active tasks in runner
+runner.tasks.added|counter|number of tasks added to runner
+runner.tasks.removed|counter|number of tasks removed from runner
+tasks.added|counter|tasks added to queue
+tasks.removed|counter|tasks removed from queue
+tasks.updated|counter|tasks updated in queue
 
 
 ## Plugin Metrics
@@ -89,11 +143,11 @@ raintank.app.stats.taskagent.$instance
 ### NS1
 |name|type|description|
 |----|----|-----------|
-collector.ns1.collect.attempts.count|counter|
-collector.ns1.collect.success.count|counter|
-collector.ns1.collect.failure.count|counter|
-collector.ns1.client.queries.count|counter|
-collector.ns1.client.authfailures.count|counter|
+collector.ns1.collect.attempts|counter|
+collector.ns1.collect.success|counter|
+collector.ns1.collect.failure|counter|
+collector.ns1.client.queries|counter|
+collector.ns1.client.authfailures|counter|
 collector.ns1.collect.duration_ns|gauge|
 collector.ns1.collect.success.duration_ns|gauge|
 collector.ns1.collect.failure.duration_ns|gauge|
