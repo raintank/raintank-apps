@@ -6,6 +6,7 @@ import (
 	"github.com/macaron-contrib/binding"
 	"github.com/raintank/raintank-apps/task-server/api/rbody"
 	"github.com/raintank/raintank-apps/task-server/model"
+	"github.com/raintank/worldping-api/pkg/log"
 )
 
 var (
@@ -15,6 +16,8 @@ var (
 )
 
 func NewApi(adminKey string) *macaron.Macaron {
+	log.Info("NewApi: using app-api-key: %s", adminKey)
+
 	m := macaron.Classic()
 	m.Use(macaron.Renderer())
 	m.Use(GetContextHandler())
