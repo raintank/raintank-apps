@@ -32,7 +32,7 @@ var (
 	exchange    = flag.String("exchange", "events", "Rabbitmq Topic Exchange")
 	rabbitmqUrl = flag.String("rabbitmq-url", "amqp://guest:guest@localhost:5672/", "rabbitmq Url")
 
-	adminKey = flag.String("admin-key", "not_very_secret_key", "Admin Secret Key")
+	appAPIKey = flag.String("app-api-key", "app_not_very_secret_key", "API Key for task-server and task-agent communication")
 )
 
 var (
@@ -100,9 +100,8 @@ func main() {
 	if err := sqlstore.DeleteAgentSessionsByServer(hostname); err != nil {
 		panic(err)
 	}
-	log.Info("Key:%s:", *adminKey)
 
-	m := api.NewApi(*adminKey)
+	m := api.NewApi(*appAPIKey)
 	err = event.Init(*rabbitmqUrl, *exchange)
 	if err != nil {
 		log.Fatal(4, "failed to init event PubSub. %s", err)

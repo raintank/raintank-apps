@@ -22,20 +22,21 @@ import (
 const Version int = 1
 
 var (
-	GitHash     = "(none)"
-	showVersion = flag.Bool("version", false, "print version string")
-	logLevel    = flag.Int("log-level", 2, "log level. 0=TRACE|1=DEBUG|2=INFO|3=WARN|4=ERROR|5=CRITICAL|6=FATAL")
-	confFile    = flag.String("config", "/etc/raintank/collector.ini", "configuration file path")
-	serverAddr  = flag.String("server-url", "ws://localhost:8082/api/v1/", "address of raintank-apps server")
-	tsdbgwAddr  = flag.String("tsdbgw-url", "http://localhost:8082/", "address of a tsdb-gw server")
-	nodeName    = flag.String("name", "", "agent-name")
-	apiKey      = flag.String("api-key", "not_very_secret_key", "Api Key")
+	GitHash           = "(none)"
+	showVersion       = flag.Bool("version", false, "print version string")
+	logLevel          = flag.Int("log-level", 2, "log level. 0=TRACE|1=DEBUG|2=INFO|3=WARN|4=ERROR|5=CRITICAL|6=FATAL")
+	confFile          = flag.String("config", "/etc/raintank/collector.ini", "configuration file path")
+	serverAddr        = flag.String("server-url", "ws://localhost:8082/api/v1/", "address of raintank-apps server")
+	tsdbgwAddr        = flag.String("tsdbgw-url", "http://localhost:8082/", "address of a tsdb-gw server")
+	tsdbgwAdminAPIKey = flag.String("tsdbgw-admin-key", "tsdbgw_not_very_secret_key", "admin key used to post to tsdb-gw")
+	nodeName          = flag.String("name", "", "agent-name")
+	appAPIKey         = flag.String("app-api-key", "app_not_very_secret_key", "API Key for task-server and task-agent communication")
 )
 
 func connect(u *url.URL) (*websocket.Conn, error) {
 	log.Info("connecting to %s", u.String())
 	header := make(http.Header)
-	header.Set("Authorization", fmt.Sprintf("Bearer %s", *apiKey))
+	header.Set("Authorization", fmt.Sprintf("Bearer %s", *appAPIKey))
 	conn, _, err := websocket.DefaultDialer.Dial(u.String(), header)
 	return conn, err
 }
@@ -98,7 +99,7 @@ func main() {
 		log.Fatal(4, "name must be set.")
 	}
 
-	InitTaskCache(tsdbgwAddr, apiKey)
+	InitTaskCache(tsdbgwAddr, tsdbgwAdminAPIKey)
 
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
