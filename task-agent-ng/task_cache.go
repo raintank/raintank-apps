@@ -17,9 +17,9 @@ import (
 )
 
 var (
-	taskAddedCount   = stats.NewCounter32("tasks.added.count")
-	taskUpdatedCount = stats.NewCounter32("tasks.updated.count")
-	taskRemovedCount = stats.NewCounter32("tasks.removed.count")
+	taskAddedCount   = stats.NewCounter32("tasks.added")
+	taskUpdatedCount = stats.NewCounter32("tasks.updated")
+	taskRemovedCount = stats.NewCounter32("tasks.removed")
 )
 
 type TaskCache struct {

@@ -21,8 +21,8 @@ import (
 const APIVersion = "v1"
 
 var (
-	ns1ClientQueries      = stats.NewCounter64("collector.ns1.client.queries.count")
-	ns1ClientAuthFailures = stats.NewCounter64("collector.ns1.client.authfailures.count")
+	ns1ClientQueries      = stats.NewCounter64("collector.ns1.client.queries")
+	ns1ClientAuthFailures = stats.NewCounter64("collector.ns1.client.authfailures")
 )
 
 var (

@@ -15,8 +15,8 @@ import (
 )
 
 var (
-	voxterClientQueries      = stats.NewCounter64("collector.voxter.client.queries.count")
-	voxterClientAuthFailures = stats.NewCounter64("collector.voxter.client.authfailures.count")
+	voxterClientQueries      = stats.NewCounter64("collector.voxter.client.queries")
+	voxterClientAuthFailures = stats.NewCounter64("collector.voxter.client.authfailures")
 )
 var (
 	ErrNotFound     = errors.New("Not Found")

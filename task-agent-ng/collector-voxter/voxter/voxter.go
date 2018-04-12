@@ -23,9 +23,9 @@ const (
 )
 
 var (
-	voxterCollectAttemptsCount     = stats.NewCounter64("collector.voxter.collect.attempts.count")
-	voxterCollectSuccessCount      = stats.NewCounter64("collector.voxter.collect.success.count")
-	voxterCollectFailureCount      = stats.NewCounter64("collector.voxter.collect.failure.count")
+	voxterCollectAttemptsCount     = stats.NewCounter64("collector.voxter.collect.attempts")
+	voxterCollectSuccessCount      = stats.NewCounter64("collector.voxter.collect.success")
+	voxterCollectFailureCount      = stats.NewCounter64("collector.voxter.collect.failure")
 	voxterCollectDurationNS        = stats.NewGauge64("collector.voxter.collect.duration_ns")
 	voxterCollectSuccessDurationNS = stats.NewGauge64("collector.voxter.collect.success.duration_ns")
 	voxterCollectFailureDurationNS = stats.NewGauge64("collector.voxter.collect.failure.duration_ns")

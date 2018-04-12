@@ -15,9 +15,9 @@ import (
 )
 
 var (
-	ns1CollectAttemptsCount     = stats.NewCounter64("collector.ns1.collect.attempts.count")
-	ns1CollectSuccessCount      = stats.NewCounter64("collector.ns1.collect.success.count")
-	ns1CollectFailureCount      = stats.NewCounter64("collector.ns1.collect.failure.count")
+	ns1CollectAttemptsCount     = stats.NewCounter64("collector.ns1.collect.attempts")
+	ns1CollectSuccessCount      = stats.NewCounter64("collector.ns1.collect.success")
+	ns1CollectFailureCount      = stats.NewCounter64("collector.ns1.collect.failure")
 	ns1CollectDurationNS        = stats.NewGauge64("collector.ns1.collect.duration_ns")
 	ns1CollectSuccessDurationNS = stats.NewGauge64("collector.ns1.collect.success.duration_ns")
 	ns1CollectFailureDurationNS = stats.NewGauge64("collector.ns1.collect.failure.duration_ns")

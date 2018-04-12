@@ -30,12 +30,12 @@ var (
 )
 
 var (
-	tsdbgwSendSuccessCount      = stats.NewCounter32("tsdbgw.send.success.count")
-	tsdbgwSendFailureCount      = stats.NewCounter32("tsdbgw.send.failure.count")
+	tsdbgwSendSuccessCount      = stats.NewCounter32("tsdbgw.send.success")
+	tsdbgwSendFailureCount      = stats.NewCounter32("tsdbgw.send.failure")
 	tsdbgwSendSuccessDurationNS = stats.NewGauge64("tsdbgw.send.success.duration_ns")
 	tsdbgwSendFailureDurationNS = stats.NewGauge64("tsdbgw.send.failure.duration_ns")
-	eventSendSuccessCount       = stats.NewCounter32("event.flush.success.count")
-	eventSendFailureCount       = stats.NewCounter32("event.flush.failure.count")
+	eventSendSuccessCount       = stats.NewCounter32("event.flush.success")
+	eventSendFailureCount       = stats.NewCounter32("event.flush.failure")
 	eventSendSuccessDurationNS  = stats.NewGauge64("event.flush.success.duration_ns")
 	eventSendFailureDurationNS  = stats.NewGauge64("event.flush.failure.duration_ns")
 )
