@@ -101,6 +101,8 @@ func main() {
 		panic(err)
 	}
 
+	log.Info("main: using app-api-key: %s", *appAPIKey)
+
 	m := api.NewApi(*appAPIKey)
 	err = event.Init(*rabbitmqUrl, *exchange)
 	if err != nil {
