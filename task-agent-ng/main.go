@@ -98,24 +98,7 @@ func main() {
 		log.Fatal(4, "name must be set.")
 	}
 
-	/*
-		tsdbgwURL, err := url.Parse(*tsdbgwAddr)
-		if err != nil {
-			log.Fatal(4, "Invalid TSDB url.", err)
-		}
-		var tsdbAPIKey = "123"
-		publisher.Init(tsdbgwURL, tsdbAPIKey, 1)
-	*/
-	InitTaskCache(tsdbgwAddr)
-	/*
-		stats, err := helper.New(*statsEnabled, *statsdAddr, *statsdType, "raintank_apps", strings.Replace(hostname, ".", "_", -1))
-		if err != nil {
-			log.Fatal(4, "failed to initialize statsd. %s", err)
-		}
-		if stats == nil {
-
-		}
-	*/
+	InitTaskCache(tsdbgwAddr, apiKey)
 
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)

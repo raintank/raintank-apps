@@ -35,6 +35,8 @@ type Ns1 struct {
 	APIKey    string
 	Metric    *taskrunner.RTAMetric
 	Publisher *publisher.Tsdb
+	OrgID     int64
+	Interval  int64
 }
 
 // CollectMetrics collects metrics for testing
@@ -61,10 +63,10 @@ func (n *Ns1) CollectMetrics() {
 	var metrics []*schema.MetricData
 	qpsMetric := schema.MetricData{
 		Id:       "1",
-		OrgId:    1,
+		OrgId:    int(n.OrgID),
 		Name:     fmt.Sprintf("raintank.apps.ns1.zones.%s.qps", zoneSlug),
 		Metric:   fmt.Sprintf("raintank.apps.ns1.zones.%s.qps", zoneSlug),
-		Interval: 60,
+		Interval: int(n.Interval),
 		Time:     time.Now().Unix(),
 		Unit:     "ms",
 		Mtype:    "gauge",
@@ -73,7 +75,7 @@ func (n *Ns1) CollectMetrics() {
 	}
 	metrics = append(metrics, &qpsMetric)
 	log.Debug("got %d metrics", len(metrics))
-
+	// publish to tsdbgw
 	n.Publisher.Add(metrics)
 	log.Debug("collecting metrics completed")
 }

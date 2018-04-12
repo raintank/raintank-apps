@@ -40,8 +40,11 @@ func init() {
 }
 
 type Voxter struct {
-	APIKey string
-	Metric *taskrunner.RTAMetric
+	APIKey    string
+	Metric    *taskrunner.RTAMetric
+	Publisher *publisher.Tsdb
+	OrgID     int64
+	Interval  int64
 }
 
 // CollectMetrics collects metrics for testing
@@ -68,10 +71,10 @@ func (v *Voxter) CollectMetrics() error {
 	//metrics = resp
 	aMetric := schema.MetricData{
 		Id:       "1",
-		OrgId:    1,
+		OrgId:    int(v.OrgID),
 		Name:     fmt.Sprintf("raintank.apps.voxter.%s.ametric", ""),
 		Metric:   fmt.Sprintf("raintank.apps.voxter.%s.ametric", ""),
-		Interval: 60,
+		Interval: int(v.Interval),
 		Time:     time.Now().Unix(),
 		Unit:     "ms",
 		Mtype:    "gauge",

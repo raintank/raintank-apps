@@ -20,15 +20,16 @@ var (
 	taskAddedCount   = stats.NewCounter32("tasks.added.count")
 	taskUpdatedCount = stats.NewCounter32("tasks.updated.count")
 	taskRemovedCount = stats.NewCounter32("tasks.removed.count")
-	Publisher        *publisher.Tsdb
 )
 
 type TaskCache struct {
 	sync.RWMutex
-	tsdbgwURL   *string
-	Tasks       map[int64]*model.TaskDTO
-	initialized bool
-	TaskRunner  taskrunner.TaskRunner
+	tsdbgwURL    *url.URL
+	tsdbgwAPIKey *string
+	Tasks        map[int64]*model.TaskDTO
+	initialized  bool
+	TaskRunner   taskrunner.TaskRunner
+	Publisher    *publisher.Tsdb
 }
 
 // AddTask given a TaskDTO this will create a new job
@@ -94,7 +95,9 @@ func (t *TaskCache) AddToTaskRunner(task *model.TaskDTO) {
 			aPlugin := new(ns1.Ns1)
 			aPlugin.APIKey = ns1Key
 			aPlugin.Metric = &metric
-			aPlugin.Publisher = Publisher
+			aPlugin.OrgID = task.OrgId
+			aPlugin.Interval = task.Interval
+			aPlugin.Publisher = t.Publisher
 			sched := fmt.Sprintf("@every %ds", task.Interval)
 			id1 := t.TaskRunner.Add(int(task.Id), sched, aPlugin.CollectMetrics)
 			log.Info("cron id:", id1)
@@ -138,7 +141,7 @@ func (t *TaskCache) UpdateTasks(tasks []*model.TaskDTO) {
 func (t *TaskCache) RemoveTask(task *model.TaskDTO) error {
 	t.Lock()
 	defer t.Unlock()
-	log.Debug("removing snap task %d", task.Id)
+	log.Debug("removing task %d", task.Id)
 	if err := t.removeActiveTask(task); err != nil {
 		return err
 	}
@@ -159,21 +162,18 @@ func (t *TaskCache) removeActiveTask(task *model.TaskDTO) error {
 
 var GlobalTaskCache *TaskCache
 
-func InitTaskCache(tsdbgwAddr *string) {
-	GlobalTaskCache = &TaskCache{
-		tsdbgwURL: tsdbgwAddr,
-		Tasks:     make(map[int64]*model.TaskDTO),
-	}
-
+func InitTaskCache(tsdbgwAddr *string, tsdbgwApiKey *string) {
 	log.Info("TSDB-GW URL is %s", *tsdbgwAddr)
 	tsdbgwURL, err := url.Parse(*tsdbgwAddr)
 	if err != nil {
 		log.Fatal(4, "Invalid TSDB url.", err)
 	}
-	var tsdbAPIKey = "123"
-	//publisher.Init(tsdbgwURL, tsdbAPIKey, 1)
-	Publisher = publisher.NewTsdb(tsdbgwURL, tsdbAPIKey, 1)
+	GlobalTaskCache = &TaskCache{
+		tsdbgwURL: tsdbgwURL,
+		Tasks:     make(map[int64]*model.TaskDTO),
+	}
 
+	GlobalTaskCache.Publisher = publisher.NewTsdb(tsdbgwURL, *tsdbgwApiKey, 1)
 	GlobalTaskCache.TaskRunner = taskrunner.TaskRunner{}
 	GlobalTaskCache.TaskRunner.Init()
 	GlobalTaskCache.initialized = true
