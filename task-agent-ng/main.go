@@ -35,6 +35,7 @@ var (
 
 func connect(u *url.URL) (*websocket.Conn, error) {
 	log.Info("connecting to %s", u.String())
+	log.Info("using appAPIKey %s", *appAPIKey)
 	header := make(http.Header)
 	header.Set("Authorization", fmt.Sprintf("Bearer %s", *appAPIKey))
 	conn, _, err := websocket.DefaultDialer.Dial(u.String(), header)
@@ -90,7 +91,12 @@ func main() {
 	//*nodeName = "agent1"
 	hostname, err := os.Hostname()
 	if err != nil {
-		log.Fatal(4, "failed to get hostname from OS.")
+		log.Fatal(4, "Failed to get hostname from OS.")
+	}
+	// if the config did not set the nodename, use the hostname
+	if *nodeName == "" {
+		*nodeName = hostname
+		log.Debug("Using hostname as nodeName: %s", *nodeName)
 	}
 	taConfig.ConfigProcess(hostname)
 	taConfig.Start()
