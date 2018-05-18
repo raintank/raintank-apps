@@ -13,7 +13,7 @@ import (
 
 	"github.com/raintank/raintank-apps/task-agent-ng/taskrunner"
 	"github.com/raintank/raintank-apps/task-server/model"
-	"github.com/raintank/worldping-api/pkg/log"
+	log "github.com/sirupsen/logrus"
 )
 
 var (
@@ -49,23 +49,19 @@ func (t *TaskCache) addTask(task *model.TaskDTO) error {
 
 	aJob, ok := t.TaskRunner.Exists(int(task.Id))
 	if !ok {
-		log.Debug("New task received %s", taskName)
-		taskAddedCount.Inc()
+		log.Debugf("New task received %s", taskName)
 		t.AddToTaskRunner(task)
 	} else {
-		log.Debug("task %s already in the cache.", taskName)
-		log.Info("jobmeta:", aJob)
+		log.Debugf("task %s already in the cache.", taskName)
 		// check age of creation timestamp vs the task updated Timestamp
 		// if the running job is has an older timestamp, remove it and create a new job
 		if task.Updated.After(time.Unix(aJob.CreationTimestamp, 0)) {
-			log.Debug("%s needs to be updated", taskName)
+			log.Infof("%s is stale and needs to be updated", taskName)
 			// need to update task
 			// remove it first
 			t.TaskRunner.Remove(aJob)
-			taskRemovedCount.Inc()
 			// then add it
 			t.AddToTaskRunner(task)
-			taskUpdatedCount.Inc()
 		}
 	}
 
@@ -119,7 +115,7 @@ func (t *TaskCache) UpdateTasks(tasks []*model.TaskDTO) {
 		seenTaskIds[task.Id] = struct{}{}
 		err := t.addTask(task)
 		if err != nil {
-			log.Error(3, err.Error())
+			log.Error(err.Error())
 		}
 	}
 	tasksToDel := make([]*model.TaskDTO, 0)
@@ -132,7 +128,7 @@ func (t *TaskCache) UpdateTasks(tasks []*model.TaskDTO) {
 	if len(tasksToDel) > 0 {
 		for _, task := range tasksToDel {
 			if err := t.RemoveTask(task); err != nil {
-				log.Error(3, "Failed to remove task %d", task.Id)
+				log.Errorf("Failed to remove task %d", task.Id)
 			}
 		}
 	}
@@ -141,7 +137,7 @@ func (t *TaskCache) UpdateTasks(tasks []*model.TaskDTO) {
 func (t *TaskCache) RemoveTask(task *model.TaskDTO) error {
 	t.Lock()
 	defer t.Unlock()
-	log.Debug("removing task %d", task.Id)
+	log.Debugf("removing task %d", task.Id)
 	if err := t.removeActiveTask(task); err != nil {
 		return err
 	}
@@ -152,7 +148,7 @@ func (t *TaskCache) RemoveTask(task *model.TaskDTO) error {
 func (t *TaskCache) removeActiveTask(task *model.TaskDTO) error {
 	aJob, ok := t.TaskRunner.Exists(int(task.Id))
 	if !ok {
-		log.Debug("removeActiveTask: task does not exist %d", task.Id)
+		log.Debugf("removeActiveTask: task does not exist %d", task.Id)
 		return fmt.Errorf("task does not exist")
 	}
 	t.TaskRunner.Remove(aJob)
@@ -163,10 +159,10 @@ func (t *TaskCache) removeActiveTask(task *model.TaskDTO) error {
 var GlobalTaskCache *TaskCache
 
 func InitTaskCache(tsdbgwAddr *string, tsdbgwApiKey *string) {
-	log.Info("TSDB-GW URL is %s", *tsdbgwAddr)
+	log.Infof("TSDB-GW URL is %s", *tsdbgwAddr)
 	tsdbgwURL, err := url.Parse(*tsdbgwAddr)
 	if err != nil {
-		log.Fatal(4, "Invalid TSDB url.", err)
+		log.Fatalf("Invalid TSDB url. %s", err)
 	}
 	GlobalTaskCache = &TaskCache{
 		tsdbgwURL: tsdbgwURL,
@@ -184,10 +180,10 @@ func HandleTaskList() interface{} {
 		tasks := make([]*model.TaskDTO, 0)
 		err := json.Unmarshal(data, &tasks)
 		if err != nil {
-			log.Error(3, "failed to decode taskUpdate payload. %s", err)
+			log.Errorf("failed to decode taskUpdate payload. %s", err)
 			return
 		}
-		log.Debug("TaskList. %s", data)
+		log.Debugf("TaskList. %s", data)
 		GlobalTaskCache.UpdateTasks(tasks)
 	}
 }
@@ -197,12 +193,12 @@ func HandleTaskUpdate() interface{} {
 		task := model.TaskDTO{}
 		err := json.Unmarshal(data, &task)
 		if err != nil {
-			log.Error(3, "failed to decode taskUpdate payload. %s", err)
+			log.Errorf("failed to decode taskUpdate payload. %s", err)
 			return
 		}
-		log.Debug("TaskUpdate. %s", data)
+		log.Debugf("TaskUpdate. %s", data)
 		if err := GlobalTaskCache.AddTask(&task); err != nil {
-			log.Error(3, "failed to add task to cache. %s", err)
+			log.Errorf("failed to add task to cache. %s", err)
 		}
 	}
 }
@@ -212,12 +208,12 @@ func HandleTaskAdd() interface{} {
 		task := model.TaskDTO{}
 		err := json.Unmarshal(data, &task)
 		if err != nil {
-			log.Error(3, "failed to decode taskAdd payload. %s", err)
+			log.Errorf("failed to decode taskAdd payload. %s", err)
 			return
 		}
 		log.Debug("Adding Task. %s", data)
 		if err := GlobalTaskCache.AddTask(&task); err != nil {
-			log.Error(3, "failed to add task to cache. %s", err)
+			log.Errorf("failed to add task to cache. %s", err)
 		}
 	}
 }
@@ -227,12 +223,12 @@ func HandleTaskRemove() interface{} {
 		task := model.TaskDTO{}
 		err := json.Unmarshal(data, &task)
 		if err != nil {
-			log.Error(3, "failed to decode taskAdd payload. %s", err)
+			log.Errorf("failed to decode taskAdd payload. %s", err)
 			return
 		}
-		log.Debug("Removing Task. %s", data)
+		log.Debugf("Removing Task. %s", data)
 		if err := GlobalTaskCache.RemoveTask(&task); err != nil {
-			log.Error(3, "failed to remove task from cache. %s", err)
+			log.Errorf("failed to remove task from cache. %s", err)
 		}
 	}
 }

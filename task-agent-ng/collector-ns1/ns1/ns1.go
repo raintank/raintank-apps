@@ -5,13 +5,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/gosimple/slug"
 	"github.com/grafana/metrictank/stats"
 	"github.com/raintank/raintank-apps/task-agent-ng/publisher"
 	"github.com/raintank/raintank-apps/task-agent-ng/taskrunner"
 	"github.com/raintank/schema.v1"
-	"github.com/raintank/worldping-api/pkg/log"
+	log "github.com/sirupsen/logrus"
 )
 
 var (
@@ -43,22 +42,21 @@ type Ns1 struct {
 func (n *Ns1) CollectMetrics() {
 	var err error
 	if n.APIKey == "" {
-		log.Error(4, "ns1_key missing from config.")
+		log.Error("ns1_key missing from config.")
 		return
 	}
 	client, err := NewClient("https://api.nsone.net/", n.APIKey, false)
 	if err != nil {
-		log.Error(4, "failed to create NS1 api client: error ", err)
+		log.Errorf("failed to create NS1 api client: %s", err)
 		return
 	}
-	result, probeErr := n.zoneMetrics(client, n.Metric)
-	if probeErr != nil {
-		log.Error(4, "failed to collect metrics.", probeErr)
+	result, err := n.zoneMetrics(client, n.Zone)
+	if err != nil {
+		log.Errorf("failed to collect metrics. %s", err)
 		return
 	}
-	log.Info("QPS is %f", result.Value)
-	spew.Dump(result)
-	zoneSlug := slug.Make(n.Metric.Zone)
+	log.Infof("QPS for %s is %f", n.Zone, result)
+	zoneSlug := slug.Make(n.Zone)
 
 	var metrics []*schema.MetricData
 	qpsMetric := schema.MetricData{
@@ -86,7 +84,7 @@ func (n *Ns1) zoneMetrics(client *Client, metric *taskrunner.RTAMetric) (*taskru
 	startTime := time.Now().UTC()
 	qps, err := client.QPS(metric.Zone)
 	if err != nil {
-		log.Error(4, "failed to get zone QPS for zone - %d error %s", metric.Zone, err)
+		log.Errorf("failed to get zone QPS for zone - %s error %s", zone, err)
 		ns1CollectFailureCount.Inc()
 		endTime := time.Since(startTime)
 		ns1CollectFailureDurationNS.SetUint64(uint64(endTime.Nanoseconds()))

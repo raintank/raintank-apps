@@ -15,17 +15,15 @@ import (
 
 	"github.com/golang/snappy"
 	"github.com/grafana/metrictank/stats"
-	eventMsg "github.com/grafana/worldping-gw/msg"
 	"github.com/jpillora/backoff"
 	"github.com/raintank/schema.v1"
 	"github.com/raintank/schema.v1/msg"
-	"github.com/raintank/worldping-api/pkg/log"
+	log "github.com/sirupsen/logrus"
 )
 
 var (
 	Publisher          *Tsdb
 	maxMetricsPerFlush = 10000
-	maxEventsPerFlush  = 10000
 	maxFlushWait       = time.Millisecond * 500
 )
 
@@ -34,10 +32,6 @@ var (
 	tsdbgwSendFailureCount      = stats.NewCounter32("tsdbgw.send.failure")
 	tsdbgwSendSuccessDurationNS = stats.NewGauge64("tsdbgw.send.success.duration_ns")
 	tsdbgwSendFailureDurationNS = stats.NewGauge64("tsdbgw.send.failure.duration_ns")
-	eventSendSuccessCount       = stats.NewCounter32("event.flush.success")
-	eventSendFailureCount       = stats.NewCounter32("event.flush.failure")
-	eventSendSuccessDurationNS  = stats.NewGauge64("event.flush.success.duration_ns")
-	eventSendFailureDurationNS  = stats.NewGauge64("event.flush.failure.duration_ns")
 )
 
 func Init(u *url.URL, apiKey string, concurrency int) {
@@ -54,11 +48,9 @@ type Tsdb struct {
 	tsdbUrl            string
 	tsdbKey            string
 	metricsWriteQueues []chan []byte
-	eventsWriteQueue   chan []byte
 	shutdown           chan struct{}
 	wg                 *sync.WaitGroup
 	metricsIn          chan *schema.MetricData
-	eventsIn           chan *eventMsg.ProbeEvent
 	client             *http.Client
 }
 
@@ -69,10 +61,8 @@ func NewTsdb(u *url.URL, apiKey string, concurrency int) *Tsdb {
 		tsdbKey:            apiKey,
 		concurrency:        concurrency,
 		metricsWriteQueues: make([]chan []byte, concurrency),
-		eventsWriteQueue:   make(chan []byte, concurrency),
 		shutdown:           make(chan struct{}),
 		metricsIn:          make(chan *schema.MetricData, 1000000),
-		eventsIn:           make(chan *eventMsg.ProbeEvent, 50000),
 		wg:                 &sync.WaitGroup{},
 	}
 	for i := 0; i < concurrency; i++ {
@@ -105,21 +95,16 @@ func NewTsdb(u *url.URL, apiKey string, concurrency int) *Tsdb {
 
 // Add metrics to the input buffer
 func (t *Tsdb) Add(metrics []*schema.MetricData) {
-	log.Debug("publisher.Add: publishing %d metrics", len(metrics))
+	log.Debugf("publisher.Add: publishing %d metrics", len(metrics))
 	for index := range metrics {
-		log.Debug("publisher.Add: appending metric with index %d", index)
+		log.Debugf("publisher.Add: appending metric with index %d", index)
 		t.metricsIn <- metrics[index]
-		log.Debug("publisher.Add: appended metric with index %d", index)
+		log.Debugf("publisher.Add: appended metric with index %d", index)
 	}
-}
-
-func (t *Tsdb) AddEvent(event *eventMsg.ProbeEvent) {
-	t.eventsIn <- event
 }
 
 func (t *Tsdb) run() {
 	metrics := make([][]*schema.MetricData, t.concurrency)
-	events := make([]*eventMsg.ProbeEvent, 0, maxEventsPerFlush)
 	for i := 0; i < t.concurrency; i++ {
 		// buffers for holding metrics before flushing.
 		metrics[i] = make([]*schema.MetricData, 0, maxMetricsPerFlush)
@@ -127,10 +112,6 @@ func (t *Tsdb) run() {
 		// start up our goroutines for writing metrics to tsdb-gw
 		t.wg.Add(1)
 		go t.flushMetrics(i)
-
-		// start up our goroutines for writing events to tsdb-gw
-		t.wg.Add(1)
-		go t.flushEvents()
 	}
 
 	flushMetrics := func(shard int) {
@@ -144,18 +125,6 @@ func (t *Tsdb) run() {
 		}
 		t.metricsWriteQueues[shard] <- data
 		metrics[shard] = metrics[shard][:0]
-	}
-
-	flushEvents := func() {
-		if len(events) == 0 {
-			return
-		}
-		data, err := eventMsg.CreateProbeEventsMsg(events)
-		if err != nil {
-			panic(err)
-		}
-		t.eventsWriteQueue <- data
-		events = events[:0]
 	}
 
 	hasher := fnv.New32a()
@@ -178,19 +147,11 @@ func (t *Tsdb) run() {
 			for shard := 0; shard < t.concurrency; shard++ {
 				flushMetrics(shard)
 			}
-			flushEvents()
-		case event := <-t.eventsIn:
-			events = append(events, event)
-			if len(events) == maxEventsPerFlush {
-				flushEvents()
-			}
 		case <-t.shutdown:
 			for shard := 0; shard < t.concurrency; shard++ {
 				flushMetrics(shard)
 				close(t.metricsWriteQueues[shard])
 			}
-			flushEvents()
-			close(t.eventsWriteQueue)
 			return
 		}
 	}
@@ -249,66 +210,14 @@ func (t *Tsdb) flushMetrics(shard int) {
 			}
 			dur := b.Duration()
 			if err != nil {
-				log.Warn("GrafanaNet failed to submit metrics: %s will try again in %s (this attempt took %s)", err, dur, diff)
+				log.Warnf("GrafanaNet failed to submit metrics: %s will try again in %s (this attempt took %s)", err, dur, diff)
 			} else {
 				buf := make([]byte, 300)
 				n, _ := resp.Body.Read(buf)
-				log.Warn("GrafanaNet failed to submit metrics: http %d - %s will try again in %s (this attempt took %s)", resp.StatusCode, buf[:n], dur, diff)
+				log.Warnf("GrafanaNet failed to submit metrics: http %d - %s will try again in %s (this attempt took %s)", resp.StatusCode, buf[:n], dur, diff)
 				resp.Body.Close()
 				tsdbgwSendFailureCount.Inc()
 				tsdbgwSendFailureDurationNS.SetUint64(uint64(diff.Nanoseconds()))
-			}
-
-			time.Sleep(dur)
-		}
-	}
-}
-
-func (t *Tsdb) flushEvents() {
-	q := t.eventsWriteQueue
-	b := &backoff.Backoff{
-		Min:    100 * time.Millisecond,
-		Max:    time.Minute,
-		Factor: 1.5,
-		Jitter: true,
-	}
-	body := new(bytes.Buffer)
-	var bodyLen int
-	defer t.wg.Done()
-	for data := range q {
-		for {
-			pre := time.Now()
-			body.Reset()
-			snappyBody := snappy.NewWriter(body)
-			snappyBody.Write(data)
-			bodyLen = body.Len()
-			req, err := http.NewRequest("POST", t.tsdbUrl+"/events", body)
-			if err != nil {
-				panic(err)
-			}
-			req.Header.Add("Authorization", "Bearer "+t.tsdbKey)
-			req.Header.Add("Content-Type", "rt-metric-binary-snappy")
-			resp, err := t.client.Do(req)
-			diff := time.Since(pre)
-			if err == nil && resp.StatusCode >= 200 && resp.StatusCode < 300 {
-				b.Reset()
-				log.Debug("GrafanaNet sent event in %s -msg size %d", diff, bodyLen)
-				resp.Body.Close()
-				ioutil.ReadAll(resp.Body)
-				eventSendSuccessCount.Inc()
-				eventSendSuccessDurationNS.SetUint64(uint64(diff.Nanoseconds()))
-				break
-			}
-			dur := b.Duration()
-			if err != nil {
-				log.Warn("GrafanaNet failed to submit event: %s will try again in %s (this attempt took %s)", err, dur, diff)
-			} else {
-				buf := make([]byte, 300)
-				n, _ := resp.Body.Read(buf)
-				log.Warn("GrafanaNet failed to submit event: http %d - %s will try again in %s (this attempt took %s)", resp.StatusCode, buf[:n], dur, diff)
-				resp.Body.Close()
-				eventSendFailureCount.Inc()
-				eventSendFailureDurationNS.SetUint64(uint64(diff.Nanoseconds()))
 			}
 
 			time.Sleep(dur)

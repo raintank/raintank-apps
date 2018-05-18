@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/grafana/metrictank/stats"
-	"github.com/raintank/worldping-api/pkg/log"
+	log "github.com/sirupsen/logrus"
 	"gopkg.in/robfig/cron.v2"
 )
 
@@ -57,7 +57,7 @@ func (c *TaskRunner) Init() {
 
 // Add Creates a new cron job to execute an arbitrary collection
 func (c *TaskRunner) Add(taskID int, jobSchedule string, jobFunc func()) cron.EntryID {
-	log.Info("Adding job to Cron", taskID)
+	log.Infof("Adding job for task %d to Cron", taskID)
 	taskName := fmt.Sprintf("raintank-apps:%d", taskID)
 
 	jobID, _ := c.Master.AddFunc(jobSchedule, jobFunc)
@@ -76,9 +76,9 @@ func (c *TaskRunner) Add(taskID int, jobSchedule string, jobFunc func()) cron.En
 // Remove terminates a runnning job and removes from map
 func (c *TaskRunner) Remove(aJob TaskMeta) {
 	// TODO use task meta vs the cron id
-	log.Info("Removing job from cron", aJob.CronID)
+	log.Infof("Removing job with cronId %d from cron", aJob.CronID)
 	c.Master.Remove(aJob.CronID)
-	log.Info("Removing job from job tracker", aJob.ID)
+	log.Infof("Removing job wit ID %d from job tracker", aJob.ID)
 	delete(c.Jobs, aJob.ID)
 	runnerRemovedCount.Inc()
 	runnerActiveTasks.Set(len(c.Master.Entries()))
@@ -86,7 +86,7 @@ func (c *TaskRunner) Remove(aJob TaskMeta) {
 
 // Exists returns the job metadata and true if it is found
 func (c *TaskRunner) Exists(jobID int) (TaskMeta, bool) {
-	log.Info("Checking for job ", jobID)
+	log.Debugf("Checking for job %d", jobID)
 	aJob, ok := c.Jobs[jobID]
 	if ok {
 		// check if the id matches

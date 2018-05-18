@@ -6,15 +6,14 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"path"
 	"time"
 
-	"github.com/grafana/metrictank/stats"
-
 	"github.com/google/go-querystring/query"
+	"github.com/grafana/metrictank/stats"
+	log "github.com/sirupsen/logrus"
 )
 
 // APIVersion NS1
@@ -85,7 +84,7 @@ func (c *Client) get(path string, query interface{}) ([]byte, error) {
 		}
 		path = path + "?" + qstr
 	}
-	log.Printf("sending request for %s", c.prefix+path)
+	log.Debugf("sending request for %s", c.prefix+path)
 	req, err := http.NewRequest("GET", c.prefix+path, nil)
 	if err != nil {
 		return nil, err
@@ -156,7 +155,7 @@ func (c *Client) QPS(zone string) (*QPS, error) {
 	}
 	body, err := c.get(path, nil)
 	if err != nil {
-		log.Printf("failed to get %s. %s", path, err)
+		log.Debugf("failed to get %s. %s", path, err)
 		return nil, err
 	}
 	qps := QPS{}
