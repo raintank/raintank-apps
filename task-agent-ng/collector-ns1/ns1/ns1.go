@@ -8,7 +8,7 @@ import (
 	"github.com/gosimple/slug"
 	"github.com/grafana/metrictank/stats"
 	"github.com/raintank/raintank-apps/task-agent-ng/publisher"
-	"github.com/raintank/raintank-apps/task-agent-ng/taskrunner"
+	"github.com/raintank/raintank-apps/task-server/model"
 	"github.com/raintank/schema.v1"
 	log "github.com/sirupsen/logrus"
 )
@@ -32,10 +32,30 @@ func init() {
 // Ns1 Plugin Name
 type Ns1 struct {
 	APIKey    string
-	Metric    *taskrunner.RTAMetric
+	Zone      string
 	Publisher *publisher.Tsdb
 	OrgID     int64
 	Interval  int64
+}
+
+func New(task *model.TaskDTO, publisher *publisher.Tsdb) (*Ns1, error) {
+	key := task.Config[task.TaskType]["ns1_key"]
+	keyStr, ok := key.(string)
+	if !ok {
+		return nil, fmt.Errorf("ns1_key not defined in task config.")
+	}
+	zone := task.Config[task.TaskType]["zone"]
+	zoneStr, ok := zone.(string)
+	if !ok {
+		return nil, fmt.Errorf("zone not defined in task config.")
+	}
+	return &Ns1{
+		APIKey:    keyStr,
+		Zone:      zoneStr,
+		Publisher: publisher,
+		OrgID:     task.OrgId,
+		Interval:  task.Interval,
+	}, nil
 }
 
 // CollectMetrics collects metrics for testing
@@ -58,9 +78,8 @@ func (n *Ns1) CollectMetrics() {
 	log.Infof("QPS for %s is %f", n.Zone, result)
 	zoneSlug := slug.Make(n.Zone)
 
-	var metrics []*schema.MetricData
-	qpsMetric := schema.MetricData{
-		Id:       "1",
+	metrics := make([]*schema.MetricData, 1)
+	metrics[0] = &schema.MetricData{
 		OrgId:    int(n.OrgID),
 		Name:     fmt.Sprintf("raintank.apps.ns1.zones.%s.qps", zoneSlug),
 		Metric:   fmt.Sprintf("raintank.apps.ns1.zones.%s.qps", zoneSlug),
@@ -68,21 +87,21 @@ func (n *Ns1) CollectMetrics() {
 		Time:     time.Now().Unix(),
 		Unit:     "ms",
 		Mtype:    "gauge",
-		Value:    result.Value,
+		Value:    result,
 		Tags:     nil,
 	}
-	metrics = append(metrics, &qpsMetric)
-	log.Debug("got %d metrics", len(metrics))
+	metrics[0].SetId()
+
 	// publish to tsdbgw
 	n.Publisher.Add(metrics)
 	log.Debug("collecting metrics completed")
 }
 
-func (n *Ns1) zoneMetrics(client *Client, metric *taskrunner.RTAMetric) (*taskrunner.RTAMetric, error) {
-	//zSlug := slug.Make(mt.Zone)
+func (n *Ns1) zoneMetrics(client *Client, zone string) (float64, error) {
 	ns1CollectAttemptsCount.Inc()
 	startTime := time.Now().UTC()
-	qps, err := client.QPS(metric.Zone)
+	qps, err := client.QPS(zone)
+	result := float64(0)
 	if err != nil {
 		log.Errorf("failed to get zone QPS for zone - %s error %s", zone, err)
 		ns1CollectFailureCount.Inc()
@@ -90,12 +109,11 @@ func (n *Ns1) zoneMetrics(client *Client, metric *taskrunner.RTAMetric) (*taskru
 		ns1CollectFailureDurationNS.SetUint64(uint64(endTime.Nanoseconds()))
 		ns1CollectDurationNS.SetUint64(uint64(endTime.Nanoseconds()))
 	} else {
-		metric.Value = qps.QPS
-		metric.Timestamp = time.Now().Unix()
+		result = qps.QPS
 		ns1CollectSuccessCount.Inc()
 		endTime := time.Since(startTime)
 		ns1CollectSuccessDurationNS.SetUint64(uint64(endTime.Nanoseconds()))
 		ns1CollectDurationNS.SetUint64(uint64(endTime.Nanoseconds()))
 	}
-	return metric, nil
+	return result, nil
 }

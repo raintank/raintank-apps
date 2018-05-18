@@ -9,6 +9,7 @@ import (
 
 	"github.com/grafana/metrictank/stats"
 	"github.com/raintank/raintank-apps/task-agent-ng/collector-ns1/ns1"
+	"github.com/raintank/raintank-apps/task-agent-ng/collector-voxter/voxter"
 	"github.com/raintank/raintank-apps/task-agent-ng/publisher"
 
 	"github.com/raintank/raintank-apps/task-agent-ng/taskrunner"
@@ -20,7 +21,12 @@ var (
 	taskAddedCount   = stats.NewCounter32("tasks.added")
 	taskUpdatedCount = stats.NewCounter32("tasks.updated")
 	taskRemovedCount = stats.NewCounter32("tasks.removed")
+	taskInvalidCount = stats.NewCounter32("tasks.invalid")
 )
+
+type Plugin interface {
+	CollectMetrics()
+}
 
 type TaskCache struct {
 	sync.RWMutex
@@ -70,41 +76,33 @@ func (t *TaskCache) addTask(task *model.TaskDTO) error {
 
 // AddToTaskRunner decodes the type of plugin to use from the config and creates a new cron task
 func (t *TaskCache) AddToTaskRunner(task *model.TaskDTO) {
-	var ns1Key string
-	var zone string
-	for key, value := range task.Config {
-		log.Info("Key:", key, "Value:", value)
-		switch key {
-		case "/raintank/apps/ns1":
-			log.Info("NS1 Plugin Needed!")
-			// get the ns1_key and zone from the value
-			ns1Key = value["ns1_key"].(string)
-			zone = value["zone"].(string)
-			log.Info("ns1key is:", ns1Key)
-			log.Info("zone is:", zone)
-			metric := taskrunner.RTAMetric{
-				Name:       task.Name,
-				MetricName: "qps",
-				Zone:       zone,
-				Unit:       "ms",
-			}
-			aPlugin := new(ns1.Ns1)
-			aPlugin.APIKey = ns1Key
-			aPlugin.Metric = &metric
-			aPlugin.OrgID = task.OrgId
-			aPlugin.Interval = task.Interval
-			aPlugin.Publisher = t.Publisher
-			sched := fmt.Sprintf("@every %ds", task.Interval)
-			id1 := t.TaskRunner.Add(int(task.Id), sched, aPlugin.CollectMetrics)
-			log.Info("cron id:", id1)
-			break
-		case "/raintank/apps/voxter":
-			log.Info("Voxter Plugin Needed!")
-		default:
-			log.Info("Unknown Plugin Needed!")
+	var plugin Plugin
+	var err error
+	log.Infof("adding task of type %s", task.TaskType)
+	switch task.TaskType {
+	case "/raintank/apps/ns1":
+		plugin, err = ns1.New(task, t.Publisher)
+		if err != nil {
+			log.Errorf("failed to add ns1 task %d. %s", task.Id, err)
+			taskInvalidCount.Inc()
+			return
 		}
+	case "/raintank/apps/voxter":
+		plugin, err = voxter.New(task, t.Publisher)
+		if err != nil {
+			log.Errorf("failed to add ns1 task. %s", err)
+			taskInvalidCount.Inc()
+			return
+		}
+		return
+	default:
+		log.Info("Unknown Plugin Needed!")
+		return
 	}
-
+	taskAddedCount.Inc()
+	sched := fmt.Sprintf("@every %ds", task.Interval)
+	id1 := t.TaskRunner.Add(int(task.Id), sched, plugin.CollectMetrics)
+	log.Infof("task %d assigned cron id: %v", task.Id, id1)
 }
 
 // UpdateTasks Iterates over the tasks and removes stale entries

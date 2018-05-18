@@ -2,15 +2,15 @@ package voxter
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/gosimple/slug"
 	"github.com/grafana/metrictank/stats"
 	"github.com/raintank/raintank-apps/task-agent-ng/publisher"
-	"github.com/raintank/raintank-apps/task-agent-ng/taskrunner"
+	"github.com/raintank/raintank-apps/task-server/model"
 	"github.com/raintank/schema.v1"
-	"github.com/raintank/worldping-api/pkg/log"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -41,60 +41,58 @@ func init() {
 
 type Voxter struct {
 	APIKey    string
-	Metric    *taskrunner.RTAMetric
 	Publisher *publisher.Tsdb
 	OrgID     int64
 	Interval  int64
 }
 
+func New(task *model.TaskDTO, publisher *publisher.Tsdb) (*Voxter, error) {
+	key := task.Config[task.TaskType]["voxter_key"]
+	keyStr, ok := key.(string)
+	if !ok {
+		return nil, fmt.Errorf("voxter_key not defined in task config.")
+	}
+	return &Voxter{
+		APIKey:    keyStr,
+		Publisher: publisher,
+		OrgID:     task.OrgId,
+		Interval:  task.Interval,
+	}, nil
+}
+
 // CollectMetrics collects metrics for testing
-func (v *Voxter) CollectMetrics() error {
+func (v *Voxter) CollectMetrics() {
 	var err error
 	if v.APIKey == "" {
-		log.Error(4, "voxter_key missing from config.")
-		return fmt.Errorf("voxter_key missing from config")
+		log.Error("voxter_key missing from config.")
+		return
 	}
 	client, err := NewClient(statsURL, v.APIKey, false)
 	if err != nil {
-		log.Error(4, "failed to create voxter api client.", "error", err)
-		return err
+		log.Errorf("failed to create voxter api client. %s", err)
+		return
 	}
 
 	resp, err := v.endpointMetrics(client)
 	if err != nil {
-		log.Error(4, "failed to collect metrics.", "error", err)
-		return err
+		log.Errorf("failed to collect metrics. %s", err)
+		return
 	}
 	if resp == nil {
-		return fmt.Errorf("metrics collected but no data received")
+		log.Error("metrics collected but no data received")
+		return
 	}
-	//metrics = resp
-	aMetric := schema.MetricData{
-		Id:       "1",
-		OrgId:    int(v.OrgID),
-		Name:     fmt.Sprintf("raintank.apps.voxter.%s.ametric", ""),
-		Metric:   fmt.Sprintf("raintank.apps.voxter.%s.ametric", ""),
-		Interval: int(v.Interval),
-		Time:     time.Now().Unix(),
-		Unit:     "ms",
-		Mtype:    "gauge",
-		Value:    0,
-		Tags:     nil,
+
+	if len(resp) > 0 {
+		publisher.Publisher.Add(resp)
 	}
-	var metrics []*schema.MetricData
 
-	metrics = append(metrics, &aMetric)
-	log.Debug("got %d metrics", len(metrics))
-	spew.Dump(metrics)
-
-	publisher.Publisher.Add(metrics)
-
-	log.Debug("collecting metrics completed", "metric_count", len(metrics))
-	return nil
+	log.Debugf("collecting metrics completed. metric_count %s", len(resp))
 }
 
 func (v *Voxter) endpointMetrics(client *Client) ([]*schema.MetricData, error) {
 	var metrics []*schema.MetricData
+	cSlug := slug.Make("piston")
 	endpoints, err := client.EndpointStats()
 	if err != nil {
 		return nil, err
@@ -102,7 +100,50 @@ func (v *Voxter) endpointMetrics(client *Client) ([]*schema.MetricData, error) {
 	if endpoints == nil {
 		return nil, fmt.Errorf("endpoint stats collected but no data received")
 	}
-	// TODO
+	for n, e := range endpoints {
+		marr := strings.Split(n, ".")
+		for i, v := range marr {
+			marr[i] = slug.Make(v)
+		}
+		for i, j := 0, len(marr)-1; i < j; i, j = i+1, j-1 {
+			marr[i], marr[j] = marr[j], marr[i]
+		}
+		mSlug := strings.Join(marr, "_")
+		metrics = append(metrics, &schema.MetricData{
+			OrgId:    int(v.OrgID),
+			Name:     fmt.Sprintf("raintank.apps.voxter.%s.%s.registrations", cSlug, mSlug),
+			Metric:   fmt.Sprintf("raintank.apps.voxter.%s.%s.registrations", cSlug, mSlug),
+			Interval: int(v.Interval),
+			Time:     time.Now().Unix(),
+			Unit:     "ms",
+			Mtype:    "gauge",
+			Value:    e.Registrations,
+			Tags:     nil,
+		}, &schema.MetricData{
+			OrgId:    int(v.OrgID),
+			Name:     fmt.Sprintf("raintank.apps.voxter.%s.%s.channels.inbound", cSlug, mSlug),
+			Metric:   fmt.Sprintf("raintank.apps.voxter.%s.%s.channels.inbound", cSlug, mSlug),
+			Interval: int(v.Interval),
+			Time:     time.Now().Unix(),
+			Unit:     "ms",
+			Mtype:    "gauge",
+			Value:    e.Channels.Inbound,
+			Tags:     nil,
+		}, &schema.MetricData{
+			OrgId:    int(v.OrgID),
+			Name:     fmt.Sprintf("raintank.apps.voxter.%s.%s.channels.outbound", cSlug, mSlug),
+			Metric:   fmt.Sprintf("raintank.apps.voxter.%s.%s.channels.outbound", cSlug, mSlug),
+			Interval: int(v.Interval),
+			Time:     time.Now().Unix(),
+			Unit:     "ms",
+			Mtype:    "gauge",
+			Value:    e.Channels.Outbound,
+			Tags:     nil,
+		})
+	}
+	for _, m := range metrics {
+		m.SetId()
+	}
 
 	return metrics, nil
 }

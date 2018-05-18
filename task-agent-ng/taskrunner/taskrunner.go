@@ -11,16 +11,6 @@ import (
 	"gopkg.in/robfig/cron.v2"
 )
 
-type RTAMetric struct {
-	Name       string
-	MetricName string
-	Value      float64
-	Tags       map[string]string
-	Timestamp  int64
-	Unit       string
-	Zone       string
-}
-
 var (
 	runnerAddedCount   = stats.NewCounter32("runner.tasks.added")
 	runnerRemovedCount = stats.NewCounter32("runner.tasks.removed")
