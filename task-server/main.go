@@ -8,13 +8,13 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
-	"strings"
 
-	"github.com/raintank/met/helper"
+	"github.com/grafana/metrictank/stats"
 	"github.com/raintank/raintank-apps/task-server/api"
 	"github.com/raintank/raintank-apps/task-server/event"
 	"github.com/raintank/raintank-apps/task-server/manager"
 	"github.com/raintank/raintank-apps/task-server/sqlstore"
+	tsConfig "github.com/raintank/raintank-apps/task-server/taskserverconfig"
 	"github.com/raintank/worldping-api/pkg/log"
 	"github.com/rakyll/globalconf"
 )
@@ -29,27 +29,33 @@ var (
 	dbType          = flag.String("db-type", "sqlite3", "Database type. sqlite3 or mysql")
 	dbConnectString = flag.String("db-connect-str", "file:/tmp/task-server.db?cache=shared&mode=rwc&_loc=Local", "DSN to connect to DB. https://godoc.org/github.com/mattn/go-sqlite3#SQLiteDriver.Open or https://github.com/go-sql-driver/mysql#dsn-data-source-name")
 
-	statsEnabled = flag.Bool("stats-enabled", false, "enable statsd metrics")
-	statsdAddr   = flag.String("statsd-addr", "localhost:8125", "statsd address")
-	statsdType   = flag.String("statsd-type", "standard", "statsd type: standard or datadog")
-
 	exchange    = flag.String("exchange", "events", "Rabbitmq Topic Exchange")
 	rabbitmqUrl = flag.String("rabbitmq-url", "amqp://guest:guest@localhost:5672/", "rabbitmq Url")
 
-	adminKey = flag.String("admin-key", "not_very_secret_key", "Admin Secret Key")
+	appAPIKey = flag.String("app-api-key", "app_not_very_secret_key", "API Key for task-server and task-agent communication")
+)
+
+var (
+	taskServerRunning = stats.NewGauge32("running")
 )
 
 func main() {
 	flag.Parse()
 
-	// Only try and parse the conf file if it exists
+	var cfile string
 	if _, err := os.Stat(*confFile); err == nil {
-		conf, err := globalconf.NewWithOptions(&globalconf.Options{Filename: *confFile})
-		if err != nil {
-			panic(fmt.Sprintf("error with configuration file: %s", err))
-		}
-		conf.ParseAll()
+		cfile = *confFile
 	}
+
+	conf, err := globalconf.NewWithOptions(&globalconf.Options{
+		Filename:  cfile,
+		EnvPrefix: "TASKSERVER_",
+	})
+	if err != nil {
+		panic(fmt.Sprintf("error with configuration file: %s", err))
+	}
+	tsConfig.ConfigSetup()
+	conf.ParseAll()
 
 	log.NewLogger(0, "console", fmt.Sprintf(`{"level": %d, "formatting":true}`, *logLevel))
 	// workaround for https://github.com/grafana/grafana/issues/4055
@@ -75,12 +81,13 @@ func main() {
 		return
 	}
 
-	hostname, _ := os.Hostname()
-
-	stats, err := helper.New(*statsEnabled, *statsdAddr, *statsdType, "raintank_apps", strings.Replace(hostname, ".", "_", -1))
-	if err != nil {
-		log.Fatal(4, "failed to initialize statsd. %s", err)
+	var hostname, hnErr = os.Hostname()
+	if hnErr != nil {
+		log.Fatal(4, "failed to get hostname from OS.")
 	}
+
+	tsConfig.ConfigProcess(hostname)
+	tsConfig.Start()
 
 	// initialize DB
 	enableSqlLog := false
@@ -94,8 +101,9 @@ func main() {
 		panic(err)
 	}
 
-	m := api.NewApi(*adminKey, stats)
+	log.Info("main: using app-api-key: %s", *appAPIKey)
 
+	m := api.NewApi(*appAPIKey)
 	err = event.Init(*rabbitmqUrl, *exchange)
 	if err != nil {
 		log.Fatal(4, "failed to init event PubSub. %s", err)
@@ -107,6 +115,8 @@ func main() {
 	signal.Notify(interrupt, os.Interrupt)
 
 	log.Info("starting up")
+	taskServerRunning.Inc()
+
 	// define our own listner so we can call Close on it
 	l, err := net.Listen("tcp", *addr)
 	if err != nil {

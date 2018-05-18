@@ -1,0 +1,15 @@
+# use ubuntu image
+FROM ubuntu:latest
+RUN apt-get update
+RUN apt-get install -y apt-utils
+RUN apt-get install -y ca-certificates
+#
+ENV HOME /app
+
+# Copy the built binaries into /app
+RUN mkdir -p /app
+COPY --from=raintank/raintank-apps-task-server /app/task-agent-ng /app
+
+# Run task-server
+WORKDIR /app
+CMD ["./task-agent-ng", "-config", "/etc/raintank/task-agent.ini"]

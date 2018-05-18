@@ -1,38 +1,50 @@
 #!/bin/bash
+# Detect OS, use readlink/greadlink
+platform='linux'
+unamestr=`uname`
+if [[ "$unamestr" == 'Darwin' ]]; then
+   platform='Darwin'
+fi
 
-BASE=$(readlink -e $(dirname $0))
+READLINK="readlink"
+if [[ $platform == 'Darwin' ]]; then
+   READLINK="greadlink"
+fi
+
+BASE=$($READLINK -e $(dirname $0))
 
 CIRCLE_PROJECT_USERNAME=${CIRCLE_PROJECT_USERNAME:-raintank}
 CIRCLE_PROJECT_REPONAME=${CIRCLE_PROJECT_REPONAME:-raintank-apps}
 
-mkdir -p /home/ubuntu/go/src/github.com/$CIRCLE_PROJECT_USERNAME
-ln -s /home/ubuntu/$CIRCLE_PROJECT_REPONAME /home/ubuntu/go/src/github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME
+#mkdir -p $GOPATH/src/github.com/$CIRCLE_PROJECT_USERNAME
+#ln -s $HOME/$CIRCLE_PROJECT_REPONAME $GOPATH/src/github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME
 
-curl https://glide.sh/get | sh
+#curl https://glide.sh/get | sh
 
-mkdir -p /home/ubuntu/go/src/github.com/intelsdi-x/
-cd /home/ubuntu/go/src/github.com/intelsdi-x/
-git clone https://github.com/intelsdi-x/snap.git
-cd /home/ubuntu/go/src/github.com/intelsdi-x/snap
-git checkout ca32c9af5b93d79f1b559469cc163258b1989b2d
-make deps
+#mkdir -p $GOPATH/src/github.com/intelsdi-x/
+#cd $GOPATH/src/github.com/intelsdi-x/
+#git clone https://github.com/intelsdi-x/snap.git
+#cd $GOPATH/src/github.com/intelsdi-x/snap
+#git checkout 2439ea1b2b12d1f13b2df7b3cf1b85475feadf44
+#make deps
 
-go get github.com/intelsdi-x/snap-plugin-lib-go/...
-cd /home/ubuntu/go/src/github.com/intelsdi-x/snap-plugin-lib-go
-glide up
+#go get github.com/intelsdi-x/snap-plugin-lib-go/...
+#cd $GOPATH/src/github.com/intelsdi-x/snap-plugin-lib-go
+#glide up
 
-mkdir -p /home/ubuntu/go/src/github.com/google
-cd /home/ubuntu/go/src/github.com/google
-git clone https://github.com/google/go-github
-cd go-github
-git checkout 2ec691a35b10b8c1471955a96d0f182a572e1cad
+#mkdir -p $GOPATH/src/github.com/google
+#cd $GOPATH/src/github.com/google
+#git clone https://github.com/google/go-github
+#cd go-github
+#git checkout e7bb4b8ce29fb7beaf0765acda602bc516a56dd5
 
-cd /home/ubuntu/go/src/github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME
+cd $GOPATH/src/github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME
 go get -t ./...
 
-cd /home/ubuntu/go/src/github.com/go-xorm/xorm
-git checkout v0.5.4
-
+#go get github.com/go-xorm/xorm
+cd $GOPATH/src/github.com/go-xorm/xorm
+git checkout v0.5.6
+#git checkout 9bf34c31890cb518c714bedfec324cdfaacc4cf7
 
 cd $BASE
-bundle install
+#bundle install

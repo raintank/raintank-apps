@@ -3,7 +3,6 @@ package migrations
 import (
 	"fmt"
 
-	"github.com/go-xorm/xorm"
 	"github.com/raintank/worldping-api/pkg/services/sqlstore/migrator"
 )
 
@@ -32,6 +31,7 @@ func addRouteByTagIndexMigrations(mg *migrator.Migrator) {
 		Name: "route_by_tag_index",
 		Columns: []*migrator.Column{
 			{Name: "id", Type: migrator.DB_BigInt, IsPrimaryKey: true, IsAutoIncrement: true},
+			{Name: "org_id", Type: migrator.DB_BigInt, Nullable: true},
 			{Name: "task_id", Type: migrator.DB_BigInt, Nullable: false},
 			{Name: "tag", Type: migrator.DB_NVarchar, Length: 255, Nullable: false},
 			{Name: "created", Type: migrator.DB_DateTime},
@@ -45,18 +45,6 @@ func addRouteByTagIndexMigrations(mg *migrator.Migrator) {
 		migrationId := fmt.Sprintf("create index %s - %s", index.XName(routeIndexV1.Name), "v1")
 		mg.AddMigration(migrationId, migrator.NewAddIndexMigration(routeIndexV1, index))
 	}
-
-	// add health settings
-	migration := migrator.NewAddColumnMigration(routeIndexV1, &migrator.Column{
-		Name: "org_id", Type: migrator.DB_BigInt, Nullable: true,
-	})
-	migration.OnSuccess = func(sess *xorm.Session) error {
-		rawSQL := "REPLACE INTO route_by_tag_index SELECT tt.id, tt.task_id, tt.tag, tt.created, t.org_id from route_by_tag_index as tt JOIN task as t on tt.task_id=t.id"
-		sess.Table("route_by_tag_index")
-		_, err := sess.Exec(rawSQL)
-		return err
-	}
-	mg.AddMigration("route_by_tag_index add org-id v1", migration)
 }
 
 func addRouteByAnyIndexMigrations(mg *migrator.Migrator) {

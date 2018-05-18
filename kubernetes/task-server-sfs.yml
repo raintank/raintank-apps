@@ -1,0 +1,45 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: task-server-config
+  namespace: dev-rta
+data:
+  task-server.ini: |-
+    db-type = mysql
+    db-connect-str = ts:tp@tcp(mysql-svc:3306)/task_server?charset=utf8
+    log-level = 0
+    addr = :8082
+    admin-key = EASY
+    exchange =
+    [stats]
+    addr = metrictank-svc.metrictank:2003
+    enabled = true
+---
+apiVersion: apps/v1beta1
+kind: StatefulSet
+metadata:
+  name: raintank-apps-task-server
+  namespace: dev-rta
+spec:
+  serviceName: raintank-apps-task-server-svc
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: raintank-apps-task-server
+        product: raintank-apps
+    spec:
+      containers:
+        - image: "raintank-apps-task-server:latest"
+          imagePullPolicy: Never
+          name: task-server-container
+          ports:
+            - containerPort: 8082
+          volumeMounts:
+          - name: config-volume
+            mountPath: /etc/raintank
+      volumes:
+        - name: config-volume
+          configMap:
+            name: task-server-config

@@ -1,0 +1,44 @@
+# use ubuntu image
+FROM golang:latest as rta-builder
+
+# Update APT
+RUN apt-get update
+RUN apt-get install -y apt-utils
+RUN apt-get install -y ca-certificates
+#RUN apt-get install -y curl
+#RUN apt-get install -y apt-utils
+#RUN apt-get install -y software-properties-common
+#RUN apt-get install -y ruby-full bundler
+# Update bundler to latest
+#RUN gem install bundler
+
+# Add git
+#RUN apt-get install -y git
+
+#
+ENV HOME /app
+
+RUN find / -name 'go' -print
+RUN mkdir -p /go
+ENV GOROOT="/usr/local/go"
+ENV GOPATH="/go"
+# Build Application
+ADD . /go/src/github.com/raintank/raintank-apps
+WORKDIR /go/src/github.com/raintank/raintank-apps/scripts
+RUN ./deps.sh
+# remove conflicting vendor files
+RUN rm -rf /go/src/github.com/raintank/worldping-api/vendor/github.com/mattn
+RUN ./build.sh
+
+FROM ubuntu:latest
+RUN apt-get update
+RUN apt-get install -y ca-certificates
+# Copy the built binaries into /app
+RUN mkdir -p /app
+COPY --from=rta-builder /go/src/github.com/raintank/raintank-apps/build/bin/task-server /app
+COPY --from=rta-builder /go/src/github.com/raintank/raintank-apps/build/bin/task-agent-ng /app
+
+EXPOSE 8082
+# Run task-server
+WORKDIR /app
+CMD ["./task-server", "-config", "/etc/raintank/task-server.ini"]

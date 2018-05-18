@@ -30,8 +30,8 @@ type Handlers struct {
 
 func (h *Handlers) Add(key string, ch chan<- RawEvent) {
 	h.Lock()
-	if l, ok := h.Listeners[key]; !ok {
-		l = make([]chan<- RawEvent, 0)
+	if _, ok := h.Listeners[key]; !ok {
+		l := make([]chan<- RawEvent, 0)
 		h.Listeners[key] = l
 	}
 	h.Listeners[key] = append(h.Listeners[key], ch)

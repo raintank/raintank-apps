@@ -2,19 +2,22 @@ package api
 
 import (
 	"github.com/Unknwon/macaron"
+	"github.com/grafana/metrictank/stats"
 	"github.com/macaron-contrib/binding"
-	"github.com/raintank/met"
 	"github.com/raintank/raintank-apps/task-server/api/rbody"
 	"github.com/raintank/raintank-apps/task-server/model"
+	"github.com/raintank/worldping-api/pkg/log"
 )
 
 var (
-	taskCreate      met.Count
-	taskDelete      met.Count
-	agentsConnected met.Gauge
+	tasksCreated = stats.NewCounter64("api.tasks.created")
+	tasksDeleted = stats.NewCounter64("api.tasks.deleted")
+	tasksUpdated = stats.NewCounter64("api.tasks.updated")
 )
 
-func NewApi(adminKey string, metrics met.Backend) *macaron.Macaron {
+func NewApi(adminKey string) *macaron.Macaron {
+	log.Info("NewApi: using app-api-key: %s", adminKey)
+
 	m := macaron.Classic()
 	m.Use(macaron.Renderer())
 	m.Use(GetContextHandler())
@@ -29,11 +32,8 @@ func NewApi(adminKey string, metrics met.Backend) *macaron.Macaron {
 				Post(AgentQuota(), bind(model.AgentDTO{}), AddAgent).
 				Put(bind(model.AgentDTO{}), UpdateAgent)
 			m.Get("/:id", GetAgentById)
-			m.Get("/:id/metrics", GetAgentMetrics)
 			m.Delete("/:id", DeleteAgent)
 		})
-
-		m.Get("/metrics", bind(model.GetMetricsQuery{}), GetMetrics)
 
 		m.Group("/tasks", func() {
 			m.Combo("/").
@@ -46,9 +46,6 @@ func NewApi(adminKey string, metrics met.Backend) *macaron.Macaron {
 		m.Get("/socket/:agent/:ver", socket)
 	}, Auth(adminKey))
 
-	taskCreate = metrics.NewCount("api.tasks_create")
-	taskDelete = metrics.NewCount("api.tasks_delete")
-	agentsConnected = metrics.NewGauge("api.agents_connected", 0)
 	return m
 }
 
