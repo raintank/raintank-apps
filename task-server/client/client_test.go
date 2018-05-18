@@ -72,20 +72,6 @@ func addTestData() {
 	}
 }
 
-func addTestMetrics(agent *model.AgentDTO) {
-	err := sqlstore.AddAgentSession(&model.AgentSession{
-		Id:       uuid.NewUUID().String(),
-		AgentId:  agent.Id,
-		Version:  1,
-		RemoteIp: "127.0.0.1",
-		Server:   "localhost",
-		Created:  time.Now(),
-	})
-	if err != nil {
-		panic(err)
-	}
-}
-
 func TestApiClient(t *testing.T) {
 	done := make(chan struct{})
 	defer func() {
@@ -204,7 +190,7 @@ func TestApiClient(t *testing.T) {
 				t := &model.TaskDTO{
 					Name:     fmt.Sprintf("test Task%d", taskCount),
 					Interval: 60,
-					Config: map[string]map[string]interface{}{"/": {
+					Config: map[string]map[string]interface{}{"/foo": {
 						"user":   "test",
 						"passwd": "test",
 					}},

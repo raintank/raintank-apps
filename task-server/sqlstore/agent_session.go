@@ -35,6 +35,79 @@ func addAgentSession(sess *session, a *model.AgentSession) error {
 	return nil
 }
 
+func AgentSessionHeartbeat(a *model.AgentSession) error {
+	sess, err := newSession(true, "agent_session")
+	if err != nil {
+		return err
+	}
+	defer sess.Cleanup()
+
+	if err := agentSessionHeartbeat(sess, a); err != nil {
+		return err
+	}
+	sess.Complete()
+	return err
+}
+func agentSessionHeartbeat(sess *session, a *model.AgentSession) error {
+	rawSql := "UPDATE agent_session set heartbeat=Now() where id=?"
+	_, err := sess.Exec(rawSql, a.Id)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func DeleteAgentSessionsWithStaleHeartbeat(stale time.Duration) error {
+	sess, err := newSession(true, "agent_session")
+	if err != nil {
+		return err
+	}
+	defer sess.Cleanup()
+	events, err := deleteAgentSessionsWithStaleHeartbeat(sess, stale)
+	if err != nil {
+		return err
+	}
+	sess.Complete()
+	for _, e := range events {
+		event.Publish(e, 0)
+	}
+	return nil
+}
+
+func deleteAgentSessionsWithStaleHeartbeat(sess *session, stale time.Duration) ([]event.Event, error) {
+	events := make([]event.Event, 0)
+	var rawSql = "DELETE FROM agent_session WHERE heartbeat < ?"
+	_, err := sess.Exec(rawSql, time.Now().Add(-1*stale))
+	if err != nil {
+		return nil, err
+	}
+
+	// Get agents that are now offline.
+	nowOffline, err := onlineAgentsWithNoSession(sess)
+	if err != nil {
+		return nil, err
+	}
+	if len(nowOffline) > 0 {
+		agentIds := make([]int64, len(nowOffline))
+		for i, a := range nowOffline {
+			a.Online = false
+			a.OnlineChange = time.Now()
+			agentIds[i] = a.Id
+			log.Info("Agent %s has no sessions. Marking as offline.", a.Name)
+		}
+		sess.UseBool("online")
+		update := map[string]interface{}{"online": false, "online_change": time.Now()}
+		_, err = sess.Table(&model.Agent{}).In("id", agentIds).Update(update)
+		if err != nil {
+			return nil, err
+		}
+		for _, a := range nowOffline {
+			events = append(events, &event.AgentOffline{Ts: time.Now(), Payload: a})
+		}
+	}
+	return events, nil
+}
+
 func DeleteAgentSession(a *model.AgentSession) error {
 	sess, err := newSession(true, "agent_session")
 	if err != nil {

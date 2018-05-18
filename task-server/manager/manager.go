@@ -21,6 +21,8 @@ func Init() {
 	taskCreatedChan := make(chan event.RawEvent, 100)
 	event.Subscribe("task.created", taskCreatedChan)
 	go HandleTaskCreatedEvent(taskCreatedChan)
+
+	go checkOrphanedAgents()
 }
 
 func HandleAgentOfflineEvents(c chan event.RawEvent) {
@@ -74,5 +76,37 @@ func HandleTaskCreatedEvent(c chan event.RawEvent) {
 		}
 
 		go api.ActiveSockets.EmitTask(task, "taskAdd")
+	}
+}
+
+func checkOrphanedAgents() {
+	ticker := time.NewTicker(time.Minute)
+	for range ticker.C {
+		// check for agents marked as online but have no sessions
+		nowOffline, err := sqlstore.OnlineAgentsWithNoSession()
+		if err != nil {
+			log.Error(3, "unable to get list of OnlineAgentsWithNoSession, %s", err)
+			continue
+		}
+		if len(nowOffline) > 0 {
+			for _, a := range nowOffline {
+				a.Online = false
+				a.OnlineChange = time.Now()
+				log.Info("Agent %s has no sessions. Marking as offline.", a.Name)
+				err = sqlstore.UpdateAgent(a)
+				if err != nil {
+					log.Error(3, "failed to update agent. %s", err)
+					continue
+				}
+				event.Publish(&event.AgentOffline{Ts: time.Now(), Payload: a}, 0)
+			}
+		}
+
+		// check for agent_sessions with heartbeats that are no longer being updated.
+		err = sqlstore.DeleteAgentSessionsWithStaleHeartbeat(time.Minute)
+		if err != nil {
+			log.Error(3, "failed to prune stale agent_sessions. %s", err)
+		}
+
 	}
 }

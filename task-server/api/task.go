@@ -58,6 +58,17 @@ func AddTask(ctx *Context, task model.TaskDTO) {
 		return
 	}
 
+	// ensure taskType is set correctly for old clients
+	if task.TaskType == "" {
+		keys := make([]string, 0)
+		for k := range task.Config {
+			keys = append(keys, k)
+		}
+		if len(keys) > 0 {
+			task.TaskType = keys[0]
+		}
+	}
+
 	err = sqlstore.AddTask(&task)
 	if err != nil {
 		log.Error(3, err.Error())
@@ -81,7 +92,16 @@ func UpdateTask(ctx *Context, task model.TaskDTO) {
 		ctx.JSON(200, rbody.ErrResp(400, fmt.Errorf("invalid route config")))
 		return
 	}
-
+	// ensure taskType is set correctly for old clients
+	if task.TaskType == "" {
+		keys := make([]string, 0)
+		for k := range task.Config {
+			keys = append(keys, k)
+		}
+		if len(keys) > 0 {
+			task.TaskType = keys[0]
+		}
+	}
 	err = sqlstore.UpdateTask(&task)
 	if err != nil {
 		log.Error(3, err.Error())

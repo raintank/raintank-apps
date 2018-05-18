@@ -3,6 +3,9 @@ package migrations
 import (
 	"fmt"
 
+	"github.com/go-xorm/xorm"
+	"github.com/raintank/raintank-apps/task-server/model"
+	"github.com/raintank/worldping-api/pkg/log"
 	"github.com/raintank/worldping-api/pkg/services/sqlstore/migrator"
 )
 
@@ -33,6 +36,33 @@ func addTaskMigrations(mg *migrator.Migrator) {
 	migration := migrator.NewAddColumnMigration(taskV1, &migrator.Column{
 		Name: "task_type", Type: migrator.DB_NVarchar, Length: 255, Nullable: true,
 	})
-	//lamigra.OnSuccess = bubba(nil)
+	migration.OnSuccess = func(sess *xorm.Session) error {
+		log.Info("setting TaskType on all tasks in the DB.")
+		// iterate over every task, and copy the config map key to be the taskType.
+		sess.Table("task")
+		var t []*model.Task
+		err := sess.Find(&t)
+		if err != nil {
+			log.Error(3, "failed to get list of tasks. %s", err)
+			return err
+		}
+		log.Info("found %d tasks in the DB.", len(t))
+		for _, task := range t {
+			keys := make([]string, 0)
+			for k := range task.Config {
+				keys = append(keys, k)
+			}
+			if len(keys) > 0 {
+				task.TaskType = keys[0]
+			}
+			_, err := sess.Id(task.Id).Update(task)
+			if err != nil {
+				log.Error(3, "failed to update task with new taskType. %s", err)
+				return err
+			}
+		}
+
+		return err
+	}
 	mg.AddMigration("task add taskType field", migration)
 }

@@ -450,7 +450,6 @@ func getAgentTasks(sess *session, agent *model.AgentDTO) ([]*model.TaskDTO, erro
 	        WHERE agent_tag.agent_id = ?`
 	rawParams = append(rawParams, agent.Id)
 	rawQuery = fmt.Sprintf("%s UNION %s", rawQuery, q)
-	log.Info(rawQuery)
 	err := sess.Sql(rawQuery, rawParams...).Find(&taskIds)
 	if err != nil {
 		return nil, err
@@ -459,22 +458,10 @@ func getAgentTasks(sess *session, agent *model.AgentDTO) ([]*model.TaskDTO, erro
 	if len(taskIds) == 0 {
 		return nil, nil
 	}
-	log.Info("There are %d tasks", len(taskIds))
 
 	tid := make([]int64, len(taskIds))
 	for i, t := range taskIds {
-		log.Info("Adding TaskID %d to tid array", t.TaskId)
 		tid[i] = t.TaskId
-	}
-	z := "SELECT * from task WHERE task.enabled=1"
-
-	log.Info("Gettings tasks matching id list")
-	results, zerr := sess.Query(z)
-	if results != nil {
-		log.Info("matching tasks found")
-	}
-	if zerr != nil {
-		return nil, zerr
 	}
 
 	sess.Table("task")
@@ -486,7 +473,7 @@ func getAgentTasks(sess *session, agent *model.AgentDTO) ([]*model.TaskDTO, erro
 	if err != nil {
 		return nil, err
 	}
-	return tasks, zerr
+	return tasks, err
 }
 
 func DeleteTask(id int64, orgId int64) (*model.TaskDTO, error) {

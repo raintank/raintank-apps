@@ -27,4 +27,7 @@ func addAgentSessionMigrations(mg *migrator.Migrator) {
 		migrationId := fmt.Sprintf("create index %s - %s", index.XName(agentSessionV1.Name), "v1")
 		mg.AddMigration(migrationId, migrator.NewAddIndexMigration(agentSessionV1, index))
 	}
+
+	// add heartbeat
+	mg.AddMigration("agent_session add heartbeat column", migrator.NewAddColumnMigration(agentSessionV1, &migrator.Column{Name: "heartbeat", Type: migrator.DB_DateTime, Default: "'2018-01-01 00:00:00'"}))
 }

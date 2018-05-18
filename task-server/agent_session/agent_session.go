@@ -3,6 +3,7 @@ package agent_session
 import (
 	"encoding/json"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -21,6 +22,8 @@ type AgentSession struct {
 	Done          chan struct{}
 	Shutdown      chan struct{}
 	closing       bool
+
+	sync.Mutex
 }
 
 func NewSession(agent *model.AgentDTO, agentVer int64, conn *websocket.Conn) *AgentSession {
@@ -35,6 +38,8 @@ func NewSession(agent *model.AgentDTO, agentVer int64, conn *websocket.Conn) *Ag
 }
 
 func (a *AgentSession) Start() error {
+	a.Lock()
+	defer a.Unlock()
 	if err := a.saveDbSession(); err != nil {
 		log.Error(3, "unable to add agentSession to DB. %s", err.Error())
 		a.close()
@@ -59,7 +64,9 @@ func (a *AgentSession) Start() error {
 }
 
 func (a *AgentSession) Close() {
+	a.Lock()
 	a.close()
+	a.Unlock()
 }
 
 func (a *AgentSession) close() {
@@ -78,12 +85,13 @@ func (a *AgentSession) close() {
 func (a *AgentSession) saveDbSession() error {
 	host, _ := os.Hostname()
 	dbSess := &model.AgentSession{
-		Id:       a.SocketSession.Id,
-		AgentId:  a.Agent.Id,
-		Version:  a.AgentVersion,
-		RemoteIp: a.SocketSession.Conn.RemoteAddr().String(),
-		Server:   host,
-		Created:  time.Now(),
+		Id:        a.SocketSession.Id,
+		AgentId:   a.Agent.Id,
+		Version:   a.AgentVersion,
+		RemoteIp:  a.SocketSession.Conn.RemoteAddr().String(),
+		Server:    host,
+		Created:   time.Now(),
+		Heartbeat: time.Now(),
 	}
 	err := sqlstore.AddAgentSession(dbSess)
 	if err != nil {
@@ -106,7 +114,7 @@ func (a *AgentSession) cleanup() {
 func (a *AgentSession) OnDisconnect() interface{} {
 	return func() {
 		log.Debug("session %s has disconnected", a.SocketSession.Id)
-		a.close()
+		a.Close()
 	}
 }
 
@@ -122,6 +130,21 @@ func (a *AgentSession) sendHeartbeat() {
 			err := a.SocketSession.Emit(e)
 			if err != nil {
 				log.Error(3, "failed to emit heartbeat event. %s", err)
+			} else {
+				err = sqlstore.AgentSessionHeartbeat(a.dbSession)
+				if err != nil {
+					log.Error(3, "failed to save update session heartbeat in DB. %s", err)
+				} else {
+					a.Lock()
+					a.dbSession.Heartbeat = time.Now()
+					a.Unlock()
+				}
+			}
+			a.Lock()
+			hb := a.dbSession.Heartbeat
+			a.Unlock()
+			if time.Since(hb) > time.Second*time.Duration(20) {
+				a.Close()
 			}
 		}
 	}
