@@ -37,7 +37,8 @@ RUN apt-get install -y ca-certificates
 RUN mkdir -p /app
 COPY --from=rta-builder /go/src/github.com/raintank/raintank-apps/build/bin/task-server /app
 COPY --from=rta-builder /go/src/github.com/raintank/raintank-apps/build/bin/task-agent-ng /app
-
+RUN mkdir /etc/raintank
+COPY ./example-config/task-server.ini /etc/raintank/task-server.ini
 EXPOSE 8082
 # Run task-server
 WORKDIR /app

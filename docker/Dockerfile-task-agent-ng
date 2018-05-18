@@ -9,7 +9,8 @@ ENV HOME /app
 # Copy the built binaries into /app
 RUN mkdir -p /app
 COPY --from=raintank/raintank-apps-task-server /app/task-agent-ng /app
-
-# Run task-server
+RUN mkdir /etc/raintank
+COPY ./example-config/task-agent-ng.ini /etc/raintank/task-agent.ini
+# Run task-agent
 WORKDIR /app
 CMD ["./task-agent-ng", "-config", "/etc/raintank/task-agent.ini"]

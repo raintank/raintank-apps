@@ -1,36 +1,5 @@
 version: 2
 jobs:
-  build:
-    working_directory: /go/src/github.com/raintank/raintank-apps
-    docker:
-      - image: circleci/golang:1.10
-    steps:
-      - checkout
-      - run:
-          name: Install Dependencies
-          command: scripts/deps.sh
-      - run:
-          name: Build
-          command: scripts/build.sh
-      - setup_remote_docker
-      - run:
-          name: Build Docker Images
-          command: scripts/build_docker.sh
-      - run:
-          name: Create directory for saving docker build
-          command: mkdir build_docker
-      - run:
-          name: Export task-server docker image
-          command: docker save -o build_docker/raintank-apps-task-server.tar raintank/raintank-apps-task-server
-      - run:
-          name: Export task-agent-ng docker image
-          command: docker save -o build_docker/raintank-apps-task-agent-ng.tar raintank/raintank-apps-task-agent-ng
-      - persist_to_workspace:
-          root: .
-          paths:
-            - build
-            - build_docker
-
   test:
     working_directory: /go/src/github.com/raintank/raintank-apps
     docker:
@@ -74,10 +43,29 @@ jobs:
       #    name: Check Vendoring
       #    command: scripts/qa/vendor.sh
 
+  deploy:
+    docker:
+      - image: circleci/golang:1.10
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Build Docker Images
+          command: scripts/build_docker.sh
+      - deploy:
+          command: |
+            if [ "${CIRCLE_BRANCH}" == "master" ]; then
+              docker login -u $DOCKER_USER -p $DOCKER_PASS
+              scripts/deploy_docker.sh
+            fi
+
 workflows:
   version: 2
   build_test_qa:
     jobs:
-      - build
       - test
       - qa
+      - deploy:
+        requires:
+          - test
+          - qa
