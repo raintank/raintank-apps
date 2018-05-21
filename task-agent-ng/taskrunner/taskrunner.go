@@ -3,93 +3,181 @@
 package taskrunner
 
 import (
-	"fmt"
-	"time"
+	"net/url"
+	"sync"
 
 	"github.com/grafana/metrictank/stats"
+	"github.com/raintank/raintank-apps/task-agent-ng/collector-ns1/ns1"
+	"github.com/raintank/raintank-apps/task-agent-ng/collector-voxter/voxter"
+	"github.com/raintank/raintank-apps/task-agent-ng/publisher"
+	"github.com/raintank/raintank-apps/task-server/model"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/robfig/cron.v2"
 )
 
 var (
-	runnerAddedCount   = stats.NewCounter32("runner.tasks.added")
-	runnerRemovedCount = stats.NewCounter32("runner.tasks.removed")
-	runnerInitialized  = stats.NewGauge32("runner.initialized")
-	runnerActiveTasks  = stats.NewGauge32("runner.tasks.active")
+	taskAddedCount   = stats.NewCounter32("tasks.added")
+	taskUpdatedCount = stats.NewCounter32("tasks.updated")
+	taskRemovedCount = stats.NewCounter32("tasks.removed")
+	taskInvalidCount = stats.NewCounter32("tasks.invalid")
+	taskRunning      = stats.NewGauge32("tasks.running")
 )
 
-// TaskMeta holds creation and execution data about a collector
-type TaskMeta struct {
-	ID                 int
-	Name               string
-	CreationTimestamp  int64
-	LastRunTimestamp   int64
-	FailedCount        int64
-	LastFailureMessage string
-	State              int
-	CronID             cron.EntryID
+type Plugin interface {
+	CollectMetrics()
 }
 
-// TaskRunner holds the cron object and all job Task Meta information
-type TaskRunner struct {
-	Master *cron.Cron
-	Jobs   map[int]TaskMeta
+type nullPlugin struct{}
+
+func (n *nullPlugin) CollectMetrics() {
+	return
 }
 
-// Init required to initialize cron and tracking map
-func (c *TaskRunner) Init() {
-	log.Info("Creating Cron")
-	c.Jobs = make(map[int]TaskMeta)
-	c.Master = cron.New()
-	c.Master.Start()
-	runnerInitialized.Inc()
+type Task struct {
+	Task   *model.TaskDTO
+	Ticker *Ticker
+	Plugin Plugin
 }
 
-// Add Creates a new cron job to execute an arbitrary collection
-func (c *TaskRunner) Add(taskID int, jobSchedule string, jobFunc func()) cron.EntryID {
-	log.Infof("Adding job for task %d to Cron", taskID)
-	taskName := fmt.Sprintf("raintank-apps:%d", taskID)
-
-	jobID, _ := c.Master.AddFunc(jobSchedule, jobFunc)
-	runnerAddedCount.Inc()
-	runnerActiveTasks.Set(len(c.Master.Entries()))
-	c.Jobs[int(taskID)] = TaskMeta{
-		CronID:            jobID,
-		ID:                taskID,
-		CreationTimestamp: time.Now().Unix(),
-		Name:              taskName,
-		State:             1,
+func NewTask(task *model.TaskDTO, publisher *publisher.Tsdb) *Task {
+	var plugin Plugin
+	var err error
+	log.Infof("creating task of type %s", task.TaskType)
+	switch task.TaskType {
+	case "/raintank/apps/ns1":
+		plugin, err = ns1.New(task, publisher)
+		if err != nil {
+			log.Errorf("failed to add ns1 task %d. %s", task.Id, err)
+			taskInvalidCount.Inc()
+			plugin = new(nullPlugin)
+		}
+	case "/raintank/apps/voxter":
+		plugin, err = voxter.New(task, publisher)
+		if err != nil {
+			log.Errorf("failed to add ns1 task. %s", err)
+			taskInvalidCount.Inc()
+			plugin = new(nullPlugin)
+		}
+	default:
+		log.Infof("Unknown Plugin requested. %s", task.TaskType)
+		taskInvalidCount.Inc()
+		plugin = new(nullPlugin)
 	}
-	return jobID
+	t := &Task{
+		Task:   task,
+		Ticker: NewTicker(task.Interval, (task.Created.Unix() % task.Interval)),
+		Plugin: plugin,
+	}
+	go t.loop()
+	if task.Enabled {
+		t.Run()
+	}
+	return t
 }
 
-// Remove terminates a runnning job and removes from map
-func (c *TaskRunner) Remove(aJob TaskMeta) {
-	// TODO use task meta vs the cron id
-	log.Infof("Removing job with cronId %d from cron", aJob.CronID)
-	c.Master.Remove(aJob.CronID)
-	log.Infof("Removing job wit ID %d from job tracker", aJob.ID)
-	delete(c.Jobs, aJob.ID)
-	runnerRemovedCount.Inc()
-	runnerActiveTasks.Set(len(c.Master.Entries()))
+func (t *Task) loop() {
+	log.Infof("Starting execution loop for task %d, Frequency: %d, Offset: %d", t.Task.Id, t.Task.Interval, (t.Task.Created.Unix() % t.Task.Interval))
+	for range t.Ticker.C {
+		t.Plugin.CollectMetrics()
+	}
+	log.Infof("execution loop for task %d has ended.", t.Task.Id)
 }
 
-// Exists returns the job metadata and true if it is found
-func (c *TaskRunner) Exists(jobID int) (TaskMeta, bool) {
-	log.Debugf("Checking for job %d", jobID)
-	aJob, ok := c.Jobs[jobID]
-	if ok {
-		// check if the id matches
-		if aJob.ID == jobID {
-			return aJob, true
+func (t *Task) Run() {
+	log.Infof("enabling execution thread for task %d", t.Task.Id)
+	t.Ticker.Start()
+}
+
+func (t *Task) Stop() {
+	log.Infof("pausing execution thread for task %d.", t.Task.Id)
+	t.Ticker.Stop()
+}
+
+func (t *Task) Delete() {
+	log.Infof("stopping execution thread for task %d.", t.Task.Id)
+	t.Ticker.Delete()
+}
+
+type TaskRunner struct {
+	sync.RWMutex
+	Tasks     map[int64]*Task
+	Publisher *publisher.Tsdb
+}
+
+func NewTaskRunner(tsdbgwAddr string, tsdbgwApiKey string) *TaskRunner {
+	tsdbgwURL, err := url.Parse(tsdbgwAddr)
+	if err != nil {
+		log.Fatalf("Invalid TSDB url. %s", err)
+	}
+	return &TaskRunner{
+		Publisher: publisher.NewTsdb(tsdbgwURL, tsdbgwApiKey, 1),
+		Tasks:     make(map[int64]*Task),
+	}
+}
+
+// AddTask given a TaskDTO this will create a new job
+func (t *TaskRunner) AddTask(task *model.TaskDTO) error {
+	t.Lock()
+	defer t.Unlock()
+	return t.addTask(task)
+}
+
+func (t *TaskRunner) addTask(task *model.TaskDTO) error {
+	if existing, ok := t.Tasks[task.Id]; ok {
+		existing.Delete()
+		taskRunning.Dec()
+	}
+	t.Tasks[task.Id] = NewTask(task, t.Publisher)
+	taskAddedCount.Inc()
+	taskRunning.Inc()
+	return nil
+}
+
+// UpdateTasks Iterates over the tasks and removes stale entries
+func (t *TaskRunner) UpdateTasks(tasks []*model.TaskDTO) {
+	seenTaskIds := make(map[int64]struct{})
+	t.Lock()
+	for _, task := range tasks {
+		seenTaskIds[task.Id] = struct{}{}
+		existing, ok := t.Tasks[task.Id]
+		if !ok {
+			// new task
+			err := t.addTask(task)
+			if err != nil {
+				log.Error(err.Error())
+			}
+		} else if task.Updated.After(existing.Task.Updated) {
+			// update task
+			err := t.addTask(task)
+			if err != nil {
+				log.Error(err.Error())
+			}
+			taskUpdatedCount.Inc()
 		}
 	}
-	return aJob, false
+	tasksToDel := make([]*Task, 0)
+	for id, task := range t.Tasks {
+		if _, ok := seenTaskIds[id]; !ok {
+			tasksToDel = append(tasksToDel, task)
+		}
+	}
+	if len(tasksToDel) > 0 {
+		for _, task := range tasksToDel {
+			task.Delete()
+			delete(t.Tasks, task.Task.Id)
+			taskRunning.Dec()
+		}
+	}
+	t.Unlock()
 }
 
-// Shutdown stops the cron service
-func (c *TaskRunner) Shutdown() {
-	log.Info("Shutting down...")
-	defer c.Master.Stop()
-	runnerInitialized.Set(0)
+func (t *TaskRunner) RemoveTask(task *model.TaskDTO) error {
+	t.Lock()
+	defer t.Unlock()
+	if existing, ok := t.Tasks[task.Id]; ok {
+		existing.Delete()
+		taskRemovedCount.Inc()
+		taskRunning.Dec()
+	}
+	delete(t.Tasks, task.Id)
+	return nil
 }

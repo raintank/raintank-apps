@@ -29,6 +29,7 @@ var (
 
 var (
 	tsdbgwSendSuccessCount      = stats.NewCounter32("tsdbgw.send.success")
+	tsdbgwSendMetrics           = stats.NewCounter32("tsdbgw.send.metrics")
 	tsdbgwSendFailureCount      = stats.NewCounter32("tsdbgw.send.failure")
 	tsdbgwSendSuccessDurationNS = stats.NewGauge64("tsdbgw.send.success.duration_ns")
 	tsdbgwSendFailureDurationNS = stats.NewGauge64("tsdbgw.send.failure.duration_ns")
@@ -118,6 +119,7 @@ func (t *Tsdb) run() {
 		if len(metrics[shard]) == 0 {
 			return
 		}
+		tsdbgwSendMetrics.Add(len(metrics[shard]))
 		mda := schema.MetricDataArray(metrics[shard])
 		data, err := msg.CreateMsg(mda, 0, msg.FormatMetricDataArrayMsgp)
 		if err != nil {
