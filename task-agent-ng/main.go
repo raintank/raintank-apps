@@ -87,7 +87,7 @@ func main() {
 		log.Fatal("name must be set.")
 	}
 
-	InitTaskCache(tsdbgwAddr, tsdbgwAdminAPIKey)
+	InitTaskRunner(*tsdbgwAddr, *tsdbgwAdminAPIKey)
 
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
